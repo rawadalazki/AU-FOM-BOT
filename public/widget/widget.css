@@ -1,0 +1,499 @@
+/* Modern, glassmorphism design for chatbot widget */
+:root {
+  --chat-primary: #6366f1;
+  --chat-primary-hover: #4f46e5;
+  --chat-bg: rgba(17, 24, 39, 0.95);
+  --chat-panel: rgba(31, 41, 55, 0.7);
+  --chat-text: #f3f4f6;
+  --chat-text-muted: #9ca3af;
+  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-user-msg: #312e81;
+  --chat-bot-msg: #1f2937;
+  --chat-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --chat-font: system-ui, -apple-system, sans-serif;
+}
+
+#unibot-widget-container {
+  font-family: var(--chat-font);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+#unibot-widget-container[dir="rtl"] {
+  right: auto;
+  left: 24px;
+  align-items: flex-start;
+}
+
+/* Floating Chat Trigger Button */
+.unibot-trigger-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, var(--chat-primary) 0%, #4f46e5 100%);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  outline: none;
+}
+
+.unibot-trigger-btn:hover {
+  transform: scale(1.08) rotate(5deg);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+}
+
+.unibot-trigger-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: white;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.3s ease;
+}
+
+.unibot-trigger-btn.active svg {
+  transform: rotate(90deg);
+}
+
+/* Chat Window Frame */
+.unibot-chat-window {
+  width: 380px;
+  height: 580px;
+  background: var(--chat-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--chat-border);
+  border-radius: 20px;
+  box-shadow: var(--chat-shadow);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.unibot-chat-window.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Header styling */
+.unibot-chat-header {
+  padding: 16px 20px;
+  background: linear-gradient(to right, rgba(99, 102, 241, 0.15), rgba(79, 70, 229, 0.05));
+  border-bottom: 1px solid var(--chat-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.unibot-chat-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.unibot-chat-title {
+  color: var(--chat-text);
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0;
+}
+
+.unibot-chat-subtitle {
+  color: var(--chat-text-muted);
+  font-size: 11px;
+  margin: 2px 0 0 0;
+}
+
+.unibot-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Language Toggle Button */
+.unibot-lang-toggle {
+  background: var(--chat-panel);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text);
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  outline: none;
+}
+
+.unibot-lang-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.unibot-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unibot-close-btn svg {
+  stroke: var(--chat-text-muted);
+  width: 20px;
+  height: 20px;
+  transition: stroke 0.2s;
+}
+
+.unibot-close-btn:hover svg {
+  stroke: white;
+}
+
+/* Chat Body (Message Container) */
+.unibot-chat-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbars */
+.unibot-chat-body::-webkit-scrollbar {
+  width: 6px;
+}
+.unibot-chat-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.unibot-chat-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.unibot-chat-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Speech Bubbles */
+.unibot-message {
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  animation: messageFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes messageFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.unibot-message-bot {
+  align-self: flex-start;
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-message-bot {
+  align-self: flex-end;
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-message-user {
+  align-self: flex-start;
+}
+
+.unibot-message-user {
+  align-self: flex-end;
+}
+
+.unibot-message-content {
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.unibot-message-bot .unibot-message-content {
+  background: var(--chat-bot-msg);
+  color: var(--chat-text);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--chat-border);
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-message-bot .unibot-message-content {
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 4px;
+}
+
+.unibot-message-user .unibot-message-content {
+  background: var(--chat-user-msg);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-message-user .unibot-message-content {
+  border-bottom-right-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+/* Action Menu Buttons / Navigation Options */
+.unibot-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--chat-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.unibot-btn-option {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--chat-border);
+  color: var(--chat-text);
+  padding: 12px 16px;
+  font-size: 13.5px;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease;
+  outline: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.unibot-btn-option:last-child {
+  border-bottom: none;
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-btn-option {
+  text-align: right;
+  flex-direction: row-reverse;
+}
+
+.unibot-btn-option:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.unibot-btn-icon {
+  color: var(--chat-primary);
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+
+.unibot-btn-option:hover .unibot-btn-icon {
+  transform: translateX(3px);
+}
+
+#unibot-widget-container[dir="rtl"] .unibot-btn-option:hover .unibot-btn-icon {
+  transform: translateX(-3px);
+}
+
+/* Flat outline back button for navigation */
+.unibot-btn-back {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--chat-border);
+  color: var(--chat-text-muted);
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  outline: none;
+}
+
+.unibot-btn-back:hover {
+  color: var(--chat-text);
+  border-color: var(--chat-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+
+/* File Download Link Card */
+.unibot-file-card {
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--chat-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--chat-text);
+  transition: all 0.2s;
+}
+
+.unibot-file-card:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--chat-primary);
+}
+
+.unibot-file-icon {
+  background: var(--chat-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unibot-file-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: white;
+  fill: none;
+  stroke-width: 2;
+}
+
+.unibot-file-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unibot-file-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.unibot-file-download-label {
+  font-size: 11px;
+  color: var(--chat-primary);
+  margin-top: 2px;
+}
+
+/* Tabs for navigation (Chat vs Announcements) */
+.unibot-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--chat-border);
+}
+
+.unibot-tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--chat-text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.unibot-tab.active {
+  color: var(--chat-primary);
+  border-bottom-color: var(--chat-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* Announcements Panel */
+.unibot-announcements-panel {
+  display: none;
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.unibot-announcements-panel.active {
+  display: flex;
+}
+
+.unibot-announcement-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.unibot-announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.unibot-announcement-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--chat-text);
+  margin: 0;
+}
+
+.unibot-announcement-date {
+  font-size: 10px;
+  color: var(--chat-text-muted);
+}
+
+.unibot-announcement-content {
+  font-size: 12.5px;
+  color: var(--chat-text-muted);
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+  white-space: pre-wrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .unibot-chat-window {
+    width: calc(100vw - 32px);
+    height: calc(100vh - 120px);
+    bottom: 80px;
+  }
+}
+
+/* Widget Search Bar styling */
+.unibot-search-bar {
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--chat-border);
+}
+
+.unibot-search-bar input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.unibot-search-bar input:focus {
+  border-color: var(--chat-primary);
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.25);
+  background: rgba(0, 0, 0, 0.35);
+}

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniBot Hub - Multilingual Bot Manager</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- App Container -->
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12c0-5.25 4.05-9.55 9.25-9.97V12h9.75"></path></svg>
+        <div class="logo-text">
+          <h1>UniBot Hub</h1>
+          <span data-i18n="tagline">Multilingual Faculty Bot Manager</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/widget/chatbot.html" target="_blank" class="demo-widget-link" data-i18n="demo_widget">Open Web Chatbot Demo</a>
+        <button class="lang-switch-btn" id="dashboard-lang-btn">العربية (RTL)</button>
+      </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="app-body">
+      
+      <!-- Sidebar: Faculties List -->
+      <aside class="app-sidebar">
+        <div class="sidebar-header">
+          <h2 data-i18n="faculties_title">Faculty Bots</h2>
+          <button class="btn btn-primary btn-sm" id="btn-new-faculty" data-i18n="new_faculty_btn">+ Create New</button>
+        </div>
+        <div class="faculty-list" id="faculty-list-container">
+          <!-- Populated dynamically -->
+          <div class="loading-spinner"></div>
+        </div>
+      </aside>
+
+      <!-- Main Workspace -->
+      <main class="app-workspace" id="workspace-container">
+        <!-- Default State: No Bot Selected -->
+        <div class="workspace-empty-state" id="empty-state" style="align-items: stretch; text-align: left; padding: 24px;">
+          <div class="card" style="width: 100%; border: 1px solid var(--border-color); background: var(--bg-card); padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+              <div>
+                <h2 style="font-size: 20px; font-weight: 600; margin: 0; color: var(--text-color);">🌐 لوحة التحكم المركزية لجميع البوتات / Central Bots Directory</h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0 0;">استعراض حالة البوتات النشطة والمشرفين المعتمدين / High-level status of all faculty instances and admins</p>
+              </div>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>اسم الكلية / Faculty</th>
+                    <th>معرف الرابط / Slug</th>
+                    <th>حالة البوت / Telegram Status</th>
+                    <th>المشرف المركزي / Central Admin ID</th>
+                    <th>المشرفون الفرعيون / Secondary Admins</th>
+                  </tr>
+                </thead>
+                <tbody id="central-bots-table-body">
+                  <!-- Loaded dynamically in app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editor State: Customize Bot -->
+        <div class="workspace-content" id="editor-state" style="display: none;">
+          
+          <!-- Faculty Configuration Card -->
+          <section class="card faculty-config-card">
+            <div class="faculty-title-bar">
+              <div>
+                <h2 id="active-faculty-name">Faculty Name</h2>
+                <div class="slug-badge" id="active-faculty-slug">Slug: fom</div>
+              </div>
+              <div class="bot-actions-row">
+                <button class="btn btn-secondary" id="btn-duplicate-active" data-i18n="duplicate_btn">Duplicate Bot</button>
+                <button class="btn btn-danger" id="btn-delete-active" data-i18n="delete_btn">Delete Bot</button>
+              </div>
+            </div>
+
+            <!-- Telegram Token form -->
+            <form class="token-form" id="telegram-token-form">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="telegram-token-input" data-i18n="telegram_token_label">Telegram Bot Token</label>
+                  <input type="text" id="telegram-token-input" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ...">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="telegram-admin-chat-input">Authorized Admin Telegram Chat ID</label>
+                  <input type="text" id="telegram-admin-chat-input" placeholder="e.g. 987654321 (Get it by sending /myid to bot)">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="telegram-welcome-en">Welcome Message (English)</label>
+                  <textarea id="telegram-welcome-en" rows="2" placeholder="Welcome to the bot! Please select an option..."></textarea>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="telegram-welcome-ar">Welcome Message (Arabic)</label>
+                  <textarea id="telegram-welcome-ar" rows="2" placeholder="مرحباً بك في البوت! الرجاء اختيار أحد الخيارات..."></textarea>
+                </div>
+              </div>
+              <div class="form-row" style="margin-top: 12px; align-items: center;">
+                <div class="form-group" style="flex: 0 0 200px; display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="telegram-bot-enabled" style="width: auto; height: auto;">
+                  <label for="telegram-bot-enabled" style="margin: 0; cursor: pointer; font-weight: bold;">تفعيل البوت / Enable Bot</label>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="telegram-disabled-ar">رسالة الإيقاف (العربية) / Disabled Message (AR)</label>
+                  <input type="text" id="telegram-disabled-ar" placeholder="مثال: البوت متوقف حالياً للصيانة">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="telegram-disabled-en">رسالة الإيقاف (الإنجليزية) / Disabled Message (EN)</label>
+                  <input type="text" id="telegram-disabled-en" placeholder="e.g. The bot is temporarily offline for maintenance">
+                </div>
+              </div>
+              <div class="form-row" style="margin-top: 12px;">
+                <div class="form-group flex-1">
+                  <label for="telegram-api-server">سيرفر وكيل تيليجرام (اختياري لتخطي الحظر بسوريا) / Telegram API Server Proxy (Optional to bypass block)</label>
+                  <input type="text" id="telegram-api-server" placeholder="api.telegram.org (e.g. tproxy.click or custom reverse proxy)">
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 12px;">
+                <div class="token-status-indicator" id="telegram-bot-status">
+                  <span class="status-dot status-offline"></span>
+                  <span class="status-text" data-i18n="status_offline">Status: Offline</span>
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-save-token" data-i18n="save_connect_btn">Save & Connect</button>
+              </div>
+            </form>
+          </section>
+
+          <!-- Tab Navigation -->
+          <nav class="workspace-tabs">
+            <button class="tab-btn active" data-tab="tab-menus" data-i18n="tab_menu_builder">Interactive Menu Builder</button>
+            <button class="tab-btn" data-tab="tab-announcements" data-i18n="tab_announcements">Broadcast Announcements</button>
+            <button class="tab-btn" data-tab="tab-subscribers" data-i18n="tab_subscribers">Bot Users & Analytics</button>
+          </nav>
+
+          <!-- Tab Pages -->
+          <div class="tab-pages">
+            
+            <!-- 1. Menu Builder Tab -->
+            <div class="tab-page active" id="tab-menus">
+              <div class="menu-builder-layout">
+                <!-- Menu Tree (Left side) -->
+                <div class="menu-tree-container">
+                  <div class="tree-header">
+                    <h3 data-i18n="menus_list_title">Menu Hierarchy</h3>
+                    <button class="btn btn-primary btn-xs" id="btn-add-root-menu" data-i18n="add_root_menu">+ Add Root Button</button>
+                  </div>
+                  <div class="tree-body" id="menu-tree">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+                <!-- Menu Item Editor Form (Right side) -->
+                <div class="menu-editor-container" id="menu-form-card" style="display: none;">
+                  <div class="card">
+                    <h3 id="menu-editor-title" data-i18n="edit_menu_title">Edit Menu Option</h3>
+                    <form id="menu-item-form">
+                      <input type="hidden" id="menu-item-id">
+                      <input type="hidden" id="menu-parent-id">
+
+                      <!-- Parent indicator -->
+                      <div class="parent-indicator" id="menu-parent-indicator" style="display:none;">
+                        <span data-i18n="parent_label">Parent Menu:</span> <strong id="menu-parent-title">None</strong>
+                      </div>
+
+                      <!-- Multi-language Titles side-by-side -->
+                      <div class="form-row">
+                        <div class="form-group flex-1">
+                          <label for="menu-title-en" data-i18n="button_title_en">Button Title (English)</label>
+                          <input type="text" id="menu-title-en" required placeholder="e.g. Schedule">
+                        </div>
+                        <div class="form-group flex-1">
+                          <label for="menu-title-ar" data-i18n="button_title_ar">Button Title (Arabic)</label>
+                          <input type="text" id="menu-title-ar" required placeholder="مثال: الجدول الدراسي">
+                        </div>
+                      </div>
+
+                      <!-- Sort Order -->
+                      <div class="form-group">
+                        <label for="menu-sort-order" data-i18n="sort_order">Sort Order (Lower numbers show first)</label>
+                        <input type="number" id="menu-sort-order" value="0">
+                      </div>
+
+                      <!-- Reply Type -->
+                      <div class="form-group">
+                        <label for="menu-reply-type" data-i18n="action_type">Action / Reply Type</label>
+                        <select id="menu-reply-type" required>
+                          <option value="submenu" data-i18n="opt_submenu">Submenu (Triggers nested options)</option>
+                          <option value="text" data-i18n="opt_text">Text Reply (Sends dynamic message)</option>
+                          <option value="file" data-i18n="opt_file">Document Download (Attaches file upload)</option>
+                        </select>
+                      </div>
+
+                      <!-- Conditional Content: Text / File replies -->
+                      <div id="menu-conditional-content">
+                        
+                        <!-- Multi-language Reply Content -->
+                        <div class="form-group reply-text-fields">
+                          <label for="menu-content-en" data-i18n="reply_content_en">Reply Content (English)</label>
+                          <textarea id="menu-content-en" rows="4" placeholder="Enter text response in English..."></textarea>
+                        </div>
+                        <div class="form-group reply-text-fields">
+                          <label for="menu-content-ar" data-i18n="reply_content_ar">Reply Content (Arabic)</label>
+                          <textarea id="menu-content-ar" rows="4" placeholder="اكتب رد البوت باللغة العربية..."></textarea>
+                        </div>
+
+                        <!-- File Upload field -->
+                        <div class="form-group reply-file-fields" style="display: none;">
+                          <label for="menu-file-input" data-i18n="file_upload_label">Attach Document (PDF, Word, Images)</label>
+                          <div class="file-upload-wrapper">
+                            <input type="file" id="menu-file-input">
+                          </div>
+                          <div class="current-file-info" id="menu-current-file" style="display: none;">
+                            <span data-i18n="current_file">Current File:</span> <a href="#" id="menu-file-link" target="_blank">document.pdf</a>
+                            <label class="checkbox-label">
+                              <input type="checkbox" id="menu-remove-file-chk"> <span data-i18n="remove_file">Remove attachment</span>
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" data-i18n="save_changes">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-menu" data-i18n="cancel">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Announcements Tab -->
+            <div class="tab-page" id="tab-announcements">
+              <div class="announcements-layout">
+                
+                <!-- Create Announcement form -->
+                <div class="card announcement-form-card">
+                  <h3 data-i18n="new_broadcast_title">Create New Broadcast</h3>
+                  <p class="form-help" data-i18n="broadcast_help_text">This announcement will be instantly sent to all Telegram subscribers and displayed in the Web Chatbot widget feed.</p>
+                  
+                  <form id="announcement-form">
+                    <!-- Titles -->
+                    <div class="form-row">
+                      <div class="form-group flex-1">
+                        <label for="ann-title-en" data-i18n="ann_title_en">Announcement Title (English)</label>
+                        <input type="text" id="ann-title-en" required placeholder="e.g. Midterm Results Released">
+                      </div>
+                      <div class="form-group flex-1">
+                        <label for="ann-title-ar" data-i18n="ann_title_ar">Announcement Title (Arabic)</label>
+                        <input type="text" id="ann-title-ar" required placeholder="مثال: صدور نتائج امتحانات نصف العام">
+                      </div>
+                    </div>
+
+                    <!-- Contents -->
+                    <div class="form-group">
+                      <label for="ann-content-en" data-i18n="ann_content_en">Message Content (English)</label>
+                      <textarea id="ann-content-en" rows="5" required placeholder="Write announcement details in English..."></textarea>
+                    </div>
+                    <div class="form-group">
+                      <label for="ann-content-ar" data-i18n="ann_content_ar">Message Content (Arabic)</label>
+                      <textarea id="ann-content-ar" rows="5" required placeholder="اكتب تفاصيل الإعلان باللغة العربية..."></textarea>
+                    </div>
+
+                    <!-- File attachment -->
+                    <div class="form-group">
+                      <label for="ann-file-input" data-i18n="ann_file_label">Optional Attachment File (e.g. PDF Results sheet)</label>
+                      <div class="file-upload-wrapper">
+                        <input type="file" id="ann-file-input">
+                      </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" data-i18n="btn_broadcast">📢 Broadcast Now</button>
+                  </form>
+                </div>
+
+                <!-- Announcements History List -->
+                <div class="card announcements-history-card">
+                  <h3 data-i18n="broadcast_history_title">Broadcast History</h3>
+                  <div class="announcements-list" id="announcements-history-container">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- 3. Subscribers Tab -->
+            <div class="tab-page" id="tab-subscribers">
+              <div class="subscribers-layout">
+                
+                <!-- Analytics Counters Cards -->
+                <div class="analytics-row">
+                  <div class="analytic-card">
+                    <h4 data-i18n="total_users">Total Bot Users</h4>
+                    <span class="count-value" id="stats-total-users">0</span>
+                  </div>
+                  <div class="analytic-card">
+                    <h4 data-i18n="telegram_users">Telegram Subscribers</h4>
+                    <span class="count-value" id="stats-telegram-users">0</span>
+                  </div>
+                  <div class="analytic-card">
+                    <h4 data-i18n="web_users">Web Chatbot Sessions</h4>
+                    <span class="count-value" id="stats-web-users">0</span>
+                  </div>
+                </div>
+
+                <!-- User Logs Table -->
+                <div class="card user-logs-card">
+                  <h3 data-i18n="subscribers_list_title">Subscriber Registry</h3>
+                  <div class="table-responsive">
+                    <table class="table">
+                      <thead>
+                        <tr>
+                          <th data-i18n="tbl_platform">Platform</th>
+                          <th data-i18n="tbl_chat_id">Chat / Session ID</th>
+                          <th data-i18n="tbl_username">Username</th>
+                          <th data-i18n="tbl_language">Language</th>
+                          <th data-i18n="tbl_joined">Joined At</th>
+                        </tr>
+                      </thead>
+                      <tbody id="subscriber-table-body">
+                        <!-- Populated dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- --- MODALS --- -->
+
+  <!-- Modal 1: Create Faculty Bot -->
+  <div class="modal-backdrop" id="modal-faculty">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-faculty-title" data-i18n="modal_new_faculty_title">Create New Faculty Bot</h3>
+        <button class="modal-close" id="modal-faculty-close">&times;</button>
+      </div>
+      <form id="faculty-form">
+        <input type="hidden" id="faculty-id-input">
+        <div class="form-group">
+          <label for="faculty-name-en" data-i18n="fac_name_en">Faculty Name (English)</label>
+          <input type="text" id="faculty-name-en" required placeholder="e.g. Faculty of Science">
+        </div>
+        <div class="form-group">
+          <label for="faculty-name-ar" data-i18n="fac_name_ar">Faculty Name (Arabic)</label>
+          <input type="text" id="faculty-name-ar" required placeholder="مثال: كلية العلوم">
+        </div>
+        <div class="form-group">
+          <label for="faculty-slug-input" data-i18n="fac_slug">Unique Short Identifier / URL Slug</label>
+          <input type="text" id="faculty-slug-input" required placeholder="e.g. fos (lowercase, letters only)" pattern="[a-z0-9_-]+">
+          <span class="field-help" data-i18n="slug_help">This is used in the chatbot widget tag.</span>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" data-i18n="btn_save">Save Bot</button>
+          <button type="button" class="btn btn-secondary" id="modal-faculty-cancel" data-i18n="btn_cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Duplicate Bot -->
+  <div class="modal-backdrop" id="modal-duplicate">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 data-i18n="modal_duplicate_title">Duplicate Bot Configuration</h3>
+        <button class="modal-close" id="modal-duplicate-close">&times;</button>
+      </div>
+      <form id="duplicate-form">
+        <input type="hidden" id="duplicate-source-id">
+        <div class="form-group">
+          <span data-i18n="duplicate_source_label">Source Bot:</span> <strong id="duplicate-source-name">Medicine</strong>
+        </div>
+        <div class="form-group">
+          <label for="duplicate-name-en" data-i18n="new_fac_name_en">New Faculty Name (English)</label>
+          <input type="text" id="duplicate-name-en" required placeholder="e.g. Faculty of Engineering">
+        </div>
+        <div class="form-group">
+          <label for="duplicate-name-ar" data-i18n="new_fac_name_ar">New Faculty Name (Arabic)</label>
+          <input type="text" id="duplicate-name-ar" required placeholder="مثال: كلية الهندسة">
+        </div>
+        <div class="form-group">
+          <label for="duplicate-slug-input" data-i18n="new_fac_slug">New URL Slug</label>
+          <input type="text" id="duplicate-slug-input" required placeholder="e.g. foe (lowercase, letters only)" pattern="[a-z0-9_-]+">
+        </div>
+        
+        <div class="alert alert-info" data-i18n="duplicate_alert">
+          ℹ️ This action will copy all custom menus, nested submenus, responses, uploaded files, and announcements from the source bot. User records and Telegram Bot tokens will NOT be copied.
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" data-i18n="btn_confirm_duplicate">Duplicate Now</button>
+          <button type="button" class="btn btn-secondary" id="modal-duplicate-cancel" data-i18n="btn_cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Client Scripts -->
+  <script src="/app.js"></script>
+</body>
+</html>

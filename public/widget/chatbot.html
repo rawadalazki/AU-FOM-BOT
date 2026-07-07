@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Chatbot Widget Tester</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      padding: 40px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .back-link {
+      margin-top: 30px;
+      display: inline-block;
+      color: #818cf8;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover {
+      color: #a5b4fc;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="badge">Web Chatbot Widget Live Demo</div>
+    <h1>UniBot Hub Chatbot</h1>
+    <p>This is a demo page representing a student portal or faculty homepage. Look at the bottom-right corner of this page to interact with the active chatbot!</p>
+    
+    <p style="font-size: 0.95rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; margin-top: 20px;">
+      You can configure the active faculty bot by adding the <code>data-faculty="slug"</code> attribute in the embed script tag.
+    </p>
+
+    <a href="/" class="back-link">← Go to Admin Dashboard</a>
+  </div>
+
+  <!-- EMBED CODE FOR THE CUSTOMIZABLE CHATBOT WIDGET -->
+  <!-- We read the 'data-faculty' parameter to load the Faculty of Medicine (fom) bot config -->
+  <script 
+    src="/widget/widget.js" 
+    data-faculty="fom" 
+    id="unibot-widget-script">
+  </script>
+
+</body>
+</html>
