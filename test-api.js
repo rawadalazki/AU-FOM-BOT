@@ -63,7 +63,7 @@ try {
   const menus = dbHelper.getMenusByFaculty(facId);
   const oldToNewId = {};
   const insertMenuStmt = dbHelper.db.prepare(`
-    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, file_path, sort_order)
+    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, sort_order)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
@@ -85,7 +85,7 @@ try {
           menu.reply_content_en,
           menu.reply_content_ar,
           menu.file_name,
-          menu.file_path,
+          menu.telegram_file_id,
           menu.sort_order
         );
         oldToNewId[menu.id] = info.lastInsertRowid;
@@ -100,7 +100,7 @@ try {
           menu.reply_content_en,
           menu.reply_content_ar,
           menu.file_name,
-          menu.file_path,
+          menu.telegram_file_id,
           menu.sort_order
         );
         oldToNewId[menu.id] = info.lastInsertRowid;

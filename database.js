@@ -54,6 +54,8 @@ async function initDb() {
       file_name TEXT,
       file_path TEXT,
       telegram_file_id TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
       sort_order INTEGER DEFAULT 0,
       inline_buttons TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -74,6 +76,8 @@ async function initDb() {
       file_name TEXT,
       file_path TEXT,
       telegram_file_id TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
       sent_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (faculty_id) REFERENCES faculties (id) ON DELETE CASCADE
     )
@@ -109,7 +113,11 @@ async function initDb() {
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS inline_buttons TEXT;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`,
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS mime_type TEXT;`,
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS file_size INTEGER;`,
     `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`,
+    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS mime_type TEXT;`,
+    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS file_size INTEGER;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS bot_enabled INTEGER DEFAULT 0;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_message_en TEXT;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_message_ar TEXT;`,
@@ -255,34 +263,34 @@ async function getMenuById(id) {
   return rows[0];
 }
 
-async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, filePath, sortOrder) {
+async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder) {
   const { rows } = await pool.query(`
-    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, file_path, sort_order)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
-  `, [facultyId, parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, filePath, sortOrder || 0]);
+    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
+  `, [facultyId, parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0]);
   
   await cache.del(`menus:faculty:${facultyId}`);
   return rows[0].id;
 }
 
-async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, filePath, sortOrder, inlineButtons = undefined) {
+async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, inlineButtons = undefined) {
   const existing = await getMenuById(id);
   if (inlineButtons !== undefined) {
     await pool.query(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
-          reply_content_en = $5, reply_content_ar = $6, file_name = $7, file_path = $8, 
-          sort_order = $9, inline_buttons = $10
-      WHERE id = $11
-    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, filePath, sortOrder || 0, inlineButtons, id]);
+          reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
+          mime_type = $9, file_size = $10, sort_order = $11, inline_buttons = $12
+      WHERE id = $13
+    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, inlineButtons, id]);
   } else {
     await pool.query(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
-          reply_content_en = $5, reply_content_ar = $6, file_name = $7, file_path = $8, 
-          sort_order = $9, telegram_file_id = NULL
-      WHERE id = $10
-    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, filePath, sortOrder || 0, id]);
+          reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
+          mime_type = $9, file_size = $10, sort_order = $11
+      WHERE id = $12
+    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, id]);
   }
 
   if (existing) await cache.del(`menus:faculty:${existing.faculty_id}`);
@@ -308,11 +316,11 @@ async function getAnnouncementsByFaculty(facultyId) {
   return rows; // Unlikely to need heavy caching for announcements list since it's only occasionally fetched by users/admins
 }
 
-async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, contentAr, fileName, filePath) {
+async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize) {
   const { rows } = await pool.query(`
-    INSERT INTO announcements (faculty_id, title_en, title_ar, content_en, content_ar, file_name, file_path)
-    VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
-  `, [facultyId, titleEn, titleAr, contentEn, contentAr, fileName, filePath]);
+    INSERT INTO announcements (faculty_id, title_en, title_ar, content_en, content_ar, file_name, telegram_file_id, mime_type, file_size)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
+  `, [facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize]);
   return rows[0].id;
 }
 

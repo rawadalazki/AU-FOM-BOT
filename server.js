@@ -1,5 +1,6 @@
 const http = require('node:http');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const busboy = require('busboy');
@@ -8,7 +9,6 @@ const { createHttpTerminator } = require('http-terminator');
 const logger = require('./logger');
 const dbHelper = require('./database');
 const botManager = require('./bot-manager');
-const storage = require('./storage');
 const cache = require('./cache');
 const rateLimiter = require('./rate-limiter');
 const backup = require('./backup');
@@ -48,7 +48,7 @@ function parseJson(req) {
 }
 
 /**
- * Async multipart parser that streams files directly to S3 using busboy.
+ * Async multipart parser that saves files to temp dir instead of S3.
  */
 async function parseMultipart(req) {
   return new Promise((resolve, reject) => {
@@ -61,22 +61,31 @@ async function parseMultipart(req) {
 
     const fields = {};
     const files = {};
-    const uploadPromises = [];
+    const writePromises = [];
 
     bb.on('file', (name, file, info) => {
-      const { filename } = info;
+      const { filename, mimeType } = info;
       if (!filename) {
         file.resume();
         return;
       }
       
-      const p = storage.uploadStream(file, filename).then(({ key, url }) => {
-        files[name] = { name: filename, path: key, url: url };
-      }).catch(err => {
-        logger.error({ err, filename }, 'S3 Upload stream error');
+      const tmpPath = path.join(os.tmpdir(), `fombot_${Date.now()}_${crypto.randomBytes(4).toString('hex')}_${filename}`);
+      const ws = fs.createWriteStream(tmpPath);
+      let fileSize = 0;
+      
+      file.on('data', (chunk) => { fileSize += chunk.length; });
+      
+      const p = new Promise((res, rej) => {
+        file.pipe(ws);
+        ws.on('finish', () => {
+          files[name] = { name: filename, tmpPath, mimeType: mimeType || 'application/octet-stream', size: fileSize };
+          res();
+        });
+        ws.on('error', rej);
       });
       
-      uploadPromises.push(p);
+      writePromises.push(p);
     });
 
     bb.on('field', (name, val) => {
@@ -85,7 +94,7 @@ async function parseMultipart(req) {
 
     bb.on('close', async () => {
       try {
-        await Promise.all(uploadPromises);
+        await Promise.all(writePromises);
         resolve({ fields, files });
       } catch (e) {
         reject(e);
@@ -95,6 +104,15 @@ async function parseMultipart(req) {
     bb.on('error', reject);
     req.pipe(bb);
   });
+}
+
+/** Helper to clean up temp files after upload */
+function cleanupTempFile(tmpPath) {
+  if (tmpPath) {
+    fs.unlink(tmpPath, (err) => {
+      if (err && err.code !== 'ENOENT') logger.warn({ err, tmpPath }, 'Failed to cleanup temp file');
+    });
+  }
 }
 
 let isShuttingDown = false;
@@ -197,30 +215,75 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // ── 3. File Proxy Endpoint ───────────────────────────────────────────────────
-  const fileMatch = pathname.match(/^\/api\/files\/(.+)$/);
-  if (method === 'GET' && fileMatch) {
+  // ── 3. File Proxy Endpoint (streams from Telegram) ──────────────────────────
+  const fileProxyMenuMatch = pathname.match(/^\/api\/files\/menu\/(\d+)$/);
+  if (method === 'GET' && fileProxyMenuMatch) {
     try {
-      const fileKey = decodeURIComponent(fileMatch[1]);
-      const s3Response = await storage.getFileStream(fileKey);
+      const menuId = parseInt(fileProxyMenuMatch[1], 10);
+      const menu = await dbHelper.getMenuById(menuId);
+      if (!menu || !menu.telegram_file_id) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('File not found');
+        return;
+      }
       
-      const ext = path.extname(fileKey).toLowerCase();
-      const contentType = storage.getMimeType(ext);
+      const stream = await botManager.getFileStreamFromTelegram(menu.faculty_id, reqId, menu.telegram_file_id);
+      const contentType = menu.mime_type || 'application/octet-stream';
       
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
-        'Content-Disposition': `inline; filename="${path.basename(fileKey).replace(/^\d+_/, '')}"`
+        'Content-Disposition': `inline; filename="${menu.file_name || 'file'}"`
       });
       
-      s3Response.Body.pipe(res);
+      stream.pipe(res);
       return;
     } catch (err) {
-      logger.warn({ reqId, pathname }, 'File proxy not found or error');
+      logger.warn({ reqId, pathname, err: err.message }, 'File proxy error');
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('File not found');
       return;
     }
+  }
+
+  const fileProxyAnnMatch = pathname.match(/^\/api\/files\/announcement\/(\d+)$/);
+  if (method === 'GET' && fileProxyAnnMatch) {
+    try {
+      const annId = parseInt(fileProxyAnnMatch[1], 10);
+      const { rows } = await dbHelper.runQuery('SELECT * FROM announcements WHERE id = $1', [annId]);
+      const ann = rows[0];
+      if (!ann || !ann.telegram_file_id) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('File not found');
+        return;
+      }
+      
+      const stream = await botManager.getFileStreamFromTelegram(ann.faculty_id, reqId, ann.telegram_file_id);
+      const contentType = ann.mime_type || 'application/octet-stream';
+      
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400',
+        'Content-Disposition': `inline; filename="${ann.file_name || 'file'}"`
+      });
+      
+      stream.pipe(res);
+      return;
+    } catch (err) {
+      logger.warn({ reqId, pathname, err: err.message }, 'Announcement file proxy error');
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('File not found');
+      return;
+    }
+  }
+
+  // Legacy file proxy endpoint (backwards compat with old S3 keys)
+  const fileMatch = pathname.match(/^\/api\/files\/(.+)$/);
+  if (method === 'GET' && fileMatch) {
+    // Old S3-based URLs are no longer supported
+    res.writeHead(410, { 'Content-Type': 'text/plain' });
+    res.end('This file endpoint has been migrated. Please use /api/files/menu/:id or /api/files/announcement/:id');
+    return;
   }
 
   // ── API ROUTES ─────────────────────────────────────────────────────────────
@@ -306,20 +369,7 @@ const server = http.createServer(async (req, res) => {
         const fac = await dbHelper.getFacultyById(id);
         if (fac) {
           await botManager.deleteWebhookForFaculty(fac, reqId).catch(e => logger.error({reqId, err: e}, 'Delete webhook failed'));
-          
-          const menus = await dbHelper.getMenusByFaculty(id);
-          for (const menu of menus) {
-            if (menu.file_path) {
-              await storage.deleteFile(menu.file_path);
-            }
-          }
-          const announcements = await dbHelper.getAnnouncementsByFaculty(id);
-          for (const ann of announcements) {
-            if (ann.file_path) {
-              await storage.deleteFile(ann.file_path);
-            }
-          }
-          
+          // No S3 cleanup needed — files are on Telegram
           await dbHelper.deleteFaculty(id);
         }
         return sendJson(res, 200, { ok: true });
@@ -348,11 +398,46 @@ const server = http.createServer(async (req, res) => {
 
       // Create new faculty (without tokens or users)
       const newFacId = await dbHelper.createFaculty(data.name_en, data.name_ar, data.slug);
+      const newTelegramToken = data.telegram_token || '';
+      const newAdminChatId = data.admin_chat_id || '';
+      const newBotEnabled = data.bot_enabled !== undefined ? data.bot_enabled : 0;
+
       await dbHelper.updateFaculty(
         newFacId, data.name_en, data.name_ar, data.slug,
-        '', '', sourceFac.welcome_en, sourceFac.welcome_ar, 
-        0, sourceFac.disabled_message_en, sourceFac.disabled_message_ar, sourceFac.telegram_api_server
+        newTelegramToken, newAdminChatId, sourceFac.welcome_en, sourceFac.welcome_ar, 
+        newBotEnabled, sourceFac.disabled_message_en, sourceFac.disabled_message_ar, sourceFac.telegram_api_server
       );
+
+      // If new bot is enabled and token provided, register its webhook
+      if (newBotEnabled && newTelegramToken) {
+         const newFac = await dbHelper.getFacultyById(newFacId);
+         await botManager.registerWebhookForFaculty(newFac, reqId).catch(e => logger.error({reqId, err: e}, 'Register webhook failed during duplicate'));
+      }
+
+      // Helper function to auto-migrate files if target bot token is available
+      async function migrateFile(sourceFileId, fileName, mimeType) {
+        if (!sourceFileId) return null;
+        if (!newTelegramToken || !newAdminChatId) return null; // Cannot copy between different bots if no target token
+        
+        try {
+          const stream = await botManager.getFileStreamFromTelegram(sourceId, reqId, sourceFileId);
+          const tmpPath = path.join(os.tmpdir(), `dup_${Date.now()}_${crypto.randomBytes(4).toString('hex')}_${fileName}`);
+          const ws = fs.createWriteStream(tmpPath);
+          await new Promise((resolve, reject) => {
+            stream.pipe(ws);
+            ws.on('finish', resolve);
+            ws.on('error', reject);
+          });
+          
+          const tgResult = await botManager.uploadFileToTelegram(newFacId, reqId, tmpPath, fileName, mimeType);
+          cleanupTempFile(tmpPath);
+          
+          return tgResult.telegram_file_id;
+        } catch (e) {
+          logger.error({ reqId, err: e, sourceFileId }, 'Failed to auto-migrate file during duplication');
+          return null;
+        }
+      }
 
       // Duplicate Menus mapping
       const sourceMenus = await dbHelper.getMenusByFaculty(sourceId);
@@ -360,17 +445,11 @@ const server = http.createServer(async (req, res) => {
 
       // Level 1: Roots
       for (const sm of sourceMenus.filter(m => m.parent_id === null)) {
-        let newFilePath = null;
-        if (sm.file_path) {
-          try {
-            newFilePath = await storage.copyFile(sm.file_path, sm.file_name);
-          } catch(e) { logger.warn({ err: e }, 'Copy file error'); }
-        }
-
+        const newFileId = await migrateFile(sm.telegram_file_id, sm.file_name, sm.mime_type);
         const { rows } = await dbHelper.runQuery(`
-          INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, file_path, sort_order, inline_buttons)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
-        `, [newFacId, null, sm.title_en, sm.title_ar, sm.reply_type, sm.reply_content_en, sm.reply_content_ar, sm.file_name, newFilePath, sm.sort_order, sm.inline_buttons]);
+          INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order, inline_buttons)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
+        `, [newFacId, null, sm.title_en, sm.title_ar, sm.reply_type, sm.reply_content_en, sm.reply_content_ar, sm.file_name, newFileId, sm.mime_type, sm.file_size, sm.sort_order, sm.inline_buttons]);
         
         menuIdMap.set(sm.id, rows[0].id);
       }
@@ -381,17 +460,11 @@ const server = http.createServer(async (req, res) => {
         keepProcessing = false;
         for (const sm of sourceMenus) {
           if (sm.parent_id !== null && menuIdMap.has(sm.parent_id) && !menuIdMap.has(sm.id)) {
-            let newFilePath = null;
-            if (sm.file_path) {
-              try {
-                newFilePath = await storage.copyFile(sm.file_path, sm.file_name);
-              } catch(e) {}
-            }
-
+            const newFileId = await migrateFile(sm.telegram_file_id, sm.file_name, sm.mime_type);
             const { rows } = await dbHelper.runQuery(`
-              INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, file_path, sort_order, inline_buttons)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
-            `, [newFacId, menuIdMap.get(sm.parent_id), sm.title_en, sm.title_ar, sm.reply_type, sm.reply_content_en, sm.reply_content_ar, sm.file_name, newFilePath, sm.sort_order, sm.inline_buttons]);
+              INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order, inline_buttons)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
+            `, [newFacId, menuIdMap.get(sm.parent_id), sm.title_en, sm.title_ar, sm.reply_type, sm.reply_content_en, sm.reply_content_ar, sm.file_name, newFileId, sm.mime_type, sm.file_size, sm.sort_order, sm.inline_buttons]);
             
             menuIdMap.set(sm.id, rows[0].id);
             keepProcessing = true;
@@ -402,13 +475,8 @@ const server = http.createServer(async (req, res) => {
       // Duplicate Announcements
       const sourceAnns = await dbHelper.getAnnouncementsByFaculty(sourceId);
       for (const sa of sourceAnns) {
-        let newFilePath = null;
-        if (sa.file_path) {
-          try {
-            newFilePath = await storage.copyFile(sa.file_path, sa.file_name);
-          } catch (e) {}
-        }
-        await dbHelper.createAnnouncement(newFacId, sa.title_en, sa.title_ar, sa.content_en, sa.content_ar, sa.file_name, newFilePath);
+        const newFileId = await migrateFile(sa.telegram_file_id, sa.file_name, sa.mime_type);
+        await dbHelper.createAnnouncement(newFacId, sa.title_en, sa.title_ar, sa.content_en, sa.content_ar, sa.file_name, newFileId, sa.mime_type, sa.file_size);
       }
 
       return sendJson(res, 201, { id: newFacId });
@@ -426,11 +494,12 @@ const server = http.createServer(async (req, res) => {
       const menus = await dbHelper.getMenusByFaculty(facId);
       const enhancedMenus = menus.map(m => ({
         ...m,
-        file_url: storage.getFileProxyUrl(m.file_path)
+        file_url: m.telegram_file_id ? `/api/files/menu/${m.id}` : null
       }));
       return sendJson(res, 200, enhancedMenus);
     }
     else if (method === 'POST') {
+      const tmpFiles = [];
       try {
         const { fields, files } = await parseMultipart(req);
         
@@ -438,10 +507,23 @@ const server = http.createServer(async (req, res) => {
         if (isNaN(parentId)) parentId = null;
         
         let fileName = null;
-        let filePath = null;
+        let telegramFileId = null;
+        let mimeType = null;
+        let fileSize = null;
+
         if (files.file) {
+          tmpFiles.push(files.file.tmpPath);
           fileName = files.file.name;
-          filePath = files.file.path; // S3 Key
+          mimeType = files.file.mimeType;
+          fileSize = files.file.size;
+          
+          const tgResult = await botManager.uploadFileToTelegram(
+            parseInt(fields.faculty_id, 10), reqId,
+            files.file.tmpPath, files.file.name, files.file.mimeType
+          );
+          telegramFileId = tgResult.telegram_file_id;
+          if (tgResult.file_size) fileSize = tgResult.file_size;
+          if (tgResult.mime_type) mimeType = tgResult.mime_type;
         }
 
         const id = await dbHelper.createMenu(
@@ -453,13 +535,17 @@ const server = http.createServer(async (req, res) => {
           fields.reply_content_en,
           fields.reply_content_ar,
           fileName,
-          filePath,
+          telegramFileId,
+          mimeType,
+          fileSize,
           parseInt(fields.sort_order || 0, 10)
         );
         return sendJson(res, 201, { id });
       } catch (e) {
         logger.error({ reqId, err: e }, 'POST /api/menus error');
         return sendJson(res, 500, { error: e.message });
+      } finally {
+        tmpFiles.forEach(cleanupTempFile);
       }
     }
   }
@@ -468,6 +554,7 @@ const server = http.createServer(async (req, res) => {
   if (menuMatch) {
     const id = parseInt(menuMatch[1], 10);
     if (method === 'PUT') {
+      const tmpFiles = [];
       try {
         const { fields, files } = await parseMultipart(req);
         const menu = await dbHelper.getMenuById(id);
@@ -477,16 +564,28 @@ const server = http.createServer(async (req, res) => {
         if (isNaN(parentId)) parentId = null;
 
         let fileName = menu.file_name;
-        let filePath = menu.file_path;
+        let telegramFileId = menu.telegram_file_id;
+        let mimeType = menu.mime_type;
+        let fileSize = menu.file_size;
 
         if (files.file) {
-          if (filePath) await storage.deleteFile(filePath);
+          tmpFiles.push(files.file.tmpPath);
           fileName = files.file.name;
-          filePath = files.file.path;
+          mimeType = files.file.mimeType;
+          fileSize = files.file.size;
+          
+          const tgResult = await botManager.uploadFileToTelegram(
+            menu.faculty_id, reqId,
+            files.file.tmpPath, files.file.name, files.file.mimeType
+          );
+          telegramFileId = tgResult.telegram_file_id;
+          if (tgResult.file_size) fileSize = tgResult.file_size;
+          if (tgResult.mime_type) mimeType = tgResult.mime_type;
         } else if (fields.remove_file === 'true') {
-          if (filePath) await storage.deleteFile(filePath);
           fileName = null;
-          filePath = null;
+          telegramFileId = null;
+          mimeType = null;
+          fileSize = null;
         }
 
         await dbHelper.updateMenu(
@@ -498,21 +597,23 @@ const server = http.createServer(async (req, res) => {
           fields.reply_content_en,
           fields.reply_content_ar,
           fileName,
-          filePath,
+          telegramFileId,
+          mimeType,
+          fileSize,
           parseInt(fields.sort_order || 0, 10)
         );
         return sendJson(res, 200, { ok: true });
       } catch (e) {
         logger.error({ reqId, err: e }, 'PUT /api/menus error');
         return sendJson(res, 500, { error: e.message });
+      } finally {
+        tmpFiles.forEach(cleanupTempFile);
       }
     } else if (method === 'DELETE') {
       try {
         const menu = await dbHelper.getMenuById(id);
         if (menu) {
-          if (menu.file_path) {
-            await storage.deleteFile(menu.file_path);
-          }
+          // No S3 cleanup needed — files are on Telegram
           await dbHelper.deleteMenu(id);
         }
         return sendJson(res, 200, { ok: true });
@@ -531,19 +632,33 @@ const server = http.createServer(async (req, res) => {
       const anns = await dbHelper.getAnnouncementsByFaculty(facId);
       const enhanced = anns.map(a => ({
         ...a,
-        file_url: storage.getFileProxyUrl(a.file_path)
+        file_url: a.telegram_file_id ? `/api/files/announcement/${a.id}` : null
       }));
       return sendJson(res, 200, enhanced);
     }
     else if (method === 'POST') {
+      const tmpFiles = [];
       try {
         const { fields, files } = await parseMultipart(req);
         
         let fileName = null;
-        let filePath = null;
+        let telegramFileId = null;
+        let mimeType = null;
+        let fileSize = null;
+
         if (files.file) {
+          tmpFiles.push(files.file.tmpPath);
           fileName = files.file.name;
-          filePath = files.file.path; 
+          mimeType = files.file.mimeType;
+          fileSize = files.file.size;
+          
+          const tgResult = await botManager.uploadFileToTelegram(
+            parseInt(fields.faculty_id, 10), reqId,
+            files.file.tmpPath, files.file.name, files.file.mimeType
+          );
+          telegramFileId = tgResult.telegram_file_id;
+          if (tgResult.file_size) fileSize = tgResult.file_size;
+          if (tgResult.mime_type) mimeType = tgResult.mime_type;
         }
 
         const annId = await dbHelper.createAnnouncement(
@@ -553,7 +668,9 @@ const server = http.createServer(async (req, res) => {
           fields.content_en,
           fields.content_ar,
           fileName,
-          filePath
+          telegramFileId,
+          mimeType,
+          fileSize
         );
 
         const ann = {
@@ -564,7 +681,7 @@ const server = http.createServer(async (req, res) => {
           content_en: fields.content_en,
           content_ar: fields.content_ar,
           file_name: fileName,
-          file_path: filePath
+          telegram_file_id: telegramFileId
         };
 
         await botManager.broadcastAnnouncement(ann, reqId);
@@ -572,6 +689,8 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         logger.error({ reqId, err: e }, 'POST /api/announcements error');
         return sendJson(res, 500, { error: e.message });
+      } finally {
+        tmpFiles.forEach(cleanupTempFile);
       }
     }
   }
@@ -667,7 +786,7 @@ const server = http.createServer(async (req, res) => {
         response.reply_content_en = menu.reply_content_en;
         response.reply_content_ar = menu.reply_content_ar;
         response.file_name = menu.file_name;
-        response.file_url = storage.getFileProxyUrl(menu.file_path);
+        response.file_url = menu.telegram_file_id ? `/api/files/menu/${menu.id}` : null;
       }
 
       return sendJson(res, 200, response);
@@ -687,7 +806,7 @@ const server = http.createServer(async (req, res) => {
       const anns = await dbHelper.getAnnouncementsByFaculty(faculty.id);
       const enhanced = anns.map(a => ({
         ...a,
-        file_url: storage.getFileProxyUrl(a.file_path)
+        file_url: a.telegram_file_id ? `/api/files/announcement/${a.id}` : null
       }));
       return sendJson(res, 200, enhanced);
     } catch(e) {
@@ -706,7 +825,7 @@ const server = http.createServer(async (req, res) => {
 
       const term = `%${query.toLowerCase()}%`;
       const { rows } = await dbHelper.runQuery(`
-        SELECT id, title_en, title_ar, file_name, file_path 
+        SELECT id, title_en, title_ar, file_name, telegram_file_id 
         FROM menus 
         WHERE faculty_id = $1 
           AND reply_type = 'file' 
@@ -716,7 +835,7 @@ const server = http.createServer(async (req, res) => {
 
       const enhanced = rows.map(r => ({
         ...r,
-        file_url: storage.getFileProxyUrl(r.file_path)
+        file_url: r.telegram_file_id ? `/api/files/menu/${r.id}` : null
       }));
 
       return sendJson(res, 200, enhanced);
@@ -804,6 +923,12 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 async function main() {
   try {
+    const requiredEnv = ['DATABASE_URL'];
+    const missing = requiredEnv.filter(e => !process.env[e]);
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
+
     await dbHelper.initDb();
     
     server.listen(PORT, '0.0.0.0', () => {
