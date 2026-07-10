@@ -82,10 +82,15 @@ class TelegramBotService {
 
   // --- Webhook Update Handler ---
   async handleUpdate(update) {
+    console.log("UPDATE RECEIVED:");
+    console.log(JSON.stringify(update, null, 2));
+
     if (update.message) {
-      await this.handleMessage(update.message);
+        await this.handleMessage(update.message);
     } else if (update.callback_query) {
-      await this.handleCallbackQuery(update.callback_query);
+        await this.handleCallbackQuery(update.callback_query);
+    } else {
+        console.log("UNKNOWN UPDATE TYPE");
     }
   }
 

@@ -277,14 +277,6 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Legacy file proxy endpoint (backwards compat with old S3 keys)
-  const fileMatch = pathname.match(/^\/api\/files\/(.+)$/);
-  if (method === 'GET' && fileMatch) {
-    // Old S3-based URLs are no longer supported
-    res.writeHead(410, { 'Content-Type': 'text/plain' });
-    res.end('This file endpoint has been migrated. Please use /api/files/menu/:id or /api/files/announcement/:id');
-    return;
-  }
 
   // ── API ROUTES ─────────────────────────────────────────────────────────────
 
