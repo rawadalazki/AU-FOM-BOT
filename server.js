@@ -338,7 +338,13 @@ const server = http.createServer(async (req, res) => {
           data.bot_enabled !== undefined ? data.bot_enabled : fac.bot_enabled,
           data.disabled_message_en !== undefined ? data.disabled_message_en : fac.disabled_message_en,
           data.disabled_message_ar !== undefined ? data.disabled_message_ar : fac.disabled_message_ar,
-          data.telegram_api_server !== undefined ? data.telegram_api_server : fac.telegram_api_server
+          data.telegram_api_server !== undefined ? data.telegram_api_server : fac.telegram_api_server,
+          data.empty_msg_en !== undefined ? data.empty_msg_en : fac.empty_msg_en,
+          data.empty_msg_ar !== undefined ? data.empty_msg_ar : fac.empty_msg_ar,
+          data.unknown_msg_en !== undefined ? data.unknown_msg_en : fac.unknown_msg_en,
+          data.unknown_msg_ar !== undefined ? data.unknown_msg_ar : fac.unknown_msg_ar,
+          data.no_file_msg_en !== undefined ? data.no_file_msg_en : fac.no_file_msg_en,
+          data.no_file_msg_ar !== undefined ? data.no_file_msg_ar : fac.no_file_msg_ar
         );
 
         // Manage bot lifecycle based on changes
@@ -397,7 +403,9 @@ const server = http.createServer(async (req, res) => {
       await dbHelper.updateFaculty(
         newFacId, data.name_en, data.name_ar, data.slug,
         newTelegramToken, newAdminChatId, sourceFac.welcome_en, sourceFac.welcome_ar, 
-        newBotEnabled, sourceFac.disabled_message_en, sourceFac.disabled_message_ar, sourceFac.telegram_api_server
+        newBotEnabled, sourceFac.disabled_message_en, sourceFac.disabled_message_ar, sourceFac.telegram_api_server,
+        sourceFac.empty_msg_en, sourceFac.empty_msg_ar, sourceFac.unknown_msg_en, sourceFac.unknown_msg_ar,
+        sourceFac.no_file_msg_en, sourceFac.no_file_msg_ar
       );
 
       // If new bot is enabled and token provided, register its webhook

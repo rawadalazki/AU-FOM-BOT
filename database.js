@@ -36,6 +36,12 @@ async function initDb() {
       disabled_message_en TEXT,
       disabled_message_ar TEXT,
       telegram_api_server TEXT DEFAULT 'api.telegram.org',
+      empty_msg_en TEXT,
+      empty_msg_ar TEXT,
+      unknown_msg_en TEXT,
+      unknown_msg_ar TEXT,
+      no_file_msg_en TEXT,
+      no_file_msg_ar TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
@@ -121,7 +127,13 @@ async function initDb() {
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS bot_enabled INTEGER DEFAULT 0;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_message_en TEXT;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_message_ar TEXT;`,
-    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS telegram_api_server TEXT DEFAULT 'api.telegram.org';`
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS telegram_api_server TEXT DEFAULT 'api.telegram.org';`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS empty_msg_en TEXT;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS empty_msg_ar TEXT;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS unknown_msg_en TEXT;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS unknown_msg_ar TEXT;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_en TEXT;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_ar TEXT;`
   ];
 
   for (const q of alterQueries) {
@@ -219,14 +231,15 @@ async function createFaculty(nameEn, nameAr, slug) {
   return rows[0].id;
 }
 
-async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer) {
+async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr) {
   await pool.query(`
     UPDATE faculties 
     SET name_en = $1, name_ar = $2, slug = $3, telegram_token = $4, admin_chat_id = $5,
         welcome_en = $6, welcome_ar = $7, bot_enabled = $8, disabled_message_en = $9, 
-        disabled_message_ar = $10, telegram_api_server = $11
-    WHERE id = $12
-  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, id]);
+        disabled_message_ar = $10, telegram_api_server = $11, empty_msg_en = $12, empty_msg_ar = $13,
+        unknown_msg_en = $14, unknown_msg_ar = $15, no_file_msg_en = $16, no_file_msg_ar = $17
+    WHERE id = $18
+  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, id]);
   
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
