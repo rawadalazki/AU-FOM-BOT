@@ -117,7 +117,12 @@ class TelegramBotService {
       const disabledMsg = user.language === 'ar' 
         ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً للصيانة.') 
         : (faculty.disabled_message_en || 'Sorry, the bot is temporarily offline for maintenance.');
-      await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg, parse_mode: 'Markdown' });
+      
+      const res = await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg, parse_mode: 'Markdown' });
+      if (!res.ok) {
+        // Fallback without Markdown in case the custom message contains invalid Markdown characters
+        await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg });
+      }
       return;
     }
 
@@ -1135,12 +1140,24 @@ class TelegramBotService {
       keyboard.push([{ text: lang === 'ar' ? '🛠️ لوحة التحكم للمشرفين' : '🛠️ Admin Panel' }]);
     }
 
-    await this.apiCall('sendMessage', {
+    const replyMarkup = keyboard.length > 0 ? { keyboard, resize_keyboard: true } : { remove_keyboard: true };
+
+    const res = await this.apiCall('sendMessage', {
       chat_id: chatId,
       text: promptText,
       parse_mode: 'Markdown',
-      reply_markup: { keyboard, resize_keyboard: true }
+      reply_markup: replyMarkup
     });
+
+    if (!res.ok) {
+      this.logError('Failed to send menu', null, { description: res.description, promptText });
+      // Fallback without Markdown if the welcome message has bad characters
+      await this.apiCall('sendMessage', {
+        chat_id: chatId,
+        text: promptText,
+        reply_markup: replyMarkup
+      });
+    }
   }
 
   async registerBotCommands() {
