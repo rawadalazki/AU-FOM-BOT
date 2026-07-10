@@ -1192,10 +1192,19 @@ class TelegramBotService {
         let body = '';
         res.on('data', c => body += c);
         res.on('end', () => {
-          try { resolve(JSON.parse(body)); } catch(e) { reject(e); }
+          try { 
+            const parsed = JSON.parse(body);
+            if (!parsed.ok) {
+              console.error(`[TELEGRAM API ERROR] Method: ${method}, Payload: ${data}, Response: ${body}`);
+            }
+            resolve(parsed); 
+          } catch(e) { reject(e); }
         });
       });
-      req.on('error', reject);
+      req.on('error', (err) => {
+        console.error(`[TELEGRAM HTTP ERROR] Method: ${method}, Error: ${err.message}`);
+        reject(err);
+      });
       req.write(data);
       req.end();
     });
