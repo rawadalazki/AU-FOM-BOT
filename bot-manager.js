@@ -129,12 +129,10 @@ class TelegramBotService {
     const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
     const adminState = await dbHelper.getAdminState(chatId);
 
-    if (adminState && isAdmin) {
-      await this.handleAdminStateMessage(chatId, message, user.language, adminState);
-      return;
-    }
-
     if (text === '/start' || text.startsWith('/start ')) {
+      if (adminState) {
+        await dbHelper.deleteAdminState(chatId);
+      }
       const parts = text.split(' ');
       if (parts.length > 1) {
         const fileIdMatch = parts[1].match(/^file_(\d+)$/);
@@ -151,6 +149,11 @@ class TelegramBotService {
       } else {
         await this.sendMenu(chatId, null, user.language);
       }
+      return;
+    }
+
+    if (adminState && isAdmin) {
+      await this.handleAdminStateMessage(chatId, message, user.language, adminState);
       return;
     }
 
@@ -835,6 +838,13 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ أضيف' : '✅ Added' });
         await this.sendAdminMenuDetails(chatId, menuBtn.id, lang);
         break;
+
+      default:
+        // If the state is not expecting text input (like managing_menus), ignore the text input 
+        // or clear the state so the user isn't permanently locked out of normal bot usage.
+        await dbHelper.deleteAdminState(chatId);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إنهاء الجلسة الإدارية.' : 'Admin session closed.' });
+        break;
     }
   }
 
@@ -1196,6 +1206,8 @@ class TelegramBotService {
             const parsed = JSON.parse(body);
             if (!parsed.ok) {
               console.error(`[TELEGRAM API ERROR] Method: ${method}, Payload: ${data}, Response: ${body}`);
+            } else {
+              console.log(`[TELEGRAM SUCCESS] Method: ${method}, ChatId: ${payload.chat_id || 'N/A'}`);
             }
             resolve(parsed); 
           } catch(e) { reject(e); }
