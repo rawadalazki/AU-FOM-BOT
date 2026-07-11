@@ -707,31 +707,70 @@ class TelegramBotService {
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
         break;
 
+      case 'awaiting_replace_file_doc':
+        if (text === '/cancel') {
+          const mCancel = await dbHelper.getMenuById(state.menuId);
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: mCancel.parent_id, viewingMenuDetailsId: state.menuId });
+          await this.sendAdminMenuDetails(chatId, state.menuId, lang);
+          return;
+        }
+        const docReplace = this.extractTelegramAttachment(message);
+        if (docReplace) {
+          try {
+            await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
+            await dbHelper.addMenuFile(state.menuId, docReplace.file_id, docReplace.file_name, docReplace.mime_type, docReplace.file_size);
+            
+            state.action = 'awaiting_edit_file_doc';
+            await dbHelper.setAdminState(chatId, state);
+            
+            const doneBtn = lang === 'ar' ? '✅ تم' : '✅ Done';
+            await this.apiCall('sendMessage', { 
+              chat_id: chatId, 
+              text: lang === 'ar' ? '✅ تم استبدال الملفات واستلام الملف الأول. أرسل المزيد أو اضغط "تم":' : '✅ Files replaced. Send more or press "Done":',
+              reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
+            });
+          } catch (e) {
+            await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
+          }
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف.' : 'Please send a document.' });
+        }
+        break;
+
       case 'awaiting_edit_file_doc':
-        if (text === '/skip') {
+        if (text === '/skip' || text === '✅ Done' || text === '✅ تم' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي):' : 'Send new Arabic caption:' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: { remove_keyboard: true } });
         } else {
           const doc2 = this.extractTelegramAttachment(message);
           if (doc2) {
-            state.doc = doc2;
-            state.action = 'awaiting_edit_file_cap_ar';
-            if (message.caption) {
-              state.captionAr = message.caption;
-              state.captionEn = await this.translateArToEn(message.caption);
-              const m2 = await dbHelper.getMenuById(state.menuId);
+            try {
               await dbHelper.addMenuFile(state.menuId, doc2.file_id, doc2.file_name, doc2.mime_type, doc2.file_size);
-              await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order);
-              await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m2.parent_id, viewingMenuDetailsId: state.menuId });
-              await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث الملف والشرح!' : '✅ File and caption updated!' });
-              await this.sendAdminMenuDetails(chatId, state.menuId, lang);
-            } else {
-              await dbHelper.setAdminState(chatId, state);
-              await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم استلام الملف. أرسل الآن الشرح (بالعربي) أو /skip للاحتفاظ بالشرح القديم:' : 'File received. Send Arabic caption, or /skip:' });
+              
+              if (message.caption && !state.captionAr) {
+                state.captionAr = message.caption;
+                state.captionEn = await this.translateArToEn(message.caption);
+                const m2 = await dbHelper.getMenuById(state.menuId);
+                await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order);
+              }
+
+              const files = await dbHelper.getMenuFiles(state.menuId);
+              const doneBtn = lang === 'ar' ? '✅ تم' : '✅ Done';
+              const msg = lang === 'ar' 
+                ? `✅ تم إضافة ملف. الإجمالي: ${files.length}\nأرسل المزيد، أو اضغط "تم":`
+                : `✅ File added. Total: ${files.length}\nSend more, or press "Done":`;
+                
+              await this.apiCall('sendMessage', { 
+                chat_id: chatId, 
+                text: msg,
+                reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
+              });
+            } catch (e) {
+               await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
             }
           } else {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف (Document).' : 'Please send a document.' });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف (Document) أو الضغط على "تم".' : 'Please send a document or press "Done".' });
           }
         }
         break;
@@ -740,21 +779,14 @@ class TelegramBotService {
         const m3 = await dbHelper.getMenuById(state.menuId);
         let cAr = m3.reply_content_ar;
         let cEn = m3.reply_content_en;
-        if (text !== '/skip') {
+        if (text !== '/skip' && text !== '✅ Done' && text !== '✅ تم') {
           cAr = text;
           cEn = await this.translateArToEn(text);
         }
-        const fId = state.doc ? state.doc.file_id : m3.telegram_file_id;
-        const fName = state.doc ? state.doc.file_name : m3.file_name;
-        const fMime = state.doc ? state.doc.mime_type : m3.mime_type;
-        const fSize = state.doc ? state.doc.file_size : m3.file_size;
-
-        if (fId !== m3.telegram_file_id) {
-          await dbHelper.addMenuFile(state.menuId, fId, fName, fMime, fSize);
-        }
-        await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, fName, fId, fMime, fSize, m3.sort_order);
+        
+        await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: state.menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث!' : '✅ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم الحفظ بنجاح!' : '✅ Saved successfully!', reply_markup: { remove_keyboard: true } });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
         break;
 
