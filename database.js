@@ -562,7 +562,6 @@ module.exports = {
   getFaculties,
   getFacultyById,
   getFacultyBySlug,
-  getFacultiesByAdmin,
   createFaculty,
   updateFaculty,
   deleteFaculty,
