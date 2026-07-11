@@ -219,8 +219,6 @@ async function createAdmin() {
     btn.disabled = false;
   }
 }
-  document.getElementById('confirmDeleteBtn').addEventListener('click', deleteAdmin);
-});
 
 async function resetPassword() {
   const id = document.getElementById('resetAdminId').value;
