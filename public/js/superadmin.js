@@ -140,7 +140,7 @@ async function loadAdmins() {
         if (!confirm(makeDeputy ? 'Promote this user to Deputy Owner?' : 'Remove Deputy Owner status?')) return;
         
         try {
-          const res = await fetch(\`/api/superadmin/users/\${id}/deputy\`, {
+          const res = await fetch(`/api/superadmin/users/${id}/deputy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_deputy_owner: makeDeputy })
@@ -182,10 +182,17 @@ async function createAdmin() {
     });
     
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Failed to create admin');
+      let errStr = 'Failed to create admin';
+      try {
+        const data = await res.json();
+        errStr = data.error || errStr;
+      } catch (jsonErr) {
+        errStr = await res.text();
+      }
+      throw new Error(errStr);
     }
 
+    if (document.activeElement) document.activeElement.blur();
     bootstrap.Modal.getInstance(document.getElementById('addAdminModal')).hide();
     document.getElementById('newAdminUsername').value = '';
     document.getElementById('newAdminPassword').value = '';
@@ -221,10 +228,17 @@ async function resetPassword() {
     });
     
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Failed to reset password');
+      let errStr = 'Failed to reset password';
+      try {
+        const data = await res.json();
+        errStr = data.error || errStr;
+      } catch (jsonErr) {
+        errStr = await res.text();
+      }
+      throw new Error(errStr);
     }
 
+    if (document.activeElement) document.activeElement.blur();
     bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
     alert('Password reset successfully. User has been logged out.');
   } catch(e) {
