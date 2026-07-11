@@ -166,6 +166,40 @@ async function initDb() {
     )
   `);
 
+  // Phase B: Multi-File Support
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS menu_files (
+      id SERIAL PRIMARY KEY,
+      menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
+      telegram_file_id TEXT NOT NULL,
+      file_name TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Idempotent Migration: Move existing single files from menus to menu_files
+  await pool.query(`
+    INSERT INTO menu_files (menu_id, telegram_file_id, file_name, mime_type, file_size, sort_order)
+    SELECT id, telegram_file_id, file_name, mime_type, file_size, 0
+    FROM menus
+    WHERE telegram_file_id IS NOT NULL 
+      AND telegram_file_id != ''
+      AND NOT EXISTS (
+        SELECT 1 FROM menu_files WHERE menu_files.menu_id = menus.id AND menu_files.telegram_file_id = menus.telegram_file_id
+      )
+  `);
+
+  // Ensure telegram_file_id column exists just in case it was dropped (backward compatibility)
+  await pool.query(
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
+  );
+  await pool.query(
+    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
+  );
+
   // Handle column migrations (PostgreSQL native approach)
   const alterQueries = [
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_deputy_owner BOOLEAN NOT NULL DEFAULT FALSE;`,
@@ -412,6 +446,45 @@ async function deleteMenu(id) {
   await cache.del(`menu:id:${id}`);
 }
 
+async function getMenuFiles(menuId) {
+  const { rows } = await pool.query('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY sort_order ASC, created_at ASC', [menuId]);
+  return rows;
+}
+
+async function addMenuFile(menuId, telegramFileId, fileName, mimeType, fileSize) {
+  const { rows: countRows } = await pool.query('SELECT count(*) as count FROM menu_files WHERE menu_id = $1', [menuId]);
+  if (parseInt(countRows[0].count, 10) >= 40) {
+    throw new Error('Maximum of 40 files allowed per menu button.');
+  }
+
+  const { rows } = await pool.query(`
+    INSERT INTO menu_files (menu_id, telegram_file_id, file_name, mime_type, file_size)
+    VALUES ($1, $2, $3, $4, $5) RETURNING id
+  `, [menuId, telegramFileId, fileName, mimeType, fileSize]);
+  
+  // Update the legacy column for backward compatibility (stores the latest uploaded file)
+  await pool.query('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [telegramFileId, fileName, mimeType, fileSize, menuId]);
+  
+  return rows[0].id;
+}
+
+async function deleteMenuFile(fileId) {
+  const { rows: fileRows } = await pool.query('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
+  if (fileRows.length === 0) return;
+  const menuId = fileRows[0].menu_id;
+
+  await pool.query('DELETE FROM menu_files WHERE id = $1', [fileId]);
+
+  // Sync backward compatible columns to the latest uploaded file or null
+  const { rows: remaining } = await pool.query('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY id DESC LIMIT 1', [menuId]);
+  if (remaining.length > 0) {
+    const f = remaining[0];
+    await pool.query('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [f.telegram_file_id, f.file_name, f.mime_type, f.file_size, menuId]);
+  } else {
+    await pool.query('UPDATE menus SET telegram_file_id = NULL, file_name = NULL, mime_type = NULL, file_size = NULL WHERE id = $1', [menuId]);
+  }
+}
+
 async function getAnnouncementsByFaculty(facultyId) {
   const { rows } = await pool.query('SELECT * FROM announcements WHERE faculty_id = $1 ORDER BY sent_at DESC', [facultyId]);
   return rows; // Unlikely to need heavy caching for announcements list since it's only occasionally fetched by users/admins
@@ -575,6 +648,9 @@ module.exports = {
   updateMenu,
   updateMenuFileId,
   deleteMenu,
+  getMenuFiles,
+  addMenuFile,
+  deleteMenuFile,
   getAnnouncementsByFaculty,
   createAnnouncement,
   updateAnnouncementFileId,

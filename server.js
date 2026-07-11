@@ -718,6 +718,11 @@ const server = http.createServer(async (req, res) => {
           fileSize,
           parseInt(fields.sort_order || 0, 10)
         );
+        
+        if (telegramFileId) {
+          await dbHelper.addMenuFile(id, telegramFileId, fileName, mimeType, fileSize);
+        }
+        
         return sendJson(res, 201, { id });
       } catch (e) {
         logger.error({ reqId, err: e }, 'POST /api/menus error');
@@ -780,7 +785,15 @@ const server = http.createServer(async (req, res) => {
           fileSize,
           parseInt(fields.sort_order || 0, 10)
         );
-        return sendJson(res, 200, { ok: true });
+
+        if (files.file) {
+          await dbHelper.addMenuFile(id, telegramFileId, fileName, mimeType, fileSize);
+        } else if (fields.remove_file === 'true') {
+          // Backward compatibility: clear the multiple files as well
+          await dbHelper.pool.query('DELETE FROM menu_files WHERE menu_id = $1', [id]);
+        }
+
+        return sendJson(res, 200, { success: true });
       } catch (e) {
         logger.error({ reqId, err: e }, 'PUT /api/menus error');
         return sendJson(res, 500, { error: e.message });

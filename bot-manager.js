@@ -254,7 +254,33 @@ class TelegramBotService {
     else if (clickedMenu.reply_type === 'file') {
       const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;
       
-      if (clickedMenu.telegram_file_id) {
+      const files = await dbHelper.getMenuFiles(clickedMenu.id);
+      
+      if (files && files.length > 0) {
+        let hasError = false;
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const currentCaption = (i === 0) ? caption : null;
+          try {
+            await this.sendDocumentWithFallback(
+              chatId, 
+              null, 
+              file.file_name, 
+              currentCaption, 
+              null, 
+              file.telegram_file_id,
+              (newId) => dbHelper.updateMenuFileId(clickedMenu.id, newId) // Legacy fallback update
+            );
+          } catch (e) {
+            this.logError('Error sending file', e);
+            hasError = true;
+          }
+        }
+        if (hasError) {
+          const errText = user.language === 'ar' ? 'عذراً، حدث خطأ أثناء إرسال بعض الملفات.' : 'Sorry, error sending some files.';
+          await this.apiCall('sendMessage', { chat_id: chatId, text: errText });
+        }
+      } else if (clickedMenu.telegram_file_id) {
         try {
           await this.sendDocumentWithFallback(
             chatId, 
@@ -286,7 +312,32 @@ class TelegramBotService {
       return;
     }
     const caption = lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en;
-    if (menu.telegram_file_id) {
+    const files = await dbHelper.getMenuFiles(menu.id);
+    
+    if (files && files.length > 0) {
+      let hasError = false;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const currentCaption = (i === 0) ? caption : null;
+        try {
+          await this.sendDocumentWithFallback(
+            chatId, 
+            null, 
+            file.file_name, 
+            currentCaption, 
+            null, 
+            file.telegram_file_id,
+            (newId) => dbHelper.updateMenuFileId(menu.id, newId)
+          );
+        } catch (e) {
+          this.logError('Error sending direct file', e);
+          hasError = true;
+        }
+      }
+      if (hasError) {
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في الإرسال' : 'Error sending file' });
+      }
+    } else if (menu.telegram_file_id) {
       try {
         await this.sendDocumentWithFallback(
           chatId, 
@@ -670,6 +721,7 @@ class TelegramBotService {
               state.captionAr = message.caption;
               state.captionEn = await this.translateArToEn(message.caption);
               const m2 = await dbHelper.getMenuById(state.menuId);
+              await dbHelper.addMenuFile(state.menuId, doc2.file_id, doc2.file_name, doc2.mime_type, doc2.file_size);
               await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order);
               await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m2.parent_id, viewingMenuDetailsId: state.menuId });
               await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث الملف والشرح!' : '✅ File and caption updated!' });
@@ -697,6 +749,9 @@ class TelegramBotService {
         const fMime = state.doc ? state.doc.mime_type : m3.mime_type;
         const fSize = state.doc ? state.doc.file_size : m3.file_size;
 
+        if (fId !== m3.telegram_file_id) {
+          await dbHelper.addMenuFile(state.menuId, fId, fName, fMime, fSize);
+        }
         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, fName, fId, fMime, fSize, m3.sort_order);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث!' : '✅ Updated!' });
@@ -934,7 +989,8 @@ class TelegramBotService {
       const mimeType = doc.mime_type || 'application/octet-stream';
       const fileSize = doc.file_size || 0;
 
-      await dbHelper.createMenu(this.facultyId, state.parentId, state.titleEn, state.titleAr, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, 0);
+      const newMenuId = await dbHelper.createMenu(this.facultyId, state.parentId, state.titleEn, state.titleAr, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, 0);
+      await dbHelper.addMenuFile(newMenuId, telegramFileId, fileName, mimeType, fileSize);
 
       await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.parentId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم إضافة زر الملف بنجاح!' : '✅ File button added!' });
@@ -955,6 +1011,7 @@ class TelegramBotService {
       const mimeType = doc.mime_type || 'application/octet-stream';
       const fileSize = doc.file_size || 0;
 
+      await dbHelper.addMenuFile(menu.id, telegramFileId, fileName, mimeType, fileSize);
       await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, menu.sort_order);
 
       await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id });
