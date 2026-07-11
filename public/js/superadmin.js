@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('saveAdminBtn').addEventListener('click', createAdmin);
   document.getElementById('confirmResetBtn').addEventListener('click', resetPassword);
+  document.getElementById('confirmDeleteBtn').addEventListener('click', deleteAdmin);
 });
 
 async function loadAdmins() {
