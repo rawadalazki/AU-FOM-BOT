@@ -635,6 +635,7 @@ async function assignDeputyOwner(newDeputyId) {
 
 module.exports = {
   pool,
+  runQuery,
   initDb,
   getFaculties,
   getFacultyById,
