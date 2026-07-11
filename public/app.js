@@ -1,4 +1,5 @@
 // Dashboard State variables
+let currentUser = null;
 let currentLang = 'en';
 let facultiesList = [];
 let activeFaculty = null;
@@ -145,7 +146,27 @@ const i18n = {
 // ----------------------------------------------------
 // Core Initialization
 // ----------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) { window.location.href = '/login.html'; return; }
+    currentUser = await res.json();
+    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'OWNER') {
+      const adminLink = document.getElementById('adminPanelLink');
+      if (adminLink) adminLink.classList.remove('d-none');
+    }
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+      });
+    }
+  } catch(e) {
+    window.location.href = '/login.html';
+    return;
+  }
+
   setupTranslationToggle();
   setupNavigationTabs();
   loadFaculties();

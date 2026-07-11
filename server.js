@@ -12,6 +12,10 @@ const botManager = require('./bot-manager');
 const cache = require('./cache');
 const rateLimiter = require('./rate-limiter');
 const backup = require('./backup');
+const auth = require('./auth');
+const bcrypt = require('bcryptjs');
+
+const loginAttempts = new Map();
 
 const PORT = process.env.PORT || 3000;
 
@@ -280,6 +284,160 @@ const server = http.createServer(async (req, res) => {
 
   // ── API ROUTES ─────────────────────────────────────────────────────────────
 
+  // ── AUTH & SUPERADMIN ROUTES ───────────────────────────────────────────────
+  if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/superadmin/')) {
+    if (pathname === '/api/auth/login' && method === 'POST') {
+      try {
+        const ip = await auth.getClientIp(req);
+        const now = Date.now();
+        const attempts = loginAttempts.get(ip) || { count: 0, time: now };
+        if (now - attempts.time > 15 * 60 * 1000) { attempts.count = 0; attempts.time = now; }
+        if (attempts.count >= 5) {
+          return sendJson(res, 429, { error: 'Too many login attempts. Try again in 15 minutes.' });
+        }
+
+        const data = await parseJson(req);
+        const admin = await dbHelper.getAdminByUsername(data.username);
+        
+        if (!admin || !admin.is_active || !(await bcrypt.compare(data.password, admin.password_hash))) {
+          attempts.count++;
+          loginAttempts.set(ip, attempts);
+          return sendJson(res, 401, { error: 'Invalid username or password' });
+        }
+
+        loginAttempts.delete(ip);
+        const { sessionId, expiresAt } = await auth.loginAdmin(admin.id);
+        await dbHelper.logAdminAction(admin.id, 'login', 'system', null, ip);
+
+        res.setHeader('Set-Cookie', `admin_session=${sessionId}; HttpOnly; Path=/; Expires=${expiresAt.toUTCString()}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+        return sendJson(res, 200, { ok: true, role: admin.role });
+      } catch (e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    if (pathname === '/api/auth/logout' && method === 'POST') {
+      const admin = await auth.authenticateRequest(req);
+      if (admin) {
+        await auth.logoutAdmin(req);
+        await dbHelper.logAdminAction(admin.id, 'logout', 'system', null, await auth.getClientIp(req));
+      }
+      res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax');
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/api/auth/me' && method === 'GET') {
+      const admin = await auth.authenticateRequest(req);
+      if (!admin) return sendJson(res, 401, { error: 'Unauthorized' });
+      return sendJson(res, 200, { username: admin.username, role: admin.role, is_deputy_owner: admin.is_deputy_owner });
+    }
+
+    // Protected Super Admin Routes
+    const adminUser = await auth.authenticateRequest(req);
+    if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (!auth.authorize(adminUser, 'manage_admins')) return sendJson(res, 403, { error: 'Forbidden' });
+
+    if (pathname === '/api/superadmin/users' && method === 'GET') {
+      const users = await dbHelper.getAllAdmins();
+      return sendJson(res, 200, users);
+    }
+
+    if (pathname === '/api/superadmin/users' && method === 'POST') {
+      try {
+        const data = await parseJson(req);
+        if (!data.username || !data.password) return sendJson(res, 400, { error: 'Missing fields' });
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(data.password, salt);
+        const newId = await dbHelper.createAdmin(data.username, hash, 'SUPER_ADMIN');
+        await dbHelper.logAdminAction(adminUser.id, 'create_admin', 'admin_users', newId, await auth.getClientIp(req));
+        return sendJson(res, 201, { id: newId });
+      } catch (e) {
+        if (e.code === '23505') return sendJson(res, 400, { error: 'Username already exists' });
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    const resetMatch = pathname.match(/^\/api\/superadmin\/users\/([^/]+)\/reset$/);
+    if (resetMatch && method === 'POST') {
+      try {
+        const id = resetMatch[1];
+        const targetAdmin = await dbHelper.getAdminById(id);
+        if (!auth.canManageUser(adminUser, targetAdmin)) {
+          await dbHelper.logAdminAction(adminUser.id, 'blocked_unauthorized_admin_action', 'admin_users', id, await auth.getClientIp(req));
+          return sendJson(res, 403, { error: 'Forbidden: Cannot manage this user' });
+        }
+        const data = await parseJson(req);
+        if (!data.password) return sendJson(res, 400, { error: 'Missing password' });
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(data.password, salt);
+        await dbHelper.updateAdminPassword(id, hash);
+        await dbHelper.deleteAllSessions(id);
+        await dbHelper.logAdminAction(adminUser.id, 'reset_password', 'admin_users', id, await auth.getClientIp(req));
+        return sendJson(res, 200, { ok: true });
+      } catch(e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    const toggleMatch = pathname.match(/^\/api\/superadmin\/users\/([^/]+)\/toggle$/);
+    if (toggleMatch && method === 'POST') {
+      try {
+        const id = toggleMatch[1];
+        if (id === adminUser.id) return sendJson(res, 400, { error: 'Cannot disable yourself' });
+        const targetAdmin = await dbHelper.getAdminById(id);
+        if (!auth.canManageUser(adminUser, targetAdmin)) {
+          await dbHelper.logAdminAction(adminUser.id, 'blocked_unauthorized_admin_action', 'admin_users', id, await auth.getClientIp(req));
+          return sendJson(res, 403, { error: 'Forbidden: Cannot manage this user' });
+        }
+        const data = await parseJson(req);
+        await dbHelper.toggleAdminStatus(id, data.is_active);
+        if (!data.is_active) await dbHelper.deleteAllSessions(id);
+        await dbHelper.logAdminAction(adminUser.id, 'toggle_admin', 'admin_users', id, await auth.getClientIp(req));
+        return sendJson(res, 200, { ok: true });
+      } catch(e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    const deputyMatch = pathname.match(/^\/api\/superadmin\/users\/([^/]+)\/deputy$/);
+    if (deputyMatch && method === 'POST') {
+      try {
+        if (adminUser.role !== 'OWNER') {
+          await dbHelper.logAdminAction(adminUser.id, 'blocked_unauthorized_admin_action', 'admin_users', 'deputy_assign', await auth.getClientIp(req));
+          return sendJson(res, 403, { error: 'Only the OWNER can manage Deputy Owner status' });
+        }
+        const id = deputyMatch[1];
+        const data = await parseJson(req);
+        
+        if (data.is_deputy_owner) {
+          const targetAdmin = await dbHelper.getAdminById(id);
+          if (!targetAdmin || targetAdmin.role !== 'SUPER_ADMIN') {
+            return sendJson(res, 400, { error: 'Can only promote regular SUPER_ADMIN accounts' });
+          }
+          await dbHelper.assignDeputyOwner(id);
+          await dbHelper.logAdminAction(adminUser.id, 'assign_deputy_owner', 'admin_users', id, await auth.getClientIp(req));
+        } else {
+          // Verify we are removing it from the currently assigned deputy (or just clearing it)
+          await dbHelper.assignDeputyOwner(null);
+          await dbHelper.logAdminAction(adminUser.id, 'remove_deputy_owner', 'admin_users', id, await auth.getClientIp(req));
+        }
+        return sendJson(res, 200, { ok: true });
+      } catch(e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    return sendJson(res, 404, { error: 'Not found' });
+  }
+
+  // Protect Dashboard APIs
+  if (pathname.startsWith('/api/faculties') || pathname.startsWith('/api/menus') || pathname.startsWith('/api/announcements') || pathname.startsWith('/api/bot_users')) {
+    const adminUser = await auth.authenticateRequest(req);
+    if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (!auth.authorize(adminUser, 'manage_faculties')) return sendJson(res, 403, { error: 'Forbidden' });
+    req.adminUser = adminUser;
+  }
+
   // --- Faculties API ---
   if (pathname === '/api/faculties') {
     if (method === 'GET') {
@@ -309,6 +467,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         const id = await dbHelper.createFaculty(data.name_en, data.name_ar, data.slug);
+        if (req.adminUser) await dbHelper.logAdminAction(req.adminUser.id, 'create_faculty', 'faculties', id.toString(), await auth.getClientIp(req));
         return sendJson(res, 201, { id });
       } catch (e) {
         logger.error({ reqId, err: e }, 'POST /api/faculties error');
@@ -369,6 +528,7 @@ const server = http.createServer(async (req, res) => {
           await botManager.deleteWebhookForFaculty(fac, reqId).catch(e => logger.error({reqId, err: e}, 'Delete webhook failed'));
           // No S3 cleanup needed — files are on Telegram
           await dbHelper.deleteFaculty(id);
+          if (req.adminUser) await dbHelper.logAdminAction(req.adminUser.id, 'delete_faculty', 'faculties', id.toString(), await auth.getClientIp(req));
         }
         return sendJson(res, 200, { ok: true });
       } catch (e) {

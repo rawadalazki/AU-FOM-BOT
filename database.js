@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const logger = require('./logger');
 const cache = require('./cache');
+const bcrypt = require('bcryptjs');
 
 // Create a connection pool using the DATABASE_URL environment variable
 const pool = new Pool({
@@ -114,8 +115,60 @@ async function initDb() {
     )
   `);
 
+  // 6. Create admin_users table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'SUPER_ADMIN',
+      is_active BOOLEAN DEFAULT true,
+      is_deputy_owner BOOLEAN NOT NULL DEFAULT FALSE,
+      last_login_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS one_deputy_owner 
+    ON admin_users ((is_deputy_owner)) 
+    WHERE is_deputy_owner = TRUE
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS one_owner 
+    ON admin_users (role) 
+    WHERE role = 'OWNER'
+  `);
+
+  // 7. Create admin_sessions table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      session_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // 8. Create admin_audit_log table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id SERIAL PRIMARY KEY,
+      admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      entity TEXT,
+      entity_id TEXT,
+      ip_address TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Handle column migrations (PostgreSQL native approach)
   const alterQueries = [
+    `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_deputy_owner BOOLEAN NOT NULL DEFAULT FALSE;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS inline_buttons TEXT;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`,
@@ -142,6 +195,7 @@ async function initDb() {
 
   // Seed data if empty
   await seedData();
+  await seedAdminData();
 
   logger.info('[DB] PostgreSQL initialization complete.');
 }
@@ -186,6 +240,40 @@ async function seedData() {
     `, [facId, deptId, 'Internal Medicine', 'الطب الباطني', 'text', 'Internal Medicine covers adult diseases.', 'قسم الباطنية يعنى بأمراض البالغين.']);
   } catch (err) {
     logger.error({ err }, '[DB] Seeding race condition averted or error');
+  }
+}
+
+async function seedAdminData() {
+  try {
+    // 1. Promote INITIAL_ADMIN_USERNAME to OWNER if they are still SUPER_ADMIN
+    if (process.env.INITIAL_ADMIN_USERNAME) {
+      const { rowCount } = await pool.query(`
+        UPDATE admin_users SET role = 'OWNER' 
+        WHERE username = $1 AND role = 'SUPER_ADMIN' 
+        AND NOT EXISTS (SELECT 1 FROM admin_users WHERE role = 'OWNER')
+      `, [process.env.INITIAL_ADMIN_USERNAME]);
+      if (rowCount > 0) logger.info('[DB] Promoted initial admin to OWNER.');
+    }
+
+    // 2. Check if an OWNER exists
+    const { rows: ownerRows } = await pool.query("SELECT COUNT(*) as count FROM admin_users WHERE role = 'OWNER'");
+    if (parseInt(ownerRows[0].count) > 0) return;
+
+    if (process.env.INITIAL_ADMIN_USERNAME && process.env.INITIAL_ADMIN_PASSWORD) {
+      logger.info('[DB] Seeding initial OWNER...');
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(process.env.INITIAL_ADMIN_PASSWORD, salt);
+      await pool.query(`
+        INSERT INTO admin_users (username, password_hash, role) 
+        VALUES ($1, $2, 'OWNER')
+        ON CONFLICT DO NOTHING
+      `, [process.env.INITIAL_ADMIN_USERNAME, hash]);
+      logger.info('[DB] Initial OWNER created successfully.');
+    } else {
+      logger.warn('[DB] No INITIAL_ADMIN_USERNAME provided. Dashboard authentication will be unavailable until seeded.');
+    }
+  } catch (err) {
+    logger.error({ err }, '[DB] Error seeding initial admin data');
   }
 }
 
@@ -389,13 +477,92 @@ async function deleteAdminState(chatId) {
   await pool.query('DELETE FROM admin_states WHERE chat_id = $1', [chatId]);
 }
 
+async function getAdminByUsername(username) {
+  const { rows } = await pool.query('SELECT * FROM admin_users WHERE username = $1', [username]);
+  return rows[0];
+}
+
+async function getAdminById(id) {
+  const { rows } = await pool.query('SELECT * FROM admin_users WHERE id = $1', [id]);
+  return rows[0];
+}
+
+async function createAdmin(username, passwordHash, role) {
+  const { rows } = await pool.query('INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [username, passwordHash, role]);
+  return rows[0].id;
+}
+
+async function updateAdminPassword(id, passwordHash) {
+  await pool.query('UPDATE admin_users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+}
+
+async function toggleAdminStatus(id, active) {
+  await pool.query('UPDATE admin_users SET is_active = $1 WHERE id = $2', [active, id]);
+}
+
+async function updateLastLogin(id) {
+  await pool.query('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [id]);
+}
+
+async function getAllAdmins() {
+  const { rows } = await pool.query('SELECT id, username, role, is_active, is_deputy_owner, last_login_at, created_at FROM admin_users ORDER BY created_at ASC');
+  return rows;
+}
+
+async function createSession(adminId, sessionHash, expiresAt) {
+  await pool.query('INSERT INTO admin_sessions (admin_id, session_hash, expires_at) VALUES ($1, $2, $3)', [adminId, sessionHash, expiresAt]);
+}
+
+async function getSessionByHash(sessionHash) {
+  const { rows } = await pool.query('SELECT * FROM admin_sessions WHERE session_hash = $1 AND expires_at > NOW()', [sessionHash]);
+  return rows[0];
+}
+
+async function deleteSession(sessionHash) {
+  await pool.query('DELETE FROM admin_sessions WHERE session_hash = $1', [sessionHash]);
+}
+
+async function deleteAllSessions(adminId) {
+  await pool.query('DELETE FROM admin_sessions WHERE admin_id = $1', [adminId]);
+}
+
+async function cleanupExpiredSessions() {
+  await pool.query('DELETE FROM admin_sessions WHERE expires_at < NOW()');
+}
+
+async function logAdminAction(adminId, action, entity, entityId, ipAddress) {
+  await pool.query(
+    'INSERT INTO admin_audit_log (admin_id, action, entity, entity_id, ip_address) VALUES ($1, $2, $3, $4, $5)', 
+    [adminId, action, entity, entityId, ipAddress]
+  );
+}
+
+async function assignDeputyOwner(newDeputyId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Clear old deputy owner
+    await client.query('UPDATE admin_users SET is_deputy_owner = FALSE WHERE is_deputy_owner = TRUE');
+    // Set new deputy owner if provided
+    if (newDeputyId) {
+      await client.query("UPDATE admin_users SET is_deputy_owner = TRUE WHERE id = $1 AND role = 'SUPER_ADMIN'", [newDeputyId]);
+    }
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   pool,
   initDb,
-  runQuery,
   getFaculties,
   getFacultyById,
   getFacultyBySlug,
+  getFacultiesByAdmin,
   createFaculty,
   updateFaculty,
   deleteFaculty,
@@ -403,16 +570,27 @@ module.exports = {
   getMenuById,
   createMenu,
   updateMenu,
-  updateMenuFileId,
   deleteMenu,
   getAnnouncementsByFaculty,
   createAnnouncement,
-  updateAnnouncementFileId,
   getBotUser,
   upsertBotUser,
-  getBotUsersByFaculty,
-  updateBotUserMenu,
+  updateBotUserCurrentMenu,
   getAdminState,
   setAdminState,
+  getAdminByUsername,
+  getAdminById,
+  createAdmin,
+  updateAdminPassword,
+  toggleAdminStatus,
+  updateLastLogin,
+  getAllAdmins,
+  createSession,
+  getSessionByHash,
+  deleteSession,
+  deleteAllSessions,
+  cleanupExpiredSessions,
+  logAdminAction,
+  assignDeputyOwner,
   deleteAdminState
 };
