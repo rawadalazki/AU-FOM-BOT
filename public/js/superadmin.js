@@ -72,6 +72,9 @@ async function loadAdmins() {
           <button class="btn btn-sm btn-outline-warning btn-reset" data-id="${user.id}" data-username="${user.username}">
             <i class="bi bi-key"></i> Reset
           </button>
+          <button class="btn btn-sm btn-outline-danger btn-delete ms-1" data-id="${user.id}" data-username="${user.username}">
+            <i class="bi bi-trash"></i> Delete
+          </button>
         `;
         if (currentUser.role === 'OWNER' && user.role === 'SUPER_ADMIN') {
           const depAction = user.is_deputy_owner ? 'Remove Deputy' : 'Make Deputy';
@@ -121,13 +124,24 @@ async function loadAdmins() {
 
     document.querySelectorAll('.btn-reset').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const btnEl = e.target.closest('button');
-        document.getElementById('resetAdminId').value = btnEl.getAttribute('data-id');
-        document.getElementById('resetUsernameDisplay').textContent = btnEl.getAttribute('data-username');
-        document.getElementById('resetAdminPassword').value = '';
+        const id = e.currentTarget.getAttribute('data-id');
+        const username = e.currentTarget.getAttribute('data-username');
+        document.getElementById('resetAdminId').value = id;
+        document.getElementById('resetUsernameDisplay').textContent = username;
         document.getElementById('resetPasswordError').classList.add('d-none');
-        const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
-        modal.show();
+        document.getElementById('resetAdminPassword').value = '';
+        new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+      });
+    });
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        const username = e.currentTarget.getAttribute('data-username');
+        document.getElementById('deleteAdminId').value = id;
+        document.getElementById('deleteUsernameDisplay').textContent = username;
+        document.getElementById('deleteAdminError').classList.add('d-none');
+        new bootstrap.Modal(document.getElementById('deleteAdminModal')).show();
       });
     });
 
@@ -204,6 +218,8 @@ async function createAdmin() {
     btn.disabled = false;
   }
 }
+  document.getElementById('confirmDeleteBtn').addEventListener('click', deleteAdmin);
+});
 
 async function resetPassword() {
   const id = document.getElementById('resetAdminId').value;
@@ -241,6 +257,42 @@ async function resetPassword() {
     if (document.activeElement) document.activeElement.blur();
     bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
     alert('Password reset successfully. User has been logged out.');
+  } catch(e) {
+    errorDiv.textContent = e.message;
+    errorDiv.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteAdmin() {
+  const id = document.getElementById('deleteAdminId').value;
+  const errorDiv = document.getElementById('deleteAdminError');
+  const btn = document.getElementById('confirmDeleteBtn');
+
+  errorDiv.classList.add('d-none');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/superadmin/users/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!res.ok) {
+      let errStr = 'Failed to delete admin';
+      try {
+        const data = await res.json();
+        errStr = data.error || errStr;
+      } catch (jsonErr) {
+        errStr = await res.text();
+      }
+      throw new Error(errStr);
+    }
+
+    if (document.activeElement) document.activeElement.blur();
+    bootstrap.Modal.getInstance(document.getElementById('deleteAdminModal')).hide();
+    loadAdmins();
   } catch(e) {
     errorDiv.textContent = e.message;
     errorDiv.classList.remove('d-none');

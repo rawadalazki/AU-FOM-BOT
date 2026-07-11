@@ -427,6 +427,24 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    const deleteMatch = pathname.match(/^\/api\/superadmin\/users\/([^/]+)$/);
+    if (deleteMatch && method === 'DELETE') {
+      try {
+        const id = deleteMatch[1];
+        const targetAdmin = await dbHelper.getAdminById(id);
+        if (!auth.canManageUser(adminUser, targetAdmin)) {
+          await dbHelper.logAdminAction(adminUser.id, 'blocked_unauthorized_admin_action', 'admin_users', id, await auth.getClientIp(req));
+          return sendJson(res, 403, { error: 'Forbidden: Cannot delete this user' });
+        }
+        await dbHelper.deleteAdmin(id);
+        await dbHelper.deleteAllSessions(id);
+        await dbHelper.logAdminAction(adminUser.id, 'delete_admin', 'admin_users', id, await auth.getClientIp(req));
+        return sendJson(res, 200, { ok: true });
+      } catch(e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+
     return sendJson(res, 404, { error: 'Not found' });
   }
 

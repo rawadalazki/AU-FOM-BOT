@@ -500,6 +500,10 @@ async function toggleAdminStatus(id, active) {
   await pool.query('UPDATE admin_users SET is_active = $1 WHERE id = $2', [active, id]);
 }
 
+async function deleteAdmin(id) {
+  await pool.query('DELETE FROM admin_users WHERE id = $1', [id]);
+}
+
 async function updateLastLogin(id) {
   await pool.query('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [id]);
 }
@@ -585,6 +589,7 @@ module.exports = {
   createAdmin,
   updateAdminPassword,
   toggleAdminStatus,
+  deleteAdmin,
   updateLastLogin,
   getAllAdmins,
   createSession,
