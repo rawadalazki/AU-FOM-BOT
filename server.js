@@ -1,4 +1,4 @@
-﻿const http = require('node:http');
+const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // â”€â”€ 0. Rate Limiting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 0. Rate Limiting ───────────────────────────────────────────────────────
   // Apply rate limiting to all /api/ routes, EXCEPT verified webhooks
   if (pathname.startsWith('/api/')) {
     const webhookMatch = pathname.match(/^\/api\/telegram\/webhook\/(\d+)$/);
@@ -201,7 +201,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // â”€â”€ 1. Health & Readiness Probes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 1. Health & Readiness Probes ───────────────────────────────────────────
   if (method === 'GET' && pathname === '/health') {
     return sendJson(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
   }
@@ -227,7 +227,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // â”€â”€ 2. Telegram Webhook Endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 2. Telegram Webhook Endpoint ──────────────────────────────────────────────
   const webhookMatch = pathname.match(/^\/api\/telegram\/webhook\/(\d+)$/);
   if (method === 'POST' && webhookMatch) {
     const facultyId = parseInt(webhookMatch[1], 10);
@@ -241,7 +241,7 @@ const server = http.createServer(async (req, res) => {
       
       const update = await parseJson(req);
       
-      // Handle asynchronously â€” always return 200 to Telegram immediately
+      // Handle asynchronously — always return 200 to Telegram immediately
       botManager.handleWebhookUpdate(facultyId, update, reqId).catch(err => {
         logger.error({ reqId, facultyId, err }, `Webhook update error`);
       });
@@ -253,7 +253,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // â”€â”€ 3. File Proxy Endpoint (streams from Telegram) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 3. File Proxy Endpoint (streams from Telegram) ──────────────────────────
   const fileProxyMenuMatch = pathname.match(/^\/api\/files\/menu\/(\d+)$/);
   if (method === 'GET' && fileProxyMenuMatch) {
     try {
@@ -350,9 +350,9 @@ const server = http.createServer(async (req, res) => {
   }
 
 
-  // â”€â”€ API ROUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── API ROUTES ─────────────────────────────────────────────────────────────
 
-  // â”€â”€ AUTH & SUPERADMIN ROUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── AUTH & SUPERADMIN ROUTES ───────────────────────────────────────────────
   if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/superadmin/')) {
     if (pathname === '/api/auth/login' && method === 'POST') {
       try {
@@ -767,7 +767,7 @@ const server = http.createServer(async (req, res) => {
         const fac = await dbHelper.getFacultyById(id);
         if (fac) {
           await botManager.deleteWebhookForFaculty(fac, reqId).catch(e => logger.error({reqId, err: e}, 'Delete webhook failed'));
-          // No S3 cleanup needed â€” files are on Telegram
+          // No S3 cleanup needed — files are on Telegram
           await dbHelper.deleteFaculty(id);
           if (req.adminUser) await dbHelper.logAdminAction(req.adminUser.id, 'delete_faculty', 'faculties', id.toString(), await auth.getClientIp(req));
         }
@@ -1077,7 +1077,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const menu = await dbHelper.getMenuById(id);
         if (menu) {
-          // No S3 cleanup needed â€” files are on Telegram
+          // No S3 cleanup needed — files are on Telegram
           await dbHelper.deleteMenu(id);
         }
         return sendJson(res, 200, { ok: true });
@@ -1242,7 +1242,7 @@ const server = http.createServer(async (req, res) => {
             const btns = JSON.parse(menu.inline_buttons);
             if (btns && btns.length > 0) {
                response.reply_content_en += '\n\nLinks:\n' + btns.map(b => `- ${b.text_en}: ${b.url}`).join('\n');
-               response.reply_content_ar += '\n\nØ±ÙˆØ§Ø¨Ø·:\n' + btns.map(b => `- ${b.text_ar}: ${b.url}`).join('\n');
+               response.reply_content_ar += '\n\nروابط:\n' + btns.map(b => `- ${b.text_ar}: ${b.url}`).join('\n');
             }
           } catch(e) {}
         }
@@ -1414,4 +1414,5 @@ async function main() {
 }
 
 main();
+
 
