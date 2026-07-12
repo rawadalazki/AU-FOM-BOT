@@ -12,7 +12,7 @@ const botManager = require('./bot-manager');
 const cache = require('./cache');
 const rateLimiter = require('./rate-limiter');
 const backup = require('./backup');
-const auth = require('./authentication');
+const auth = require('./auth');
 const bcrypt = require('bcryptjs');
 const { reportRuntimeError, recoverUnsentReports } = require('./error-reporter');
 
