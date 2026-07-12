@@ -12,8 +12,42 @@ const botManager = require('./bot-manager');
 const cache = require('./cache');
 const rateLimiter = require('./rate-limiter');
 const backup = require('./backup');
-const auth = require('./auth');
+const auth = require('./authentication');
 const bcrypt = require('bcryptjs');
+const { reportRuntimeError, recoverUnsentReports } = require('./error-reporter');
+
+process.on('uncaughtException', async (err) => {
+  try {
+    const isFatal = true; // All uncaught exceptions are fatal by default in Node
+    await reportRuntimeError({
+      Severity: 'CRITICAL',
+      Error_Type: 'UncaughtException',
+      Error_Message: err.message,
+      Stack_Trace: err.stack,
+      Function_Name: 'process.on(uncaughtException)',
+      File_Name: 'server.js',
+      Operation: 'Unhandled Application Crash'
+    });
+    await flushPendingNotifications();
+  } catch(e) {}
+  process.exit(1);
+});
+
+process.on('unhandledRejection', async (reason, promise) => {
+  try {
+    await reportRuntimeError({
+      Severity: 'CRITICAL',
+      Error_Type: 'UnhandledRejection',
+      Error_Message: reason ? (reason.message || String(reason)) : 'Unknown',
+      Stack_Trace: reason ? reason.stack : '',
+      Function_Name: 'process.on(unhandledRejection)',
+      File_Name: 'server.js',
+      Operation: 'Unhandled Promise Rejection'
+    });
+    await flushPendingNotifications();
+  } catch(e) {}
+  // Node default for unhandledRejection is often to not exit, but let's let it log it safely.
+});
 
 const loginAttempts = new Map();
 
@@ -237,7 +271,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
-        'Content-Disposition': `inline; filename="${menu.file_name || 'file'}"`
+        'Content-Disposition': `inline; filename="download"; filename*=UTF-8''${encodeURIComponent(menu.file_name || 'file')}`
       });
       
       stream.pipe(res);
@@ -272,7 +306,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
-        'Content-Disposition': `inline; filename="${mf.file_name || 'file'}"`
+        'Content-Disposition': `inline; filename="download"; filename*=UTF-8''${encodeURIComponent(mf.file_name || 'file')}`
       });
       stream.pipe(res);
       return;
@@ -302,7 +336,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
-        'Content-Disposition': `inline; filename="${ann.file_name || 'file'}"`
+        'Content-Disposition': `inline; filename="download"; filename*=UTF-8''${encodeURIComponent(ann.file_name || 'file')}`
       });
       
       stream.pipe(res);
@@ -488,6 +522,130 @@ const server = http.createServer(async (req, res) => {
     if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
     if (!auth.authorize(adminUser, 'manage_faculties')) return sendJson(res, 403, { error: 'Forbidden' });
     req.adminUser = adminUser;
+  }
+
+  // Protect Runtime Errors Dashboard APIs
+  if (pathname.startsWith('/api/errors')) {
+    const adminUser = await auth.authenticateRequest(req);
+    if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (adminUser.role !== 'OWNER' && adminUser.role !== 'DEPUTY_OWNER') {
+      return sendJson(res, 403, { error: 'Forbidden' });
+    }
+    req.adminUser = adminUser;
+  }
+
+  // --- Runtime Errors API ---
+  if (pathname === '/api/errors') {
+    if (method === 'GET') {
+      try {
+        const query = urlObj.searchParams;
+        const page = parseInt(query.get('page') || '1', 10);
+        const limit = parseInt(query.get('limit') || '50', 10);
+        const offset = (page - 1) * limit;
+        
+        let conditions = [];
+        let params = [];
+        
+        const severity = query.get('severity');
+        if (severity) { params.push(severity); conditions.push(`severity = $${params.length}`); }
+        const facultyId = query.get('faculty_id');
+        if (facultyId) { params.push(facultyId); conditions.push(`faculty_id = $${params.length}`); }
+        const status = query.get('status');
+        if (status === 'resolved') { conditions.push(`resolved = true`); }
+        else if (status === 'unresolved') { conditions.push(`resolved = false`); }
+        
+        let whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+        const countRes = await dbHelper.pool.query(`SELECT count(*) FROM runtime_error_logs ${whereClause}`, params);
+        const total = parseInt(countRes.rows[0].count, 10);
+        
+        const dataRes = await dbHelper.pool.query(`
+          SELECT id, severity, faculty_id, bot_id, user_telegram_id, operation, error_message, occurrence_count, first_occurrence, last_occurrence, resolved, resolved_by, resolved_at, notes
+          FROM runtime_error_logs 
+          ${whereClause} 
+          ORDER BY last_occurrence DESC 
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `, [...params, limit, offset]);
+        
+        return sendJson(res, 200, { data: dataRes.rows, total, page, limit });
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/errors error');
+        return sendJson(res, 500, { error: 'Server Error' });
+      }
+    }
+  }
+
+  const errorMatch = pathname.match(/^\/api\/errors\/(\d+)$/);
+  if (errorMatch) {
+    const id = parseInt(errorMatch[1], 10);
+    if (method === 'GET') {
+      try {
+        const dataRes = await dbHelper.pool.query(`SELECT * FROM runtime_error_logs WHERE id = $1`, [id]);
+        if (dataRes.rows.length === 0) return sendJson(res, 404, { error: 'Not found' });
+        return sendJson(res, 200, dataRes.rows[0]);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/errors/:id error');
+        return sendJson(res, 500, { error: 'Server Error' });
+      }
+    }
+  }
+
+  const errorResolveMatch = pathname.match(/^\/api\/errors\/(\d+)\/resolve$/);
+  if (errorResolveMatch && method === 'PUT') {
+    const id = parseInt(errorResolveMatch[1], 10);
+    try {
+      const data = await readJson(req);
+      const resolved = !!data.resolved;
+      await dbHelper.pool.query(`
+        UPDATE runtime_error_logs 
+        SET resolved = $1, resolved_by = $2, resolved_at = $3 
+        WHERE id = $4
+      `, [resolved, resolved ? req.adminUser.username : null, resolved ? new Date() : null, id]);
+      
+      await dbHelper.pool.query(
+         'INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
+         [req.adminUser.id, 'RESOLVE_ERROR', 'ERROR_LOG', id, JSON.stringify({ resolved })]
+      );
+      return sendJson(res, 200, { success: true });
+    } catch (e) {
+      logger.error({ reqId, err: e }, 'PUT /api/errors/:id/resolve error');
+      return sendJson(res, 500, { error: 'Server Error' });
+    }
+  }
+
+  const errorNotesMatch = pathname.match(/^\/api\/errors\/(\d+)\/notes$/);
+  if (errorNotesMatch && method === 'PUT') {
+    const id = parseInt(errorNotesMatch[1], 10);
+    try {
+      const data = await readJson(req);
+      await dbHelper.pool.query(`UPDATE runtime_error_logs SET notes = $1 WHERE id = $2`, [data.notes, id]);
+      
+      await dbHelper.pool.query(
+         'INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
+         [req.adminUser.id, 'UPDATE_ERROR_NOTES', 'ERROR_LOG', id, JSON.stringify({ notes: data.notes })]
+      );
+      return sendJson(res, 200, { success: true });
+    } catch (e) {
+      logger.error({ reqId, err: e }, 'PUT /api/errors/:id/notes error');
+      return sendJson(res, 500, { error: 'Server Error' });
+    }
+  }
+
+  const errorSeverityMatch = pathname.match(/^\/api\/errors\/(\d+)\/severity$/);
+  if (errorSeverityMatch && method === 'PUT') {
+    const id = parseInt(errorSeverityMatch[1], 10);
+    try {
+      const data = await readJson(req);
+      await dbHelper.pool.query(`UPDATE runtime_error_logs SET severity = $1 WHERE id = $2`, [data.severity, id]);
+      
+      await dbHelper.pool.query(
+         'INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
+         [req.adminUser.id, 'UPDATE_ERROR_SEVERITY', 'ERROR_LOG', id, JSON.stringify({ severity: data.severity })]
+      );
+      return sendJson(res, 200, { success: true });
+    } catch (e) {
+      logger.error({ reqId, err: e }, 'PUT /api/errors/:id/severity error');
+      return sendJson(res, 500, { error: 'Server Error' });
+    }
   }
 
   // --- Faculties API ---

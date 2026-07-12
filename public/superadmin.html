@@ -31,12 +31,23 @@
 </nav>
 
 <div class="container">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Admin Management</h2>
-    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addAdminModal">
-      <i class="bi bi-person-plus me-1"></i> Add Admin
-    </button>
-  </div>
+  <ul class="nav nav-tabs mb-4" id="superadminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="admins-tab" data-bs-toggle="tab" data-bs-target="#admins-pane" type="button" role="tab">Admin Management</button>
+    </li>
+    <li class="nav-item d-none" role="presentation" id="errorsTabItem">
+      <button class="nav-link text-danger fw-bold" id="errors-tab" data-bs-toggle="tab" data-bs-target="#errors-pane" type="button" role="tab"><i class="bi bi-bug"></i> Runtime Errors</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="superadminTabsContent">
+    <div class="tab-pane fade show active" id="admins-pane" role="tabpanel">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Admin Management</h2>
+        <button class="btn btn-success" id="addAdminTopBtn" data-bs-toggle="modal" data-bs-target="#addAdminModal">
+          <i class="bi bi-person-plus me-1"></i> Add Admin
+        </button>
+      </div>
 
   <div id="alertBox" class="alert alert-danger d-none" role="alert"></div>
 
@@ -57,6 +68,81 @@
           <!-- Populated by JS -->
         </tbody>
       </table>
+    </div>
+  </div>
+    </div>
+  </div>
+</div> <!-- end admins-pane -->
+
+<div class="tab-pane fade" id="errors-pane" role="tabpanel">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Runtime Errors</h2>
+    <div>
+      <select id="errorFilterSeverity" class="form-select form-select-sm d-inline-block w-auto me-2">
+        <option value="">All Severities</option>
+        <option value="CRITICAL">CRITICAL</option>
+        <option value="ERROR">ERROR</option>
+        <option value="WARNING">WARNING</option>
+        <option value="INFO">INFO</option>
+      </select>
+      <select id="errorFilterStatus" class="form-select form-select-sm d-inline-block w-auto me-2">
+        <option value="unresolved">Unresolved</option>
+        <option value="resolved">Resolved</option>
+        <option value="">All</option>
+      </select>
+      <button class="btn btn-primary btn-sm" id="refreshErrorsBtn"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th>Severity</th>
+            <th>Faculty / Bot</th>
+            <th>User / Op</th>
+            <th>Message</th>
+            <th>Count</th>
+            <th>Last Occurred</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="errorsTableBody">
+          <tr><td colspan="8" class="text-center py-3">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div> <!-- end errors-pane -->
+
+</div> <!-- end tab-content -->
+</div> <!-- end container -->
+
+<!-- Runtime Error Full Context Modal -->
+<div class="modal fade" id="errorContextModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Error Full Context</h5>
+        <div class="ms-3">
+           <button class="btn btn-sm btn-outline-secondary me-1" id="errExpandAllBtn">Expand All</button>
+           <button class="btn btn-sm btn-outline-secondary" id="errCollapseAllBtn">Collapse All</button>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="errorContextBody">
+        <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <div>
+          <button class="btn btn-sm btn-outline-primary" id="copyErrJsonBtn">Copy JSON</button>
+          <button class="btn btn-sm btn-outline-primary" id="copyErrStackBtn">Copy Stack Trace</button>
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -138,5 +224,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/superadmin.js"></script>
+<script src="/js/errors.js"></script>
 </body>
 </html>
