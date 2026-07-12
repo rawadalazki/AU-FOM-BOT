@@ -1625,5 +1625,6 @@ module.exports = {
     return await svc.getFileStreamFromTelegram(telegramFileId);
   },
 
-  getWebhookSecret
+  getWebhookSecret,
+  getBotService
 };

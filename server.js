@@ -538,7 +538,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/errors') {
     if (method === 'GET') {
       try {
-        const query = urlObj.searchParams;
+        const query = parsedUrl.searchParams;
         const page = parseInt(query.get('page') || '1', 10);
         const limit = parseInt(query.get('limit') || '50', 10);
         const offset = (page - 1) * limit;
@@ -593,7 +593,7 @@ const server = http.createServer(async (req, res) => {
   if (errorResolveMatch && method === 'PUT') {
     const id = parseInt(errorResolveMatch[1], 10);
     try {
-      const data = await readJson(req);
+      const data = await parseJson(req);
       const resolved = !!data.resolved;
       await dbHelper.pool.query(`
         UPDATE runtime_error_logs 
@@ -616,7 +616,7 @@ const server = http.createServer(async (req, res) => {
   if (errorNotesMatch && method === 'PUT') {
     const id = parseInt(errorNotesMatch[1], 10);
     try {
-      const data = await readJson(req);
+      const data = await parseJson(req);
       await dbHelper.pool.query(`UPDATE runtime_error_logs SET notes = $1 WHERE id = $2`, [data.notes, id]);
       
       await dbHelper.pool.query(
@@ -634,7 +634,7 @@ const server = http.createServer(async (req, res) => {
   if (errorSeverityMatch && method === 'PUT') {
     const id = parseInt(errorSeverityMatch[1], 10);
     try {
-      const data = await readJson(req);
+      const data = await parseJson(req);
       await dbHelper.pool.query(`UPDATE runtime_error_logs SET severity = $1 WHERE id = $2`, [data.severity, id]);
       
       await dbHelper.pool.query(
