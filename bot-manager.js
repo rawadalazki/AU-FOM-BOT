@@ -156,7 +156,7 @@ class TelegramBotService {
           Last_Reply_Type: combined.lastReplyType || 'Unknown',
           Bot_Message_ID: combined.botMessageId || 'Unknown',
           File_Name_Sending: combined.fileName || 'Unknown',
-          File_Mime_Type: combined.mimeType || 'Unknown',
+          File_Mime_Type: combined.fileType || combined.mimeType || 'Unknown',
           File_Page_Number: combined.pageNumber !== undefined ? combined.pageNumber : 'Unknown',
           ...combined
         });
@@ -542,6 +542,36 @@ class TelegramBotService {
       const parts = data.split('_');
       const menuId = parseInt(parts[1], 10);
       const page = parseInt(parts[2], 10);
+      
+      const mRow = await dbHelper.pool.query(`
+        WITH RECURSIVE menu_tree AS (
+          SELECT id, parent_id, title_en, title_ar, reply_type, 1 as depth
+          FROM menus WHERE id = $1
+          UNION ALL
+          SELECT m.id, m.parent_id, m.title_en, m.title_ar, m.reply_type, mt.depth + 1
+          FROM menus m JOIN menu_tree mt ON m.id = mt.parent_id
+        )
+        SELECT * FROM menu_tree ORDER BY depth DESC;
+      `, [menuId]);
+
+      if (mRow.rows.length > 0) {
+        const pathArr = mRow.rows.map(m => m.title_en || m.title_ar || 'Unknown');
+        const currentM = mRow.rows[mRow.rows.length - 1];
+        let parentMenuTitle = 'Unknown';
+        if (mRow.rows.length > 1) {
+          const parentM = mRow.rows[mRow.rows.length - 2];
+          parentMenuTitle = parentM.title_en || parentM.title_ar || 'Unknown';
+        }
+        this.updateUserContext(chatId, {
+          currentMenuId: menuId,
+          currentMenuTitle: currentM.title_en || currentM.title_ar || 'Unknown',
+          parentMenuId: currentM.parent_id,
+          parentMenuTitle: parentMenuTitle,
+          menuPath: pathArr.join(' → '),
+          lastReplyType: currentM.reply_type || 'Unknown'
+        });
+      }
+
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
       const user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
@@ -1466,11 +1496,20 @@ class TelegramBotService {
     if (caption) payload.caption = caption;
     if (replyMarkup) payload.reply_markup = replyMarkup;
 
+    let fileType = file.mime_type || 'Unknown';
+    if (file.file_name && file.file_name.includes('.')) {
+      fileType = file.file_name.split('.').pop();
+    }
+    if (method === 'sendPhoto') fileType = 'image/jpeg';
+    else if (method === 'sendVideo') fileType = 'video/mp4';
+    else if (method === 'sendAudio' || method === 'sendVoice') fileType = 'audio/mpeg';
+
     this.updateUserContext(chatId, {
       currentOperation: "Sending File",
       fileId: telegramFileId,
       fileName: file.file_name || 'Unknown',
-      mimeType: file.mime_type || 'Unknown'
+      mimeType: file.mime_type || 'Unknown',
+      fileType: fileType
     });
 
     try {
