@@ -666,8 +666,8 @@ class TelegramBotService {
       }
 
       // 3. Details Actions (when viewingMenuDetailsId is set)
-      if ($state.viewingMenuDetailsId) {
-        const menuId = $state.viewingMenuDetailsId;
+      if (state.viewingMenuDetailsId) {
+        const menuId = state.viewingMenuDetailsId;
         if (text.includes('??? ??????') || text.includes('Open Folder')) {
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
           const { getMenuPathContext } = require('./menu-builder');
