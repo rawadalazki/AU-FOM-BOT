@@ -793,14 +793,35 @@ function openMenuEditor(item) {
   // Handle file info display
   const currentFileDiv = document.getElementById('menu-current-file');
   const fileLink = document.getElementById('menu-file-link');
+  const filesListDiv = document.getElementById('menu-files-list');
+  const filesUl = document.getElementById('menu-files-ul');
   document.getElementById('menu-remove-file-chk').checked = false;
   
-  if (item.reply_type === 'file' && item.file_name && item.file_url) {
+  // Reset both displays
+  currentFileDiv.style.display = 'none';
+  filesListDiv.style.display = 'none';
+  filesUl.innerHTML = '';
+
+  if (item.reply_type === 'file' && item.files && item.files.length > 0) {
+    // Multi-file display
+    item.files.forEach(f => {
+      const li = document.createElement('li');
+      li.style.cssText = 'padding: 4px 0; font-size: 13px;';
+      li.innerHTML = `📄 <a href="${f.file_url}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:500;">${escapeHTML(f.file_name || 'file')}</a>`;
+      filesUl.appendChild(li);
+    });
+    filesListDiv.style.display = 'block';
+    // Also show legacy single-file display for the remove checkbox
+    if (item.file_name && item.file_url) {
+      fileLink.innerText = item.file_name;
+      fileLink.href = item.file_url;
+      currentFileDiv.style.display = 'flex';
+    }
+  } else if (item.reply_type === 'file' && item.file_name && item.file_url) {
+    // Legacy single-file fallback
     fileLink.innerText = item.file_name;
     fileLink.href = item.file_url;
     currentFileDiv.style.display = 'flex';
-  } else {
-    currentFileDiv.style.display = 'none';
   }
 
   updateConditionalFormFields(item.reply_type);

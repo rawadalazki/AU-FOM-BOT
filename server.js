@@ -250,6 +250,40 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  const fileProxyMenuFileMatch = pathname.match(/^\/api\/files\/menufile\/(\d+)$/);
+  if (method === 'GET' && fileProxyMenuFileMatch) {
+    try {
+      const fileId = parseInt(fileProxyMenuFileMatch[1], 10);
+      const { rows } = await dbHelper.runQuery('SELECT * FROM menu_files WHERE id = $1', [fileId]);
+      const mf = rows[0];
+      if (!mf || !mf.telegram_file_id) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('File not found');
+        return;
+      }
+      const { rows: menuRows } = await dbHelper.runQuery('SELECT faculty_id FROM menus WHERE id = $1', [mf.menu_id]);
+      if (!menuRows[0]) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('File not found');
+        return;
+      }
+      const stream = await botManager.getFileStreamFromTelegram(menuRows[0].faculty_id, reqId, mf.telegram_file_id);
+      const contentType = mf.mime_type || 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400',
+        'Content-Disposition': `inline; filename="${mf.file_name || 'file'}"`
+      });
+      stream.pipe(res);
+      return;
+    } catch (err) {
+      logger.warn({ reqId, pathname, err: err.message }, 'Menu file proxy error');
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('File not found');
+      return;
+    }
+  }
+
   const fileProxyAnnMatch = pathname.match(/^\/api\/files\/announcement\/(\d+)$/);
   if (method === 'GET' && fileProxyAnnMatch) {
     try {
@@ -670,10 +704,24 @@ const server = http.createServer(async (req, res) => {
       const facId = parsedUrl.searchParams.get('faculty_id');
       if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
       const menus = await dbHelper.getMenusByFaculty(facId);
-      const enhancedMenus = menus.map(m => ({
-        ...m,
-        file_url: m.telegram_file_id ? `/api/files/menu/${m.id}` : null
-      }));
+      const enhancedMenus = [];
+      for (const m of menus) {
+        const enhanced = {
+          ...m,
+          file_url: m.telegram_file_id ? `/api/files/menu/${m.id}` : null
+        };
+        if (m.reply_type === 'file') {
+          const files = await dbHelper.getMenuFiles(m.id);
+          enhanced.files = files.map(f => ({
+            id: f.id,
+            file_name: f.file_name,
+            mime_type: f.mime_type,
+            file_size: f.file_size,
+            file_url: `/api/files/menufile/${f.id}`
+          }));
+        }
+        enhancedMenus.push(enhanced);
+      }
       return sendJson(res, 200, enhancedMenus);
     }
     else if (method === 'POST') {
@@ -978,6 +1026,14 @@ const server = http.createServer(async (req, res) => {
         response.reply_content_ar = menu.reply_content_ar;
         response.file_name = menu.file_name;
         response.file_url = menu.telegram_file_id ? `/api/files/menu/${menu.id}` : null;
+        const files = await dbHelper.getMenuFiles(menu.id);
+        response.files = files.map(f => ({
+          id: f.id,
+          file_name: f.file_name,
+          mime_type: f.mime_type,
+          file_size: f.file_size,
+          file_url: `/api/files/menufile/${f.id}`
+        }));
       }
 
       return sendJson(res, 200, response);

@@ -300,7 +300,6 @@ class TelegramBotService {
         const noFile = user.language === 'ar' ? 'عذراً، لا يوجد ملف مرفق.' : 'Sorry, no file attached.';
         await this.apiCall('sendMessage', { chat_id: chatId, text: noFile });
       }
-      await this.sendMenu(chatId, clickedMenu.parent_id, user.language);
     }
   }
 
