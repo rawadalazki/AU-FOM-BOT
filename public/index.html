@@ -148,6 +148,7 @@
           <!-- Tab Navigation -->
           <nav class="workspace-tabs">
             <button class="tab-btn active" data-tab="tab-menus" data-i18n="tab_menu_builder">Interactive Menu Builder</button>
+            <button class="tab-btn" data-tab="tab-menu-builder-beta">Menu Builder (Beta)</button>
             <button class="tab-btn" data-tab="tab-announcements" data-i18n="tab_announcements">Broadcast Announcements</button>
             <button class="tab-btn" data-tab="tab-subscribers" data-i18n="tab_subscribers">Bot Users & Analytics</button>
           </nav>
@@ -349,6 +350,37 @@
                   </div>
                 </div>
 
+              </div>
+            </div>
+
+            <!-- 4. Menu Builder Beta Tab -->
+            <div class="tab-page" id="tab-menu-builder-beta">
+              <div class="menu-builder-layout">
+                <!-- Validation & Stats (Left Pane) -->
+                <div class="menu-tree-container" style="flex: 1; max-width: 350px;">
+                  <div class="tree-header">
+                    <h3>Hierarchy Validation & Stats</h3>
+                    <button class="btn btn-secondary btn-xs" id="btn-refresh-builder">Refresh</button>
+                  </div>
+                  <div class="tree-body" id="menu-builder-stats-panel" style="padding: 15px;">
+                    <p>Loading statistics...</p>
+                  </div>
+                  <div class="tree-body" id="menu-builder-validation-panel" style="padding: 15px; border-top: 1px solid var(--border-color); color: #dc3545;">
+                    <p>Loading validation...</p>
+                  </div>
+                </div>
+
+                <!-- Read-Only Tree (Right Pane) -->
+                <div class="menu-details-container" style="flex: 2;">
+                  <div class="details-header">
+                    <h3>Read-Only Hierarchy Tree</h3>
+                  </div>
+                  <div class="details-body" style="overflow-y: auto;">
+                    <ul id="menu-builder-tree-root" class="builder-tree" style="list-style: none; padding-left: 0;">
+                      <!-- Populated dynamically -->
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
 

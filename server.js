@@ -525,13 +525,44 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Protect Runtime Errors Dashboard APIs
-  if (pathname.startsWith('/api/errors')) {
+  if (pathname.startsWith('/api/errors') || pathname.startsWith('/api/menu-builder')) {
     const adminUser = await auth.authenticateRequest(req);
     if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
     if (adminUser.role !== 'OWNER' && adminUser.role !== 'DEPUTY_OWNER') {
       return sendJson(res, 403, { error: 'Forbidden' });
     }
     req.adminUser = adminUser;
+  }
+
+  // --- Menu Builder API ---
+  if (pathname === '/api/menu-builder/tree') {
+    if (method === 'GET') {
+      const facId = parsedUrl.searchParams.get('faculty_id');
+      if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
+      try {
+        const { buildMenuTree } = require('./menu-builder');
+        const tree = await buildMenuTree(facId);
+        return sendJson(res, 200, tree);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/menu-builder/tree error');
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+  }
+
+  if (pathname === '/api/menu-builder/validate') {
+    if (method === 'GET') {
+      const facId = parsedUrl.searchParams.get('faculty_id');
+      if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
+      try {
+        const { validateHierarchy } = require('./menu-builder');
+        const validation = await validateHierarchy(facId);
+        return sendJson(res, 200, validation);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/menu-builder/validate error');
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
   }
 
   // --- Runtime Errors API ---

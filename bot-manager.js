@@ -88,33 +88,18 @@ class TelegramBotService {
 
         if (combined.currentMenuId) {
           try {
-            const query = `
-              WITH RECURSIVE menu_tree AS (
-                SELECT id, parent_id, title_en, title_ar, reply_type, 1 as depth
-                FROM menus
-                WHERE id = $1
-                UNION ALL
-                SELECT m.id, m.parent_id, m.title_en, m.title_ar, m.reply_type, mt.depth + 1
-                FROM menus m
-                JOIN menu_tree mt ON m.id = mt.parent_id
-              )
-              SELECT * FROM menu_tree ORDER BY depth DESC;
-            `;
-            const mRow = await dbHelper.pool.query(query, [combined.currentMenuId]);
-            if (mRow.rows.length > 0) {
-              const pathArr = mRow.rows.map(m => m.title_en || m.title_ar || 'Unknown');
-              menuPath = pathArr.join(' → ');
-              
-              const currentM = mRow.rows[mRow.rows.length - 1]; // depth 1
-              currentMenu = currentM.title_en || currentM.title_ar || 'Unknown';
-              replyType = combined.lastReplyType || currentM.reply_type || 'Unknown';
-              
-              if (mRow.rows.length > 1) {
-                const parentM = mRow.rows[mRow.rows.length - 2]; // depth 2
-                parentMenu = parentM.title_en || parentM.title_ar || 'Unknown';
+            const { getMenuPathContext } = require('./menu-builder');
+            const pathCtx = await getMenuPathContext(combined.currentMenuId);
+            if (pathCtx) {
+              menuPath = pathCtx.menuPath;
+              if (parentMenu === 'Unknown') {
+                parentMenu = pathCtx.parentMenuTitle;
               }
+              if (currentMenu === 'Unknown') currentMenu = pathCtx.currentMenuTitle;
+              replyType = combined.lastReplyType || pathCtx.replyType || 'Unknown';
             }
-          } catch (dbErr) {
+          } catch (err) {
+            console.error('Menu path context resolution failed', err);
             menuPath = 'Unknown (Error resolving path)';
           }
         }
@@ -543,32 +528,17 @@ class TelegramBotService {
       const menuId = parseInt(parts[1], 10);
       const page = parseInt(parts[2], 10);
       
-      const mRow = await dbHelper.pool.query(`
-        WITH RECURSIVE menu_tree AS (
-          SELECT id, parent_id, title_en, title_ar, reply_type, 1 as depth
-          FROM menus WHERE id = $1
-          UNION ALL
-          SELECT m.id, m.parent_id, m.title_en, m.title_ar, m.reply_type, mt.depth + 1
-          FROM menus m JOIN menu_tree mt ON m.id = mt.parent_id
-        )
-        SELECT * FROM menu_tree ORDER BY depth DESC;
-      `, [menuId]);
+      const { getMenuPathContext } = require('./menu-builder');
+      const pathCtx = await getMenuPathContext(menuId);
 
-      if (mRow.rows.length > 0) {
-        const pathArr = mRow.rows.map(m => m.title_en || m.title_ar || 'Unknown');
-        const currentM = mRow.rows[mRow.rows.length - 1];
-        let parentMenuTitle = 'Unknown';
-        if (mRow.rows.length > 1) {
-          const parentM = mRow.rows[mRow.rows.length - 2];
-          parentMenuTitle = parentM.title_en || parentM.title_ar || 'Unknown';
-        }
+      if (pathCtx) {
         this.updateUserContext(chatId, {
-          currentMenuId: menuId,
-          currentMenuTitle: currentM.title_en || currentM.title_ar || 'Unknown',
-          parentMenuId: currentM.parent_id,
-          parentMenuTitle: parentMenuTitle,
-          menuPath: pathArr.join(' → '),
-          lastReplyType: currentM.reply_type || 'Unknown'
+          currentMenuId: pathCtx.currentMenuId,
+          currentMenuTitle: pathCtx.currentMenuTitle,
+          parentMenuId: pathCtx.parentMenuId,
+          parentMenuTitle: pathCtx.parentMenuTitle,
+          menuPath: pathCtx.menuPath,
+          lastReplyType: pathCtx.lastReplyType
         });
       }
 

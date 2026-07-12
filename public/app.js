@@ -232,6 +232,8 @@ function setupNavigationTabs() {
           loadAnnouncements();
         } else if (activeTab === 'tab-subscribers') {
           loadSubscribers();
+        } else if (activeTab === 'tab-menu-builder-beta') {
+          loadMenuBuilderBeta();
         }
       }
     });
@@ -387,6 +389,8 @@ function selectFaculty(faculty) {
     loadAnnouncements();
   } else if (activeTab === 'tab-subscribers') {
     loadSubscribers();
+  } else if (activeTab === 'tab-menu-builder-beta') {
+    loadMenuBuilderBeta();
   }
 
   // Pre-configure demo widget target
@@ -1081,3 +1085,158 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+// ----------------------------------------------------
+// Menu Builder Beta
+// ----------------------------------------------------
+async function loadMenuBuilderBeta() {
+  if (!activeFaculty) return;
+  const rootUl = document.getElementById('menu-builder-tree-root');
+  const statsPanel = document.getElementById('menu-builder-stats-panel');
+  const validPanel = document.getElementById('menu-builder-validation-panel');
+  
+  rootUl.innerHTML = '<li style="padding:10px;">Loading tree...</li>';
+  statsPanel.innerHTML = '<p>Loading statistics...</p>';
+  validPanel.innerHTML = '<p>Loading validation...</p>';
+
+  try {
+    const [treeRes, validRes] = await Promise.all([
+      fetch(\/api/menu-builder/tree?faculty_id=\\),
+      fetch(\/api/menu-builder/validate?faculty_id=\\)
+    ]);
+    
+    if (!treeRes.ok || !validRes.ok) throw new Error('Failed to fetch menu builder data');
+    
+    const treeData = await treeRes.json();
+    const validData = await validRes.json();
+    
+    // Render Stats
+    const s = validData.statistics;
+    statsPanel.innerHTML = \
+      <ul style="list-style:none; padding:0; margin:0; line-height:1.6;">
+        <li><strong>Total Menus:</strong> \</li>
+        <li><strong>Root Menus:</strong> \</li>
+        <li><strong>Deepest Level:</strong> \</li>
+        <li><strong>File Menus:</strong> \</li>
+        <li><strong>Text Menus:</strong> \</li>
+        <li><strong>Media Menus:</strong> \</li>
+      </ul>
+    \;
+
+    // Render Validation
+    if (validData.valid) {
+      validPanel.style.color = 'var(--success-color, #28a745)';
+      validPanel.innerHTML = '<strong>No hierarchy issues detected.</strong>';
+    } else {
+      validPanel.style.color = '#dc3545';
+      let wHtml = '<strong>Validation Warnings:</strong><ul style="padding-left: 20px; margin-top: 10px;">';
+      validData.warnings.forEach(w => {
+        wHtml += \<li>\</li>\;
+      });
+      wHtml += '</ul>';
+      validPanel.innerHTML = wHtml;
+    }
+
+    // Render Lazy Tree
+    rootUl.innerHTML = '';
+    const roots = treeData.filter(n => !n.parent_id);
+    if (roots.length === 0) {
+      rootUl.innerHTML = '<li>No root menus found.</li>';
+      return;
+    }
+
+    // Map children for fast lookup
+    const childrenMap = {};
+    treeData.forEach(n => {
+      if (n.parent_id) {
+        if (!childrenMap[n.parent_id]) childrenMap[n.parent_id] = [];
+        childrenMap[n.parent_id].push(n);
+      }
+    });
+
+    function createNodeElement(node) {
+      const li = document.createElement('li');
+      li.style.margin = '5px 0';
+      li.style.listStyle = 'none';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.style.display = 'flex';
+      contentDiv.style.alignItems = 'center';
+      contentDiv.style.padding = '8px';
+      contentDiv.style.border = '1px solid var(--border-color)';
+      contentDiv.style.borderRadius = '4px';
+      contentDiv.style.backgroundColor = 'var(--card-bg)';
+      contentDiv.style.marginBottom = '4px';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'btn btn-xs';
+      toggleBtn.style.marginRight = '10px';
+      toggleBtn.style.width = '24px';
+      toggleBtn.style.height = '24px';
+      toggleBtn.style.padding = '0';
+      toggleBtn.style.display = node.has_children ? 'inline-block' : 'none';
+      toggleBtn.textContent = '+';
+      
+      const titleSpan = document.createElement('span');
+      titleSpan.style.fontWeight = '600';
+      titleSpan.style.marginRight = '10px';
+      titleSpan.textContent = node.title || 'Untitled';
+      
+      const badgeSpan = document.createElement('span');
+      badgeSpan.style.fontSize = '11px';
+      badgeSpan.style.padding = '2px 6px';
+      badgeSpan.style.borderRadius = '10px';
+      badgeSpan.style.backgroundColor = 'var(--bg-color)';
+      badgeSpan.style.border = '1px solid var(--border-color)';
+      badgeSpan.style.marginRight = '10px';
+      badgeSpan.textContent = node.reply_type;
+
+      const metaSpan = document.createElement('span');
+      metaSpan.style.fontSize = '12px';
+      metaSpan.style.color = 'var(--text-muted)';
+      metaSpan.textContent = \[ID: \] \ + (node.has_children ? \(\ children)\ : '');
+
+      contentDiv.appendChild(toggleBtn);
+      contentDiv.appendChild(titleSpan);
+      contentDiv.appendChild(badgeSpan);
+      contentDiv.appendChild(metaSpan);
+      
+      li.appendChild(contentDiv);
+
+      const childrenContainer = document.createElement('ul');
+      childrenContainer.style.paddingLeft = '20px';
+      childrenContainer.style.display = 'none';
+      li.appendChild(childrenContainer);
+
+      let loaded = false;
+
+      toggleBtn.addEventListener('click', () => {
+        if (childrenContainer.style.display === 'none') {
+          childrenContainer.style.display = 'block';
+          toggleBtn.textContent = '-';
+          if (!loaded) {
+            const kids = childrenMap[node.id] || [];
+            kids.sort((a,b) => a.sort_order - b.sort_order).forEach(k => {
+              childrenContainer.appendChild(createNodeElement(k));
+            });
+            loaded = true;
+          }
+        } else {
+          childrenContainer.style.display = 'none';
+          toggleBtn.textContent = '+';
+        }
+      });
+
+      return li;
+    }
+
+    roots.sort((a,b) => a.sort_order - b.sort_order).forEach(r => {
+      rootUl.appendChild(createNodeElement(r));
+    });
+
+  } catch (err) {
+    console.error(err);
+    rootUl.innerHTML = \<li style="color:red;">Error loading menu builder: \</li>\;
+  }
+}
+
+document.getElementById('btn-refresh-builder')?.addEventListener('click', loadMenuBuilderBeta);
