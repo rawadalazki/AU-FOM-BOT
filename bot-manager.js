@@ -253,53 +253,7 @@ class TelegramBotService {
     } 
     else if (clickedMenu.reply_type === 'file') {
       const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;
-      
-      const files = await dbHelper.getMenuFiles(clickedMenu.id);
-      
-      if (files && files.length > 0) {
-        let hasError = false;
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const currentCaption = (i === 0) ? caption : null;
-          try {
-            await this.sendDocumentWithFallback(
-              chatId, 
-              null, 
-              file.file_name, 
-              currentCaption, 
-              null, 
-              file.telegram_file_id,
-              (newId) => dbHelper.updateMenuFileId(clickedMenu.id, newId) // Legacy fallback update
-            );
-          } catch (e) {
-            this.logError('Error sending file', e);
-            hasError = true;
-          }
-        }
-        if (hasError) {
-          const errText = user.language === 'ar' ? 'عذراً، حدث خطأ أثناء إرسال بعض الملفات.' : 'Sorry, error sending some files.';
-          await this.apiCall('sendMessage', { chat_id: chatId, text: errText });
-        }
-      } else if (clickedMenu.telegram_file_id) {
-        try {
-          await this.sendDocumentWithFallback(
-            chatId, 
-            null, 
-            clickedMenu.file_name, 
-            caption, 
-            null, 
-            clickedMenu.telegram_file_id,
-            (newId) => dbHelper.updateMenuFileId(clickedMenu.id, newId)
-          );
-        } catch (e) {
-          this.logError('Error sending file', e);
-          const errText = user.language === 'ar' ? 'عذراً، حدث خطأ أثناء إرسال الملف.' : 'Sorry, error sending file.';
-          await this.apiCall('sendMessage', { chat_id: chatId, text: errText });
-        }
-      } else {
-        const noFile = user.language === 'ar' ? 'عذراً، لا يوجد ملف مرفق.' : 'Sorry, no file attached.';
-        await this.apiCall('sendMessage', { chat_id: chatId, text: noFile });
-      }
+      await this.sendFilePage(chatId, clickedMenu.id, 0, user.language, caption);
     }
   }
 
@@ -311,47 +265,7 @@ class TelegramBotService {
       return;
     }
     const caption = lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en;
-    const files = await dbHelper.getMenuFiles(menu.id);
-    
-    if (files && files.length > 0) {
-      let hasError = false;
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const currentCaption = (i === 0) ? caption : null;
-        try {
-          await this.sendDocumentWithFallback(
-            chatId, 
-            null, 
-            file.file_name, 
-            currentCaption, 
-            null, 
-            file.telegram_file_id,
-            (newId) => dbHelper.updateMenuFileId(menu.id, newId)
-          );
-        } catch (e) {
-          this.logError('Error sending direct file', e);
-          hasError = true;
-        }
-      }
-      if (hasError) {
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في الإرسال' : 'Error sending file' });
-      }
-    } else if (menu.telegram_file_id) {
-      try {
-        await this.sendDocumentWithFallback(
-          chatId, 
-          null, 
-          menu.file_name, 
-          caption, 
-          null, 
-          menu.telegram_file_id,
-          (newId) => dbHelper.updateMenuFileId(menu.id, newId)
-        );
-      } catch (e) {
-        this.logError('Error sending direct file', e);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في الإرسال' : 'Error sending file' });
-      }
-    }
+    await this.sendFilePage(chatId, menu.id, 0, lang, caption);
   }
 
   async handleBackNavigation(chatId, user) {
@@ -420,7 +334,23 @@ class TelegramBotService {
       
       const user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       await this.sendMenu(chatId, user ? user.current_menu_id : null, lang);
-    } 
+    }
+    else if (data.startsWith('fp_')) {
+      // File pagination: fp_menuId_page
+      const parts = data.split('_');
+      const menuId = parseInt(parts[1], 10);
+      const page = parseInt(parts[2], 10);
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
+      await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
+      const user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      const lang = user ? user.language : 'en';
+      await this.sendFilePage(chatId, menuId, page, lang);
+    }
+    else if (data.startsWith('fe_')) {
+      // File exit: close pagination
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '✅' });
+      await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
+    }
   }
 
   // --- Admin State Machine ---
@@ -1293,39 +1223,156 @@ class TelegramBotService {
     });
   }
 
-  async sendDocumentWithFallback(chatId, fileKey, fileName, caption, replyMarkup, telegramFileId = null, dbUpdateFn = null) {
-    // Send using cached Telegram file_id (primary and only method)
-    if (telegramFileId) {
-      try {
-        const payload = { chat_id: chatId, document: telegramFileId };
-        if (caption) payload.caption = caption;
-        if (replyMarkup) payload.reply_markup = replyMarkup;
-        const res = await this.apiCall('sendDocument', payload);
-        if (res.ok) return res;
-        this.logError('telegram_file_id rejected by Telegram', null, { telegramFileId, description: res.description });
-        
-        // Notify the administrator
-        try {
-          const faculty = await dbHelper.getFacultyById(this.facultyId);
-          if (faculty && faculty.admin_chat_id) {
-            const adminChatId = faculty.admin_chat_id.split(',')[0].trim();
-            await this.apiCall('sendMessage', {
-              chat_id: adminChatId,
-              text: `⚠️ Error: A file could not be delivered to a user because its telegram_file_id is invalid or expired.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${res.description || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`
-            });
-          }
-        } catch (adminErr) {
-          this.logError('Failed to notify admin about invalid file_id', adminErr);
-        }
+  // ── Centralized file delivery helper ──────────────────────────────────────
+  // All file delivery code MUST use this method instead of calling Telegram
+  // API methods directly. It inspects mime_type and chooses the correct API.
+  async sendTelegramFile(chatId, file, caption = null, replyMarkup = null) {
+    const telegramFileId = file.telegram_file_id;
+    if (!telegramFileId) throw new Error('No telegram_file_id available for this file');
 
-        throw new Error(`File delivery failed: ${res.description || 'Unknown error'}`);
-      } catch(e) {
-        this.logError('sendDocument with telegram_file_id failed', e, { telegramFileId });
-        throw e;
+    const method = this._getTelegramMethodForMime(file.mime_type);
+    const field = this._getFieldNameForMethod(method);
+    const payload = { chat_id: chatId, [field]: telegramFileId };
+    if (caption) payload.caption = caption;
+    if (replyMarkup) payload.reply_markup = replyMarkup;
+
+    try {
+      const res = await this.apiCall(method, payload);
+      if (res.ok) return res;
+
+      // If a specific method failed, fall back to sendDocument
+      if (method !== 'sendDocument') {
+        this.logWarn(`${method} failed for ${file.file_name}, falling back to sendDocument`, { description: res.description });
+        const fbPayload = { chat_id: chatId, document: telegramFileId };
+        if (caption) fbPayload.caption = caption;
+        if (replyMarkup) fbPayload.reply_markup = replyMarkup;
+        const fbRes = await this.apiCall('sendDocument', fbPayload);
+        if (fbRes.ok) return fbRes;
+      }
+
+      // Notify admin about the failure
+      await this._notifyAdminFileError(file.file_name, res.description);
+      throw new Error(`File delivery failed: ${res.description || 'Unknown error'}`);
+    } catch (e) {
+      // If the primary method threw (network error etc.) and wasn't sendDocument, try fallback
+      if (method !== 'sendDocument' && !e.message.startsWith('File delivery failed')) {
+        try {
+          const fbPayload = { chat_id: chatId, document: telegramFileId };
+          if (caption) fbPayload.caption = caption;
+          if (replyMarkup) fbPayload.reply_markup = replyMarkup;
+          const fbRes = await this.apiCall('sendDocument', fbPayload);
+          if (fbRes.ok) return fbRes;
+        } catch (_) { /* fallback also failed */ }
+      }
+      this.logError('sendTelegramFile failed', e, { telegramFileId, method });
+      throw e;
+    }
+  }
+
+  _getTelegramMethodForMime(mimeType) {
+    if (!mimeType) return 'sendDocument';
+    const m = mimeType.toLowerCase();
+    if (m === 'image/gif') return 'sendAnimation';
+    if (m.startsWith('image/')) return 'sendPhoto';
+    if (m === 'audio/ogg' || m === 'audio/opus') return 'sendVoice';
+    if (m.startsWith('audio/')) return 'sendAudio';
+    if (m.startsWith('video/')) return 'sendVideo';
+    return 'sendDocument';
+  }
+
+  _getFieldNameForMethod(method) {
+    const map = {
+      sendPhoto: 'photo', sendAudio: 'audio', sendVideo: 'video',
+      sendVoice: 'voice', sendAnimation: 'animation', sendDocument: 'document'
+    };
+    return map[method] || 'document';
+  }
+
+  async _notifyAdminFileError(fileName, errorDesc) {
+    try {
+      const faculty = await dbHelper.getFacultyById(this.facultyId);
+      if (faculty && faculty.admin_chat_id) {
+        const adminChatId = faculty.admin_chat_id.split(',')[0].trim();
+        await this.apiCall('sendMessage', {
+          chat_id: adminChatId,
+          text: `⚠️ Error: A file could not be delivered.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`
+        });
+      }
+    } catch (adminErr) {
+      this.logError('Failed to notify admin about file error', adminErr);
+    }
+  }
+
+  // Legacy wrapper — kept so any remaining call sites still work
+  async sendDocumentWithFallback(chatId, fileKey, fileName, caption, replyMarkup, telegramFileId = null, dbUpdateFn = null) {
+    return this.sendTelegramFile(chatId, { telegram_file_id: telegramFileId, file_name: fileName, mime_type: null }, caption, replyMarkup);
+  }
+
+  // ── Paginated file delivery ───────────────────────────────────────────────
+  async sendFilePage(chatId, menuId, page, lang, caption = null) {
+    const FILES_PER_PAGE = 10;
+    const allFiles = await dbHelper.getMenuFiles(menuId);
+
+    // Legacy fallback: no menu_files rows → try the legacy menus column
+    if (!allFiles || allFiles.length === 0) {
+      const menu = await dbHelper.getMenuById(menuId);
+      if (menu && menu.telegram_file_id) {
+        try {
+          await this.sendTelegramFile(chatId, { telegram_file_id: menu.telegram_file_id, file_name: menu.file_name, mime_type: menu.mime_type }, caption);
+        } catch (e) {
+          this.logError('Error sending legacy file', e);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في الإرسال' : 'Error sending file' });
+        }
+      } else {
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لا يوجد ملف مرفق.' : 'Sorry, no file attached.' });
+      }
+      return;
+    }
+
+    const totalFiles = allFiles.length;
+    const totalPages = Math.ceil(totalFiles / FILES_PER_PAGE);
+    const startIdx = page * FILES_PER_PAGE;
+    const endIdx = Math.min(startIdx + FILES_PER_PAGE, totalFiles);
+    const pageFiles = allFiles.slice(startIdx, endIdx);
+
+    let hasError = false;
+    for (let i = 0; i < pageFiles.length; i++) {
+      const file = pageFiles[i];
+      const fileCaption = (page === 0 && i === 0) ? caption : null;
+      try {
+        await this.sendTelegramFile(chatId, file, fileCaption);
+      } catch (e) {
+        this.logError('Error sending file', e);
+        hasError = true;
       }
     }
 
-    throw new Error('No telegram_file_id available for this file');
+    if (hasError) {
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في إرسال بعض الملفات.' : 'Error sending some files.' });
+    }
+
+    // Show pagination controls when there are multiple pages
+    if (totalPages > 1) {
+      const pageLabel = lang === 'ar'
+        ? `📁 صفحة ${page + 1} من ${totalPages} (${totalFiles} ملف)`
+        : `📁 Page ${page + 1} of ${totalPages} (${totalFiles} files)`;
+      const kb = [];
+      const navRow = [];
+      if (page > 0) {
+        navRow.push({ text: lang === 'ar' ? '⬅️ السابق' : '⬅️ Previous', callback_data: `fp_${menuId}_${page - 1}` });
+      }
+      if (page < totalPages - 1) {
+        navRow.push({ text: lang === 'ar' ? 'التالي ➡️' : 'Next ➡️', callback_data: `fp_${menuId}_${page + 1}` });
+      }
+      if (navRow.length > 0) kb.push(navRow);
+      kb.push([{ text: lang === 'ar' ? '❌ إغلاق' : '❌ Exit', callback_data: `fe_${menuId}` }]);
+
+      await this.apiCall('sendMessage', {
+        chat_id: chatId,
+        text: pageLabel,
+        reply_markup: { inline_keyboard: kb }
+      });
+    }
   }
 
   async withRetry(fn, maxRetries = 3) {
@@ -1362,17 +1409,10 @@ class TelegramBotService {
           const txt = `📢 *${title}*\n\n${content}`;
           
           if (announcement.telegram_file_id) {
-            const res = await this.sendDocumentWithFallback(
-              user.chat_id, 
-              null, 
-              announcement.file_name, 
-              txt,
-              null,
-              announcement.telegram_file_id,
-              (newId) => {
-                 announcement.telegram_file_id = newId; // update in memory for next users
-                 return dbHelper.updateAnnouncementFileId(announcement.id, newId);
-              }
+            const res = await this.sendTelegramFile(
+              user.chat_id,
+              { telegram_file_id: announcement.telegram_file_id, file_name: announcement.file_name, mime_type: announcement.mime_type || null },
+              txt
             );
             if (res && !res.ok) throw new Error(res.description);
           } else {
@@ -1398,10 +1438,14 @@ class TelegramBotService {
 
   extractTelegramAttachment(message) {
     if (message.document) return message.document;
-    if (message.photo && message.photo.length > 0) return { file_id: message.photo[message.photo.length - 1].file_id, file_name: `photo.jpg` };
-    if (message.audio) return { file_id: message.audio.file_id, file_name: message.audio.file_name || `audio.mp3` };
-    if (message.voice) return { file_id: message.voice.file_id, file_name: `voice.ogg` };
-    if (message.video) return { file_id: message.video.file_id, file_name: message.video.file_name || `video.mp4` };
+    if (message.photo && message.photo.length > 0) {
+      const photo = message.photo[message.photo.length - 1];
+      return { file_id: photo.file_id, file_name: 'photo.jpg', mime_type: 'image/jpeg', file_size: photo.file_size };
+    }
+    if (message.audio) return { file_id: message.audio.file_id, file_name: message.audio.file_name || 'audio.mp3', mime_type: message.audio.mime_type || 'audio/mpeg', file_size: message.audio.file_size };
+    if (message.voice) return { file_id: message.voice.file_id, file_name: 'voice.ogg', mime_type: message.voice.mime_type || 'audio/ogg', file_size: message.voice.file_size };
+    if (message.video) return { file_id: message.video.file_id, file_name: message.video.file_name || 'video.mp4', mime_type: message.video.mime_type || 'video/mp4', file_size: message.video.file_size };
+    if (message.animation) return { file_id: message.animation.file_id, file_name: message.animation.file_name || 'animation.gif', mime_type: message.animation.mime_type || 'image/gif', file_size: message.animation.file_size };
     return null;
   }
 }
