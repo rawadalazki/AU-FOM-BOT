@@ -240,20 +240,20 @@ async function sendAggregatedReport(logId) {
     const hasTgUpdate = ctx.Telegram_Update ? 'Yes (See Dashboard)' : 'No';
     const hasHttpReq = ctx.HTTP_Request ? 'Yes (See Dashboard)' : 'No';
 
-    const msg = \`🚨 *Runtime Error*\n\n\` +
-      \`*Severity:* \${escapeMarkdown(log.severity)}\n\` +
-      \`*Faculty:* \${escapeMarkdown(ctx.Faculty_Name || faculty.name_en || log.faculty_id)}\n\` +
-      \`*Bot:* \${escapeMarkdown(ctx.Bot_Username || log.bot_id || 'Unknown')}\n\` +
-      \`*User:* \${escapeMarkdown(ctx.Telegram_Full_Name || ctx.Username || '')} ID: \${escapeMarkdown(log.user_telegram_id || '')}\n\` +
-      \`*Menu:* \${escapeMarkdown(ctx.Current_Menu || 'N/A')} *Button:* \${escapeMarkdown(ctx.Current_Button || 'N/A')}\n\` +
-      \`*Operation:* \${escapeMarkdown(log.operation)}\n\` +
-      \`*Error:* \${escapeMarkdown(log.error_message)}\n\` +
-      \`*Location:* \${escapeMarkdown(ctx.Source_File || 'Unknown')} -> \${escapeMarkdown(ctx.Function_Name || 'Unknown')}:\${escapeMarkdown(ctx.Line_Number || '')}\n\` +
-      \`*Occurrences:* \${log.occurrence_count}\n\n\` +
-      \`*Server Metrics:*\nNode: \${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: \${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: \${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n\` +
-      \`*Attachments:* TG Update: \${hasTgUpdate} | HTTP: \${hasHttpReq}\n\n\` +
-      \`*Recent History:*\n\\\`\${escapeMarkdown(histStr.substring(0, 500))}\\\`\n\n\` +
-      \`*Stack:*\n\\\`\${escapeMarkdown(stackSnippet)}\\\`\`;
+    const msg = `🚨 *Runtime Error*\n\n` +
+      `*Severity:* ${escapeMarkdown(log.severity)}\n` +
+      `*Faculty:* ${escapeMarkdown(ctx.Faculty_Name || faculty.name_en || log.faculty_id)}\n` +
+      `*Bot:* ${escapeMarkdown(ctx.Bot_Username || log.bot_id || 'Unknown')}\n` +
+      `*User:* ${escapeMarkdown(ctx.Telegram_Full_Name || ctx.Username || '')} ID: ${escapeMarkdown(log.user_telegram_id || '')}\n` +
+      `*Menu:* ${escapeMarkdown(ctx.Current_Menu || 'N/A')} *Button:* ${escapeMarkdown(ctx.Current_Button || 'N/A')}\n` +
+      `*Operation:* ${escapeMarkdown(log.operation)}\n` +
+      `*Error:* ${escapeMarkdown(log.error_message)}\n` +
+      `*Location:* ${escapeMarkdown(ctx.Source_File || 'Unknown')} -> ${escapeMarkdown(ctx.Function_Name || 'Unknown')}:${escapeMarkdown(ctx.Line_Number || '')}\n` +
+      `*Occurrences:* ${log.occurrence_count}\n\n` +
+      `*Server Metrics:*\nNode: ${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: ${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: ${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n` +
+      `*Attachments:* TG Update: ${hasTgUpdate} | HTTP: ${hasHttpReq}\n\n` +
+      `*Recent History:*\n\`${escapeMarkdown(histStr.substring(0, 500))}\`\n\n` +
+      `*Stack:*\n\`${escapeMarkdown(stackSnippet)}\``;
 
     const adminChats = faculty.admin_chat_id.split(',').map(s => s.trim());
     for (const adminChat of adminChats) {
