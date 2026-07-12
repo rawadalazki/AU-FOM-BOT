@@ -682,15 +682,20 @@ const server = http.createServer(async (req, res) => {
   // --- Faculties API ---
   if (pathname === '/api/faculties') {
     if (method === 'GET') {
-      const faculties = await dbHelper.getFaculties();
-      // Inject bot status
-      for (const fac of faculties) {
-        const botStatus = await botManager.getBotStatus(fac.id);
-        fac.bot_status = botStatus.status;
-        if (botStatus.username) fac.bot_username = botStatus.username;
-        if (botStatus.error) fac.bot_error = botStatus.error;
+      try {
+        const faculties = await dbHelper.getFaculties();
+        // Inject bot status
+        for (const fac of faculties) {
+          const botStatus = await botManager.getBotStatus(fac.id);
+          fac.bot_status = botStatus.status;
+          if (botStatus.username) fac.bot_username = botStatus.username;
+          if (botStatus.error) fac.bot_error = botStatus.error;
+        }
+        return sendJson(res, 200, faculties);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/faculties error');
+        return sendJson(res, 500, { error: e.message });
       }
-      return sendJson(res, 200, faculties);
     } 
     else if (method === 'POST') {
       try {
@@ -890,28 +895,33 @@ const server = http.createServer(async (req, res) => {
   // --- Menus API ---
   if (pathname === '/api/menus') {
     if (method === 'GET') {
-      const facId = parsedUrl.searchParams.get('faculty_id');
-      if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
-      const menus = await dbHelper.getMenusByFaculty(facId);
-      const enhancedMenus = [];
-      for (const m of menus) {
-        const enhanced = {
-          ...m,
-          file_url: m.telegram_file_id ? `/api/files/menu/${m.id}` : null
-        };
-        if (m.reply_type === 'file') {
-          const files = await dbHelper.getMenuFiles(m.id);
-          enhanced.files = files.map(f => ({
-            id: f.id,
-            file_name: f.file_name,
-            mime_type: f.mime_type,
-            file_size: f.file_size,
-            file_url: `/api/files/menufile/${f.id}`
-          }));
+      try {
+        const facId = parsedUrl.searchParams.get('faculty_id');
+        if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
+        const menus = await dbHelper.getMenusByFaculty(facId);
+        const enhancedMenus = [];
+        for (const m of menus) {
+          const enhanced = {
+            ...m,
+            file_url: m.telegram_file_id ? `/api/files/menu/${m.id}` : null
+          };
+          if (m.reply_type === 'file') {
+            const files = await dbHelper.getMenuFiles(m.id);
+            enhanced.files = files.map(f => ({
+              id: f.id,
+              file_name: f.file_name,
+              mime_type: f.mime_type,
+              file_size: f.file_size,
+              file_url: `/api/files/menufile/${f.id}`
+            }));
+          }
+          enhancedMenus.push(enhanced);
         }
-        enhancedMenus.push(enhanced);
+        return sendJson(res, 200, enhancedMenus);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/menus error');
+        return sendJson(res, 500, { error: e.message });
       }
-      return sendJson(res, 200, enhancedMenus);
     }
     else if (method === 'POST') {
       const tmpFiles = [];
@@ -1091,14 +1101,19 @@ const server = http.createServer(async (req, res) => {
   // --- Announcements API ---
   if (pathname === '/api/announcements') {
     if (method === 'GET') {
-      const facId = parsedUrl.searchParams.get('faculty_id');
-      if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
-      const anns = await dbHelper.getAnnouncementsByFaculty(facId);
-      const enhanced = anns.map(a => ({
-        ...a,
-        file_url: a.telegram_file_id ? `/api/files/announcement/${a.id}` : null
-      }));
-      return sendJson(res, 200, enhanced);
+      try {
+        const facId = parsedUrl.searchParams.get('faculty_id');
+        if (!facId) return sendJson(res, 400, { error: 'Missing faculty_id' });
+        const anns = await dbHelper.getAnnouncementsByFaculty(facId);
+        const enhanced = anns.map(a => ({
+          ...a,
+          file_url: a.telegram_file_id ? `/api/files/announcement/${a.id}` : null
+        }));
+        return sendJson(res, 200, enhanced);
+      } catch (e) {
+        logger.error({ reqId, err: e }, 'GET /api/announcements error');
+        return sendJson(res, 500, { error: e.message });
+      }
     }
     else if (method === 'POST') {
       const tmpFiles = [];
