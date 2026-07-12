@@ -244,13 +244,23 @@ async function sendAggregatedReport(logId) {
       `*Severity:* ${escapeMarkdown(log.severity)}\n` +
       `*Faculty:* ${escapeMarkdown(ctx.Faculty_Name || faculty.name_en || log.faculty_id)}\n` +
       `*Bot:* ${escapeMarkdown(ctx.Bot_Username || log.bot_id || 'Unknown')}\n` +
-      `*User:* ${escapeMarkdown(ctx.Telegram_Full_Name || ctx.Username || '')} ID: ${escapeMarkdown(log.user_telegram_id || '')}\n` +
-      `*Menu:* ${escapeMarkdown(ctx.Current_Menu || 'N/A')} *Button:* ${escapeMarkdown(ctx.Current_Button || 'N/A')}\n` +
-      `*Operation:* ${escapeMarkdown(log.operation)}\n` +
       `*Error:* ${escapeMarkdown(log.error_message)}\n` +
-      `*Location:* ${escapeMarkdown(ctx.Source_File || 'Unknown')} -> ${escapeMarkdown(ctx.Function_Name || 'Unknown')}:${escapeMarkdown(ctx.Line_Number || '')}\n` +
       `*Occurrences:* ${log.occurrence_count}\n\n` +
-      `*Server Metrics:*\nNode: ${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: ${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: ${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n` +
+      `👤 *User*\n` +
+      `ID: ${escapeMarkdown(ctx.Telegram_User_ID || log.user_telegram_id || '')}\n` +
+      `Username: ${escapeMarkdown(ctx.Telegram_Username || '')}\n` +
+      `Name: ${escapeMarkdown(ctx.Telegram_Full_Name || '')}\n\n` +
+      `📍 *Location*\n` +
+      `Menu ID: ${escapeMarkdown(ctx.Current_Menu_ID || '')}\n` +
+      `Menu: ${escapeMarkdown(ctx.Current_Menu || 'N/A')}\n` +
+      `Parent: ${escapeMarkdown(ctx.Parent_Menu || 'N/A')}\n` +
+      `Menu Path: ${escapeMarkdown(ctx.Menu_Path || 'N/A')}\n\n` +
+      `⚙️ *Operation*\n` +
+      `${escapeMarkdown(log.operation)}\n\n` +
+      `📦 *Update*\n` +
+      (ctx.Callback_Data ? `Callback Data: ${escapeMarkdown(ctx.Callback_Data)}\n` : '') +
+      (ctx.Message_Text ? `Message Text: ${escapeMarkdown(ctx.Message_Text)}\n` : '') +
+      `\n*Server Metrics:*\nNode: ${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: ${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: ${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n` +
       `*Attachments:* TG Update: ${hasTgUpdate} | HTTP: ${hasHttpReq}\n\n` +
       `*Recent History:*\n\`${escapeMarkdown(histStr.substring(0, 500))}\`\n\n` +
       `*Stack:*\n\`${escapeMarkdown(stackSnippet)}\``;
