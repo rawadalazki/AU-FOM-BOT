@@ -61,11 +61,17 @@ class TelegramBotService {
         const faculty = await dbHelper.getFacultyById(this.facultyId);
         if (faculty) facultyName = faculty.name_en || faculty.name_ar;
 
-        const chatId = obj.chat_id || obj.Telegram_User_ID;
+        let chatId = obj.chat_id || obj.Telegram_User_ID;
+        if (!chatId && obj.update) {
+          if (obj.update.message && obj.update.message.chat) chatId = obj.update.message.chat.id;
+          else if (obj.update.callback_query && obj.update.callback_query.message && obj.update.callback_query.message.chat) chatId = obj.update.callback_query.message.chat.id;
+        }
+
         let ctx = null;
         if (chatId) {
           ctx = this.userRuntimeContext.get(chatId.toString());
         }
+        
         if (!ctx) ctx = {};
         else ctx = JSON.parse(JSON.stringify(ctx));
 
@@ -401,7 +407,7 @@ class TelegramBotService {
             };
           }
         } catch(e) {
-          this.logError('Failed to parse inline buttons', e);
+          this.logError('Failed to parse inline buttons', e, { chat_id: chatId });
         }
       }
 
@@ -1133,7 +1139,7 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم البث!' : '✅ Broadcasted!' });
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
-      this.logError('Broadcast failed', e);
+      this.logError('Broadcast failed', e, { chat_id: chatId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
       await dbHelper.deleteAdminState(chatId);
     }
@@ -1153,7 +1159,7 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم إضافة زر الملف بنجاح!' : '✅ File button added!' });
       await this.sendAdminReplyMenus(chatId, state.parentId, lang);
     } catch(e) {
-      this.logError('Add file failed', e);
+      this.logError('Add file failed', e, { chat_id: chatId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
       await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.parentId });
       await this.sendAdminReplyMenus(chatId, state.parentId, lang);
@@ -1175,7 +1181,7 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث' : '✅ Updated' });
       await this.sendAdminMenuDetails(chatId, menu.id, lang);
     } catch(e) {
-      this.logError('Edit file failed', e);
+      this.logError('Edit file failed', e, { chat_id: chatId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
     }
   }
@@ -1357,7 +1363,7 @@ class TelegramBotService {
     });
 
     if (!res.ok) {
-      this.logError('Failed to send menu', null, { description: res.description, promptText });
+      this.logError('Failed to send menu', null, { description: res.description, promptText, chat_id: chatId });
       // Fallback without Markdown if the welcome message has bad characters
       await this.apiCall('sendMessage', {
         chat_id: chatId,
@@ -1495,7 +1501,7 @@ class TelegramBotService {
           if (fbRes.ok) return fbRes;
         } catch (_) { /* fallback also failed */ }
       }
-      this.logError('sendTelegramFile failed', e, { telegramFileId, method });
+      this.logError('sendTelegramFile failed', e, { telegramFileId, method, chat_id: chatId });
       throw e;
     }
   }
@@ -1551,8 +1557,8 @@ class TelegramBotService {
         try {
           await this.sendTelegramFile(chatId, { telegram_file_id: menu.telegram_file_id, file_name: menu.file_name, mime_type: menu.mime_type }, caption);
         } catch (e) {
-          this.logError('Error sending legacy file', e);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في الإرسال' : 'Error sending file' });
+          this.logError('Error sending legacy file', e, { chat_id: chatId });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في إرسال الملف' : 'Error sending file' });
         }
       } else {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لا يوجد ملف مرفق.' : 'Sorry, no file attached.' });
@@ -1578,7 +1584,7 @@ class TelegramBotService {
       try {
         await this.sendTelegramFile(chatId, file, fileCaption);
       } catch (e) {
-        this.logError('Error sending file', e);
+        this.logError('Error sending file', e, { chat_id: chatId });
         hasError = true;
       }
     }
