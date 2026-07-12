@@ -784,15 +784,9 @@ function openMenuEditor(item) {
   document.getElementById('menu-content-en').value = item.reply_content_en || '';
   document.getElementById('menu-content-ar').value = item.reply_content_ar || '';
   
-  // Show parent indicator if nested
-  const parentIndicator = document.getElementById('menu-parent-indicator');
-  if (item.parent_id) {
-    const parentMenu = menuTreeData.find(m => m.id === item.parent_id);
-    document.getElementById('menu-parent-title').innerText = parentMenu ? (currentLang === 'ar' ? parentMenu.title_ar : parentMenu.title_en) : 'Parent';
-    parentIndicator.style.display = 'block';
-  } else {
-    parentIndicator.style.display = 'none';
-  }
+  // Populate parent dropdown
+  populateParentDropdown(item.id);
+  document.getElementById('menu-parent-id').value = item.parent_id || '';
 
   // Handle file info display
   const currentFileDiv = document.getElementById('menu-current-file');
@@ -842,13 +836,9 @@ function openNewMenuForm(parentId = null, parentTitle = '') {
   document.getElementById('menu-parent-id').value = parentId || '';
   document.getElementById('menu-editor-title').innerText = currentLang === 'ar' ? 'إضافة زر جديد للقائمة' : 'Add New Menu Button';
   
-  const parentIndicator = document.getElementById('menu-parent-indicator');
-  if (parentId) {
-    document.getElementById('menu-parent-title').innerText = parentTitle;
-    parentIndicator.style.display = 'block';
-  } else {
-    parentIndicator.style.display = 'none';
-  }
+  // Populate parent dropdown
+  populateParentDropdown();
+  document.getElementById('menu-parent-id').value = parentId || '';
 
   document.getElementById('menu-current-file').style.display = 'none';
   updateConditionalFormFields('submenu'); // default select type triggers hide of replies
@@ -1240,3 +1230,45 @@ async function loadMenuBuilderBeta() {
 }
 
 document.getElementById('btn-refresh-builder')?.addEventListener('click', loadMenuBuilderBeta);
+
+function populateParentDropdown(excludeMenuId = null) {
+  const select = document.getElementById('menu-parent-id');
+  select.innerHTML = '<option value="">-- Root Menu --</option>';
+
+  let excludeIds = new Set();
+  if (excludeMenuId) {
+    excludeIds.add(excludeMenuId);
+    let queue = [excludeMenuId];
+    while (queue.length > 0) {
+      let current = queue.shift();
+      menuTreeData.forEach(m => {
+        if (m.parent_id === current) {
+          excludeIds.add(m.id);
+          queue.push(m.id);
+        }
+      });
+    }
+  }
+
+  const submenus = menuTreeData.filter(m => m.reply_type === 'submenu' && !excludeIds.has(m.id));
+  
+  // Create a hierarchy map to show breadcrumbs or indents
+  const rootNodes = submenus.filter(m => !m.parent_id || excludeIds.has(m.parent_id));
+  
+  function addOptions(nodes, depth) {
+    nodes.sort((a,b) => a.sort_order - b.sort_order).forEach(node => {
+      const opt = document.createElement('option');
+      opt.value = node.id;
+      const title = currentLang === 'ar' ? node.title_ar : node.title_en;
+      opt.textContent = '&nbsp;'.repeat(depth * 4) + title;
+      opt.innerHTML = '&nbsp;'.repeat(depth * 4) + escapeHTML(title);
+      select.appendChild(opt);
+      
+      const children = submenus.filter(m => m.parent_id === node.id);
+      addOptions(children, depth + 1);
+    });
+  }
+  
+  addOptions(rootNodes, 0);
+}
+

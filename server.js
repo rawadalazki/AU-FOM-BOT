@@ -1,4 +1,4 @@
-const http = require('node:http');
+﻿const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── 0. Rate Limiting ───────────────────────────────────────────────────────
+  // â”€â”€ 0. Rate Limiting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Apply rate limiting to all /api/ routes, EXCEPT verified webhooks
   if (pathname.startsWith('/api/')) {
     const webhookMatch = pathname.match(/^\/api\/telegram\/webhook\/(\d+)$/);
@@ -201,7 +201,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // ── 1. Health & Readiness Probes ───────────────────────────────────────────
+  // â”€â”€ 1. Health & Readiness Probes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (method === 'GET' && pathname === '/health') {
     return sendJson(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
   }
@@ -227,7 +227,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── 2. Telegram Webhook Endpoint ──────────────────────────────────────────────
+  // â”€â”€ 2. Telegram Webhook Endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const webhookMatch = pathname.match(/^\/api\/telegram\/webhook\/(\d+)$/);
   if (method === 'POST' && webhookMatch) {
     const facultyId = parseInt(webhookMatch[1], 10);
@@ -241,7 +241,7 @@ const server = http.createServer(async (req, res) => {
       
       const update = await parseJson(req);
       
-      // Handle asynchronously — always return 200 to Telegram immediately
+      // Handle asynchronously â€” always return 200 to Telegram immediately
       botManager.handleWebhookUpdate(facultyId, update, reqId).catch(err => {
         logger.error({ reqId, facultyId, err }, `Webhook update error`);
       });
@@ -253,7 +253,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // ── 3. File Proxy Endpoint (streams from Telegram) ──────────────────────────
+  // â”€â”€ 3. File Proxy Endpoint (streams from Telegram) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fileProxyMenuMatch = pathname.match(/^\/api\/files\/menu\/(\d+)$/);
   if (method === 'GET' && fileProxyMenuMatch) {
     try {
@@ -350,9 +350,9 @@ const server = http.createServer(async (req, res) => {
   }
 
 
-  // ── API ROUTES ─────────────────────────────────────────────────────────────
+  // â”€â”€ API ROUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  // ── AUTH & SUPERADMIN ROUTES ───────────────────────────────────────────────
+  // â”€â”€ AUTH & SUPERADMIN ROUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/superadmin/')) {
     if (pathname === '/api/auth/login' && method === 'POST') {
       try {
@@ -767,7 +767,7 @@ const server = http.createServer(async (req, res) => {
         const fac = await dbHelper.getFacultyById(id);
         if (fac) {
           await botManager.deleteWebhookForFaculty(fac, reqId).catch(e => logger.error({reqId, err: e}, 'Delete webhook failed'));
-          // No S3 cleanup needed — files are on Telegram
+          // No S3 cleanup needed â€” files are on Telegram
           await dbHelper.deleteFaculty(id);
           if (req.adminUser) await dbHelper.logAdminAction(req.adminUser.id, 'delete_faculty', 'faculties', id.toString(), await auth.getClientIp(req));
         }
@@ -920,6 +920,24 @@ const server = http.createServer(async (req, res) => {
         
         let parentId = parseInt(fields.parent_id, 10);
         if (isNaN(parentId)) parentId = null;
+
+        if (parentId !== null) {
+          if (parentId === id) {
+            return sendJson(res, 400, { error: 'Self-parenting is not allowed' });
+          }
+          const parentMenu = await dbHelper.getMenuById(parentId);
+          if (!parentMenu) return sendJson(res, 400, { error: 'Parent menu not found' });
+          if (parentMenu.faculty_id !== menu.faculty_id) return sendJson(res, 400, { error: 'Cross-faculty parent assignment not allowed' });
+          
+          let currentParentId = parentMenu.id;
+          let depth = 0;
+          while (currentParentId !== null && depth < 20) {
+            if (currentParentId === id) return sendJson(res, 400, { error: 'Circular reference detected' });
+            const currMenu = await dbHelper.getMenuById(currentParentId);
+            currentParentId = currMenu ? currMenu.parent_id : null;
+            depth++;
+          }
+        }
         
         let fileName = null;
         let telegramFileId = null;
@@ -983,6 +1001,24 @@ const server = http.createServer(async (req, res) => {
         let parentId = parseInt(fields.parent_id, 10);
         if (isNaN(parentId)) parentId = null;
 
+        if (parentId !== null) {
+          if (parentId === id) {
+            return sendJson(res, 400, { error: 'Self-parenting is not allowed' });
+          }
+          const parentMenu = await dbHelper.getMenuById(parentId);
+          if (!parentMenu) return sendJson(res, 400, { error: 'Parent menu not found' });
+          if (parentMenu.faculty_id !== menu.faculty_id) return sendJson(res, 400, { error: 'Cross-faculty parent assignment not allowed' });
+          
+          let currentParentId = parentMenu.id;
+          let depth = 0;
+          while (currentParentId !== null && depth < 20) {
+            if (currentParentId === id) return sendJson(res, 400, { error: 'Circular reference detected' });
+            const currMenu = await dbHelper.getMenuById(currentParentId);
+            currentParentId = currMenu ? currMenu.parent_id : null;
+            depth++;
+          }
+        }
+
         let fileName = menu.file_name;
         let telegramFileId = menu.telegram_file_id;
         let mimeType = menu.mime_type;
@@ -1041,7 +1077,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const menu = await dbHelper.getMenuById(id);
         if (menu) {
-          // No S3 cleanup needed — files are on Telegram
+          // No S3 cleanup needed â€” files are on Telegram
           await dbHelper.deleteMenu(id);
         }
         return sendJson(res, 200, { ok: true });
@@ -1206,7 +1242,7 @@ const server = http.createServer(async (req, res) => {
             const btns = JSON.parse(menu.inline_buttons);
             if (btns && btns.length > 0) {
                response.reply_content_en += '\n\nLinks:\n' + btns.map(b => `- ${b.text_en}: ${b.url}`).join('\n');
-               response.reply_content_ar += '\n\nروابط:\n' + btns.map(b => `- ${b.text_ar}: ${b.url}`).join('\n');
+               response.reply_content_ar += '\n\nØ±ÙˆØ§Ø¨Ø·:\n' + btns.map(b => `- ${b.text_ar}: ${b.url}`).join('\n');
             }
           } catch(e) {}
         }
@@ -1378,3 +1414,4 @@ async function main() {
 }
 
 main();
+

@@ -176,11 +176,11 @@
                     <h3 id="menu-editor-title" data-i18n="edit_menu_title">Edit Menu Option</h3>
                     <form id="menu-item-form">
                       <input type="hidden" id="menu-item-id">
-                      <input type="hidden" id="menu-parent-id">
-
-                      <!-- Parent indicator -->
-                      <div class="parent-indicator" id="menu-parent-indicator" style="display:none;">
-                        <span data-i18n="parent_label">Parent Menu:</span> <strong id="menu-parent-title">None</strong>
+                      <div class="form-group">
+                        <label for="menu-parent-id" data-i18n="parent_label">Parent Menu</label>
+                        <select id="menu-parent-id" name="parent_id" class="form-control">
+                          <option value="">-- Root Menu --</option>
+                        </select>
                       </div>
 
                       <!-- Multi-language Titles side-by-side -->
