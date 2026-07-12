@@ -242,25 +242,35 @@ async function sendAggregatedReport(logId) {
 
     const msg = `🚨 *Runtime Error*\n\n` +
       `*Severity:* ${escapeMarkdown(log.severity)}\n` +
-      `*Faculty:* ${escapeMarkdown(ctx.Faculty_Name || faculty.name_en || log.faculty_id)}\n` +
-      `*Bot:* ${escapeMarkdown(ctx.Bot_Username || log.bot_id || 'Unknown')}\n` +
       `*Error:* ${escapeMarkdown(log.error_message)}\n` +
-      `*Occurrences:* ${log.occurrence_count}\n\n` +
+      `*Occurrences:* ${log.occurrence_count}\n` +
+      `*Session ID:* ${escapeMarkdown(ctx.Session_ID || 'N/A')}\n\n` +
       `👤 *User*\n` +
-      `ID: ${escapeMarkdown(ctx.Telegram_User_ID || log.user_telegram_id || '')}\n` +
+      `User ID: ${escapeMarkdown(ctx.Telegram_User_ID || log.user_telegram_id || '')}\n` +
+      `Chat ID: ${escapeMarkdown(ctx.Telegram_User_ID || log.user_telegram_id || '')}\n` +
       `Username: ${escapeMarkdown(ctx.Telegram_Username || '')}\n` +
-      `Name: ${escapeMarkdown(ctx.Telegram_Full_Name || '')}\n\n` +
+      `Name: ${escapeMarkdown(ctx.Telegram_Full_Name || '')}\n` +
+      `Faculty: ${escapeMarkdown(ctx.Faculty_Name || faculty.name_en || log.faculty_id)}\n` +
+      `Bot: ${escapeMarkdown(ctx.Bot_Username || log.bot_id || 'Unknown')}\n\n` +
       `📍 *Location*\n` +
-      `Menu ID: ${escapeMarkdown(ctx.Current_Menu_ID || '')}\n` +
-      `Menu: ${escapeMarkdown(ctx.Current_Menu || 'N/A')}\n` +
-      `Parent: ${escapeMarkdown(ctx.Parent_Menu || 'N/A')}\n` +
-      `Menu Path: ${escapeMarkdown(ctx.Menu_Path || 'N/A')}\n\n` +
+      `Current Button: ${escapeMarkdown(ctx.Current_Button || 'N/A')}\n` +
+      `Current Menu: ${escapeMarkdown(ctx.Current_Menu || 'N/A')}\n` +
+      `Parent Menu: ${escapeMarkdown(ctx.Parent_Menu || 'N/A')}\n` +
+      `Menu Path: ${escapeMarkdown(ctx.Menu_Path || 'N/A')}\n` +
+      `Last Reply Type: ${escapeMarkdown(ctx.Last_Reply_Type || 'N/A')}\n` +
+      `Last Button Callback: ${escapeMarkdown(ctx.Last_Button_Callback || 'N/A')}\n\n` +
       `⚙️ *Operation*\n` +
-      `${escapeMarkdown(log.operation)}\n\n` +
+      `Current Operation: ${escapeMarkdown(ctx.Operation || log.operation)}\n` +
+      `Callback Data: ${escapeMarkdown(ctx.Callback_Data || 'N/A')}\n` +
+      `File Name: ${escapeMarkdown(ctx.File_Name_Sending || 'N/A')}\n` +
+      `File Type: ${escapeMarkdown(ctx.File_Mime_Type || 'N/A')}\n` +
+      `Page Number: ${escapeMarkdown(ctx.File_Page_Number !== 'Unknown' ? String(ctx.File_Page_Number) : 'N/A')}\n\n` +
       `📦 *Update*\n` +
-      (ctx.Callback_Data ? `Callback Data: ${escapeMarkdown(ctx.Callback_Data)}\n` : '') +
-      (ctx.Message_Text ? `Message Text: ${escapeMarkdown(ctx.Message_Text)}\n` : '') +
-      `\n*Server Metrics:*\nNode: ${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: ${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: ${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n` +
+      `Update ID: ${escapeMarkdown(ctx.Update_ID || 'N/A')}\n` +
+      `Message ID: ${escapeMarkdown(ctx.Message_ID || 'N/A')}\n` +
+      `Bot Message ID: ${escapeMarkdown(ctx.Bot_Message_ID || 'N/A')}\n` +
+      `Timestamp: ${escapeMarkdown(new Date().toISOString())}\n\n` +
+      `*Server Metrics:*\nNode: ${escapeMarkdown(ctx.Server_Info?.Node_Version)} | RSS: ${escapeMarkdown(ctx.Server_Info?.Memory_RSS)} | DB Idle: ${ctx.Server_Info?.DB_Idle_Clients || 'N/A'}\n\n` +
       `*Attachments:* TG Update: ${hasTgUpdate} | HTTP: ${hasHttpReq}\n\n` +
       `*Recent History:*\n\`${escapeMarkdown(histStr.substring(0, 500))}\`\n\n` +
       `*Stack:*\n\`${escapeMarkdown(stackSnippet)}\``;

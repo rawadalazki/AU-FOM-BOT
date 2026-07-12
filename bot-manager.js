@@ -21,6 +21,29 @@ class TelegramBotService {
     this.token = token;
     this.apiServer = apiServer;
     this.reqId = reqId;
+    this.userRuntimeContext = new Map();
+    setInterval(() => {
+      const now = Date.now();
+      for (const [chatId, ctx] of this.userRuntimeContext.entries()) {
+        if (now - ctx.lastActivity > 30 * 60 * 1000) {
+          this.userRuntimeContext.delete(chatId);
+        }
+      }
+    }, 5 * 60 * 1000).unref();
+  }
+
+  updateUserContext(chatId, payload) {
+    if (!chatId) return;
+    const cid = chatId.toString();
+    const crypto = require('crypto');
+    let ctx = this.userRuntimeContext.get(cid);
+    if (!ctx) {
+      ctx = { sessionId: crypto.randomUUID() };
+    } else {
+      ctx = JSON.parse(JSON.stringify(ctx));
+    }
+    ctx = { ...ctx, ...payload, lastActivity: Date.now() };
+    this.userRuntimeContext.set(cid, ctx);
   }
 
   logInfo(msg, obj = {}) {
@@ -31,136 +54,117 @@ class TelegramBotService {
     logger.error({ reqId: this.reqId, facultyId: this.facultyId, err, ...obj }, msg);
     const { reportRuntimeError, getUserHistory } = require('./error-reporter');
     
-    // We do a best-effort async context extraction to not block the caller
     (async () => {
       try {
         const dbHelper = require('./database');
         let facultyName = '';
-        let telegramFullName = obj.Telegram_Full_Name || '';
-        let telegramUsername = obj.Telegram_Username || '';
-        let adminState = null;
-        let botUsername = this.username || '';
-        let currentMenu = obj.Current_Menu || '';
-        let currentButton = obj.Current_Button || '';
-        
         const faculty = await dbHelper.getFacultyById(this.facultyId);
         if (faculty) facultyName = faculty.name_en || faculty.name_ar;
 
-        let history = [];
-        let menuPath = '';
-        let parentMenu = '';
-        let currentMenuId = '';
-        let replyType = '';
-        let callbackData = '';
-        let msgText = '';
-
-        if (obj.update) {
-          if (obj.update.message && obj.update.message.text) msgText = obj.update.message.text;
-          if (obj.update.callback_query && obj.update.callback_query.data) callbackData = obj.update.callback_query.data;
-          
-          if (obj.update.message && obj.update.message.from) {
-             telegramFullName = `${obj.update.message.from.first_name || ''} ${obj.update.message.from.last_name || ''}`.trim();
-             telegramUsername = obj.update.message.from.username || '';
-          } else if (obj.update.callback_query && obj.update.callback_query.from) {
-             telegramFullName = `${obj.update.callback_query.from.first_name || ''} ${obj.update.callback_query.from.last_name || ''}`.trim();
-             telegramUsername = obj.update.callback_query.from.username || '';
-          }
+        const chatId = obj.chat_id || obj.Telegram_User_ID;
+        let ctx = null;
+        if (chatId) {
+          ctx = this.userRuntimeContext.get(chatId.toString());
         }
+        if (!ctx) ctx = {};
+        else ctx = JSON.parse(JSON.stringify(ctx));
 
-        if (obj.chat_id || obj.Telegram_User_ID) {
-          const cid = obj.chat_id || obj.Telegram_User_ID;
-          history = getUserHistory(cid.toString());
-          const stateRow = await dbHelper.pool.query('SELECT state FROM admin_states WHERE chat_id = $1', [cid.toString()]);
-          if (stateRow.rows.length > 0) adminState = stateRow.rows[0].state;
-          
-          const uRow = await dbHelper.pool.query('SELECT * FROM bot_users WHERE chat_id = $1', [cid.toString()]);
-          if (uRow.rows.length > 0) {
-             if (!telegramFullName) telegramFullName = `${uRow.rows[0].first_name} ${uRow.rows[0].last_name || ''}`.trim();
-             if (!telegramUsername) telegramUsername = uRow.rows[0].username || '';
-             
-             if (uRow.rows[0].current_menu_id) {
-                currentMenuId = uRow.rows[0].current_menu_id;
-                let currMenuId = currentMenuId;
-                let pathArr = [];
-                let parentId = null;
-                
-                let limit = 20; // safety
-                while (currMenuId && limit-- > 0) {
-                  const mRow = await dbHelper.pool.query('SELECT * FROM menus WHERE id = $1', [currMenuId]);
-                  if (mRow.rows.length > 0) {
-                    const m = mRow.rows[0];
-                    const mTitle = m.title_en || m.title_ar || 'Unknown';
-                    pathArr.unshift(mTitle);
-                    
-                    if (currMenuId === currentMenuId) {
-                      currentMenu = mTitle;
-                      parentId = m.parent_id;
-                      replyType = m.reply_type || '';
-                    }
-                    currMenuId = m.parent_id;
-                  } else {
-                    pathArr.unshift('Unknown (deleted)');
-                    break;
-                  }
-                }
-                menuPath = pathArr.join(' → ');
-                
-                if (parentId) {
-                   const pRow = await dbHelper.pool.query('SELECT title_en, title_ar FROM menus WHERE id = $1', [parentId]);
-                   if (pRow.rows.length > 0) {
-                     parentMenu = pRow.rows[0].title_en || pRow.rows[0].title_ar || 'Unknown';
-                   }
-                }
-             }
+        const combined = { ...ctx, ...obj };
+        const cid = chatId ? chatId.toString() : null;
+        
+        let history = [];
+        if (cid) history = getUserHistory(cid);
+
+        let menuPath = combined.menuPath || 'Unknown';
+        let parentMenu = combined.parentMenuTitle || 'Unknown';
+        let replyType = combined.replyType || combined.lastReplyType || 'Unknown';
+        let currentMenu = combined.currentMenuTitle || 'Unknown';
+
+        if (combined.currentMenuId) {
+          try {
+            const query = `
+              WITH RECURSIVE menu_tree AS (
+                SELECT id, parent_id, title_en, title_ar, reply_type, 1 as depth
+                FROM menus
+                WHERE id = $1
+                UNION ALL
+                SELECT m.id, m.parent_id, m.title_en, m.title_ar, m.reply_type, mt.depth + 1
+                FROM menus m
+                JOIN menu_tree mt ON m.id = mt.parent_id
+              )
+              SELECT * FROM menu_tree ORDER BY depth DESC;
+            `;
+            const mRow = await dbHelper.pool.query(query, [combined.currentMenuId]);
+            if (mRow.rows.length > 0) {
+              const pathArr = mRow.rows.map(m => m.title_en || m.title_ar || 'Unknown');
+              menuPath = pathArr.join(' → ');
+              
+              const currentM = mRow.rows[mRow.rows.length - 1]; // depth 1
+              currentMenu = currentM.title_en || currentM.title_ar || 'Unknown';
+              replyType = combined.lastReplyType || currentM.reply_type || 'Unknown';
+              
+              if (mRow.rows.length > 1) {
+                const parentM = mRow.rows[mRow.rows.length - 2]; // depth 2
+                parentMenu = parentM.title_en || parentM.title_ar || 'Unknown';
+              }
+            }
+          } catch (dbErr) {
+            menuPath = 'Unknown (Error resolving path)';
           }
         }
 
         reportRuntimeError({
-          Severity: obj.Severity,
+          Severity: combined.Severity || 'ERROR',
           Faculty_ID: this.facultyId,
           Faculty_Name: facultyName,
           Bot_ID: this.token ? this.token.split(':')[0] : '',
-          Bot_Username: botUsername,
+          Bot_Username: this.username || '',
           Request_ID: this.reqId,
           Error_Type: err ? err.name : 'BotError',
           Error_Message: err ? (err.message || String(err)) : 'Unknown Error',
           Stack_Trace: err ? err.stack : '',
-          Operation: msg,
+          Operation: combined.currentOperation || msg,
           File_Name: 'bot-manager.js',
           Function_Name: 'TelegramBotService.logError',
-          Telegram_User_ID: obj.chat_id || obj.Telegram_User_ID,
-          Telegram_Full_Name: telegramFullName,
-          Telegram_Username: telegramUsername,
-          Current_Menu_ID: currentMenuId,
+          Telegram_User_ID: combined.telegramUserId || 'Unknown',
+          Telegram_Full_Name: combined.firstName ? `${combined.firstName} ${combined.lastName !== 'Unknown' ? combined.lastName : ''}`.trim() : 'Unknown',
+          Telegram_Username: combined.username || 'Unknown',
+          Current_Menu_ID: combined.currentMenuId || 'Unknown',
           Current_Menu: currentMenu,
           Parent_Menu: parentMenu,
           Menu_Path: menuPath,
           Reply_Type: replyType,
-          Current_Button: currentButton,
-          Admin_State: adminState,
-          Message_Text: msgText,
-          Callback_Data: callbackData,
-          Message_ID: obj.message_id,
-          Update_ID: obj.update_id,
+          Current_Button: combined.currentButtonTitle || combined.lastButtonText || 'Unknown',
+          Admin_State: combined.adminState || 'Unknown',
+          Message_Text: combined.messageText || 'Unknown',
+          Callback_Data: combined.callbackData || combined.lastButtonCallback || 'Unknown',
+          Message_ID: combined.messageId || 'Unknown',
+          Update_ID: combined.updateId || 'Unknown',
           Last_10_Operations: history,
-          Telegram_Update: obj.update,
-          HTTP_Request: obj.request,
-          API_Payload: obj.api_payload,
-          ...obj
+          Telegram_Update: combined.update || null,
+          HTTP_Request: combined.request || null,
+          API_Payload: combined.api_payload || null,
+          Session_ID: combined.sessionId || 'Unknown',
+          Last_Button_Callback: combined.lastButtonCallback || 'Unknown',
+          Last_Button_Text: combined.lastButtonText || 'Unknown',
+          Last_Reply_Type: combined.lastReplyType || 'Unknown',
+          Bot_Message_ID: combined.botMessageId || 'Unknown',
+          File_Name_Sending: combined.fileName || 'Unknown',
+          File_Mime_Type: combined.mimeType || 'Unknown',
+          File_Page_Number: combined.pageNumber !== undefined ? combined.pageNumber : 'Unknown',
+          ...combined
         });
       } catch (innerErr) {
-        // Safe fallback
         reportRuntimeError({
           Severity: 'ERROR',
           Faculty_ID: this.facultyId,
           Request_ID: this.reqId,
-          Error_Type: err ? err.name : 'BotError',
-          Error_Message: err ? (err.message || String(err)) : 'Unknown Error',
-          Stack_Trace: err ? err.stack : '',
-          Operation: msg,
+          Error_Type: 'LogErrorCrash',
+          Error_Message: innerErr.message,
+          Stack_Trace: innerErr.stack,
+          Operation: 'Extracting Context',
           File_Name: 'bot-manager.js',
-          Function_Name: 'TelegramBotService.logError',
-          ...obj
+          Function_Name: 'TelegramBotService.logError'
         });
       }
     })();
@@ -233,6 +237,16 @@ class TelegramBotService {
   async handleMessage(message) {
     const chatId = message.chat.id.toString();
     const text = message.text || '';
+    
+    this.updateUserContext(chatId, {
+      telegramUserId: message.from.id,
+      username: message.from.username || 'Unknown',
+      firstName: message.from.first_name || 'Unknown',
+      lastName: message.from.last_name || 'Unknown',
+      messageText: text,
+      messageId: message.message_id
+    });
+
     try {
       const { logUserOperation } = require('./error-reporter');
       const dbHelper = require('./database');
@@ -465,6 +479,29 @@ class TelegramBotService {
   async handleCallbackQuery(callbackQuery) {
     const data = callbackQuery.data;
     const chatId = callbackQuery.message.chat.id.toString();
+    
+    let btnText = 'Unknown';
+    if (callbackQuery.message.reply_markup && callbackQuery.message.reply_markup.inline_keyboard) {
+      for (const row of callbackQuery.message.reply_markup.inline_keyboard) {
+        for (const btn of row) {
+          if (btn.callback_data === data) {
+            btnText = btn.text;
+          }
+        }
+      }
+    }
+    
+    this.updateUserContext(chatId, {
+      telegramUserId: callbackQuery.from.id,
+      username: callbackQuery.from.username || 'Unknown',
+      firstName: callbackQuery.from.first_name || 'Unknown',
+      lastName: callbackQuery.from.last_name || 'Unknown',
+      callbackData: data,
+      lastButtonCallback: data,
+      lastButtonText: btnText,
+      callbackQueryId: callbackQuery.id
+    });
+
     try {
       const { logUserOperation } = require('./error-reporter');
       const dbHelper = require('./database');
@@ -1359,6 +1396,13 @@ class TelegramBotService {
           this.logInfo(`Automatic recovery: Retrying ${method} due to ${res.error_code} ${res.description}`);
           return await this.apiCall(method, payload, true);
         }
+      } else {
+        if (res.result && res.result.message_id && payload && payload.chat_id) {
+          const trackingMethods = ['sendMessage', 'sendPhoto', 'sendDocument', 'sendVideo', 'sendAudio', 'sendVoice', 'sendAnimation', 'editMessageText', 'editMessageReplyMarkup'];
+          if (trackingMethods.includes(method)) {
+             this.updateUserContext(payload.chat_id, { botMessageId: res.result.message_id });
+          }
+        }
       }
       return res;
     } catch (e) {
@@ -1415,6 +1459,13 @@ class TelegramBotService {
     const payload = { chat_id: chatId, [field]: telegramFileId };
     if (caption) payload.caption = caption;
     if (replyMarkup) payload.reply_markup = replyMarkup;
+
+    this.updateUserContext(chatId, {
+      currentOperation: "Sending File",
+      fileId: telegramFileId,
+      fileName: file.file_name || 'Unknown',
+      mimeType: file.mime_type || 'Unknown'
+    });
 
     try {
       const res = await this.apiCall(method, payload);
@@ -1514,6 +1565,11 @@ class TelegramBotService {
     const startIdx = page * FILES_PER_PAGE;
     const endIdx = Math.min(startIdx + FILES_PER_PAGE, totalFiles);
     const pageFiles = allFiles.slice(startIdx, endIdx);
+
+    this.updateUserContext(chatId, {
+      pageNumber: page + 1,
+      totalFiles: totalFiles
+    });
 
     let hasError = false;
     for (let i = 0; i < pageFiles.length; i++) {
