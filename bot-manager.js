@@ -376,7 +376,7 @@ class TelegramBotService {
     if (clickedMenu) {
       await this.processMenuClick(chatId, user, clickedMenu, menus);
     } else {
-      if (text === '⬅️ Back' || text === '⬅️ عودة') {
+      if (text.includes('Back') || text.includes('عودة')) {
         await this.handleBackNavigation(chatId, user);
         return;
       }
