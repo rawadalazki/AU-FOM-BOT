@@ -417,10 +417,18 @@ class TelegramBotService {
           const btns = JSON.parse(clickedMenu.inline_buttons);
           if (btns && btns.length > 0) {
             keyboard = {
-              inline_keyboard: btns.map(b => [{
-                text: user.language === 'ar' ? b.text_ar : b.text_en,
-                url: b.url
-              }])
+              inline_keyboard: btns.map(b => {
+                const btn = { text: user.language === 'ar' ? b.text_ar : b.text_en };
+                const link = (b.url || '').trim();
+                if (link.startsWith('@')) {
+                  btn.url = 'https://t.me/' + link.substring(1);
+                } else if (link.startsWith('http') || link.startsWith('tg://')) {
+                  btn.url = link;
+                } else {
+                  btn.callback_data = 'btn_cmd_' + link;
+                }
+                return [btn];
+              })
             };
           }
         } catch(e) {
@@ -558,6 +566,23 @@ class TelegramBotService {
         }
       }
     } catch(e) {}
+
+    if (data.startsWith('btn_cmd_')) {
+      const cmd = data.replace('btn_cmd_', '');
+      const mockMessage = {
+         from: callbackQuery.from,
+         chat: callbackQuery.message.chat,
+         text: cmd,
+         message_id: callbackQuery.message.message_id,
+         date: Math.floor(Date.now() / 1000)
+      };
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
+      // Use setImmediate to let this callback finish and avoid blocking
+      setImmediate(() => {
+        this.handleMessage(mockMessage).catch(e => this.logError('btn_cmd_ handleMessage failed', e));
+      });
+      return;
+    }
 
     if (data.startsWith('lang_')) {
       const lang = data === 'lang_ar' ? 'ar' : 'en';
@@ -1346,10 +1371,7 @@ class TelegramBotService {
 
         const bTitleAr = btnParts[0].trim();
         const bUrl = btnParts.slice(1).join('-').trim();
-        if (!bUrl.startsWith('http')) {
-           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرابط يجب أن يبدأ بـ http أو https' : 'URL must start with http or https' });
-           break;
-        }
+        // No validation needed here, it will be mapped correctly at render time
         
         const bTitleEn = await this.translateArToEn(bTitleAr);
         const currentBtns = menuBtn.inline_buttons ? JSON.parse(menuBtn.inline_buttons) : [];
@@ -1839,10 +1861,18 @@ class TelegramBotService {
           const btns = JSON.parse(pMenu.inline_buttons);
           if (btns && btns.length > 0) {
             inlineKeyboardMarkup = {
-              inline_keyboard: btns.map(b => [{
-                text: lang === 'ar' ? b.text_ar : b.text_en,
-                url: b.url
-              }])
+              inline_keyboard: btns.map(b => {
+                const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };
+                const link = (b.url || '').trim();
+                if (link.startsWith('@')) {
+                  btn.url = 'https://t.me/' + link.substring(1);
+                } else if (link.startsWith('http') || link.startsWith('tg://')) {
+                  btn.url = link;
+                } else {
+                  btn.callback_data = 'btn_cmd_' + link;
+                }
+                return [btn];
+              })
             };
           }
         } catch(e) {}
