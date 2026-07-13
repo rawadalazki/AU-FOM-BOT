@@ -623,13 +623,11 @@ class TelegramBotService {
         await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [menuId]);
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تفريغ الزر' : '✅ Content Cleared' });
         await this.sendAdminMenuDetails(chatId, menuId, lang);
-      } else if (action === 'delsinglefile') {
-        const fileId = parseInt(parts[3], 10);
-        await dbHelper.deleteMenuFile(fileId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الملف' : '✅ File Deleted' });
-        await this.sendFilePage(chatId, menuId, 0, lang, null, true);
       } else if (action === 'previewfiles') {
-        await this.sendFilePage(chatId, menuId, 0, lang, null, true);
+        const menu = await dbHelper.getMenuById(menuId);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض الملفات:' : '👁️ Previewing files:' });
+        await this.sendFilePage(chatId, menuId, 0, lang, lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en, true);
+        await this.sendAdminMenuDetails(chatId, menuId, lang); // send details again at bottom
       } else if (action === 'addfile') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد الآن:' : 'Send the new file now:', reply_markup: cancelKb });
@@ -658,7 +656,6 @@ class TelegramBotService {
       }
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
-  }
 
   // --- Admin State Machine ---
   async handleAdminStateMessage(chatId, message, lang, state) {
@@ -820,8 +817,12 @@ class TelegramBotService {
 
       // 3. Details Actions (when viewingMenuDetailsId is set)
       // 4. Add Actions (when viewing sibling list)
-      if (text.includes('➕') || text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
-        let targetRow = 'new';
+      const rowAddMatch = text.match(/➕.*\(r(\d+)\)/i);
+      let targetRow = null;
+      if (rowAddMatch) targetRow = parseInt(rowAddMatch[1], 10);
+      else if (text.includes('سطر جديد') || text.includes('New Row')) targetRow = 'new';
+      
+      if (targetRow !== null || text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId, targetRow });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ما نوع الزر الجديد؟' : 'What type of button?', reply_markup: {
           keyboard: [
@@ -1347,19 +1348,34 @@ class TelegramBotService {
       txt = lang === 'ar' ? `📂 داخل: ${pMenu.title_ar}` : `📂 Inside: ${pMenu.title_en}`;
     }
 
+    const rowsMap = new Map();
+    siblings.forEach(item => {
+      const ri = item.row_index || 0;
+      if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+      rowsMap.get(ri).push(item);
+    });
+
+    const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
     const kb = [];
-    let currentRow = [];
-    for (const s of siblings) {
-      const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
-      const title = lang === 'ar' ? s.title_ar : s.title_en;
-      currentRow.push({ text: `${icon} ${title}` });
-      if (currentRow.length === 3) {
-        kb.push(currentRow);
-        currentRow = [];
+
+    sortedRows.forEach(ri => {
+      const rowItems = rowsMap.get(ri).sort((a,b) => a.sort_order - b.sort_order);
+      const maxButtonsPerRow = 3;
+      
+      const chunk = rowItems.slice(0, maxButtonsPerRow);
+      const rowKb = chunk.map(s => {
+        const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
+        const title = lang === 'ar' ? s.title_ar : s.title_en;
+        return { text: `${icon} ${title}` };
+      });
+
+      if (rowKb.length < maxButtonsPerRow) {
+        rowKb.push({ text: lang === 'ar' ? `➕ بجانبهم (r${ri})` : `➕ Add Here (r${ri})` });
       }
-    }
-    currentRow.push({ text: '➕' });
-    kb.push(currentRow);
+      kb.push(rowKb);
+    });
+
+    kb.push([{ text: lang === 'ar' ? '➕ سطر جديد' : '➕ New Row' }]);
 
     if (parentId !== null) {
       kb.push([{ text: lang === 'ar' ? '⬆️ المستوى السابق' : '⬆️ Parent Menu' }]);
@@ -1573,8 +1589,13 @@ class TelegramBotService {
         parse_mode: 'HTML',
         reply_markup: replyMarkup
       });
-    }
-
+    } else {
+      const res = await this.apiCall('sendMessage', {
+        chat_id: chatId,
+        text: promptText,
+        parse_mode: 'HTML',
+        reply_markup: replyMarkup
+      });
 
     if (!res.ok) {
       this.logError('Failed to send menu', null, { description: res.description, promptText, chat_id: chatId });
@@ -1995,7 +2016,6 @@ module.exports = {
   getWebhookSecret,
   getBotService
 };
-
 
 
 
