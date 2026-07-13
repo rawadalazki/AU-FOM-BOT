@@ -1411,6 +1411,59 @@ class TelegramBotService {
     });
   }
 
+  async apiCall(method, payload, isRetry = false) {
+    try {
+      const res = await this._rawApiCall(method, payload);
+      if (!res.ok) {
+        const desc = (res.description || '').toLowerCase();
+        const shouldRetry = res.error_code === 400 || res.error_code === 404 || res.error_code === 403 || desc.includes('invalid file') || desc.includes('file reference expired');
+        if (shouldRetry && !isRetry) {
+          this.logInfo(`Automatic recovery: Retrying ${method} due to ${res.error_code} ${res.description}`);
+          return await this.apiCall(method, payload, true);
+        }
+      }
+      return res;
+    } catch (e) {
+      if (!isRetry) {
+        this.logInfo(`Automatic recovery: Retrying ${method} due to exception ${e.message}`);
+        return await this.apiCall(method, payload, true);
+      }
+      throw e;
+    }
+  }
+
+  _rawApiCall(method, payload) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify(payload);
+      const req = https.request({
+        hostname: this.apiServer,
+        port: 443,
+        path: `/bot${this.token}/${method}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+      }, (res) => {
+        let body = '';
+        res.on('data', c => body += c);
+        res.on('end', () => {
+          try { 
+            const parsed = JSON.parse(body);
+            if (!parsed.ok) {
+              console.error(`[TELEGRAM API ERROR] Method: ${method}, Payload: ${data}, Response: ${body}`);
+            } else {
+              console.log(`[TELEGRAM SUCCESS] Method: ${method}, ChatId: ${payload.chat_id || 'N/A'}`);
+            }
+            resolve(parsed); 
+          } catch(e) { reject(e); }
+        });
+      });
+      req.on('error', (err) => {
+        console.error(`[TELEGRAM HTTP ERROR] Method: ${method}, Error: ${err.message}`);
+        reject(err);
+      });
+      req.write(data);
+      req.end();
+    });
+  }
 
   async sendTelegramFile(chatId, file, caption = null, replyMarkup = null) {
     const telegramFileId = file.telegram_file_id;
