@@ -1573,6 +1573,7 @@ class TelegramBotService {
         parse_mode: 'HTML',
         reply_markup: replyMarkup
       });
+    }
 
 
     if (!res.ok) {
