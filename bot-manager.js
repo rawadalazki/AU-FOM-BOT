@@ -572,12 +572,28 @@ class TelegramBotService {
       return;
     }
 
-    if (text === '/cancel') {
-      await dbHelper.deleteAdminState(chatId);
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء.' : 'Action cancelled.', reply_markup: { remove_keyboard: true } });
-      await this.sendAdminHome(chatId, lang);
+    if (text === '/cancel' || text === '⬅️ إلغاء الأمر' || text === '⬅️ Cancel Operation') {
+      const isHome = state.action === 'admin_home' || !state.action;
+      if (isHome) {
+        await dbHelper.deleteAdminState(chatId);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء.' : 'Action cancelled.', reply_markup: { remove_keyboard: true } });
+        await this.sendAdminHome(chatId, lang);
+      } else {
+        // Go back to managing menus or home
+        if (state.currentMenuId !== undefined) {
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
+          await this.sendAdminReplyMenus(chatId, state.currentMenuId, lang);
+        } else {
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
+          await this.sendAdminHome(chatId, lang);
+        }
+      }
       return;
     }
+
+    const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
 
     // --- HOME MENU ---
     if (state.action === 'admin_home') {
@@ -704,34 +720,41 @@ class TelegramBotService {
           await this.sendAdminReplyMenus(chatId, targetId, lang);
         } else if (text.includes('إعادة التسمية') || text.includes('Rename')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
         } else if (text.includes('تعديل المحتوى') || text.includes('Edit Content')) {
           const menu = await dbHelper.getMenuById(menuId);
           if (menu.reply_type === 'submenu') {
              await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_submenu_ar', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التمهيدية التي ستظهر عند دخول هذه القائمة (بالعربي):' : 'Send the prompt message for this submenu (Arabic):', reply_markup: { remove_keyboard: true } });
+             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التمهيدية التي ستظهر عند دخول هذه القائمة (بالعربي):' : 'Send the prompt message for this submenu (Arabic):', reply_markup: cancelKb });
           } else if (menu.reply_type === 'text') {
              await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: { remove_keyboard: true } });
+             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
           } else if (menu.reply_type === 'file') {
-             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد. ويمكنك إرفاق الشرح باللغة العربية معه:' : 'Send the new file, with optional Arabic caption:', reply_markup: { remove_keyboard: true } });
+             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_cap_ar', menuId });
+             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
           }
         } else if (text.includes('استبدال الملف') || text.includes('Replace File')) {
+          await dbHelper.setAdminState(chatId, { action: 'awaiting_replace_file_doc', menuId });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد ليحل مكان جميع الملفات القديمة، أو ارجع بالزر بالأسفل:' : 'Send the new file to replace all old ones, or go back:', reply_markup: cancelKb });
+        } else if (text.includes('إضافة ملف آخر') || text.includes('Add Another File')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد الآن، أو أرسل /skip لتعديل الشرح فقط:' : 'Send the new file, or /skip to only edit caption:', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد الآن:' : 'Send the new file now:', reply_markup: cancelKb });
+        } else if (text.includes('معاينة الملفات') || text.includes('Preview Files')) {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض الملفات:' : '👁️ Previewing files:' });
+          const menu = await dbHelper.getMenuById(menuId);
+          await this.sendFilePage(chatId, menuId, 1, lang, lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en);
         } else if (text.includes('أزرار شفافة') || text.includes('Inline Buttons')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
           const m = lang === 'ar' 
             ? 'إضافة زر شفاف (رابط)\n\nأرسل اسم الزر والرابط مفصولين بشرطة (-)\nمثال: `موقع الجامعة - https://example.com`\nأو أرسل /clear لمسح الأزرار الحالية.' 
             : 'Add Inline Button (URL)\n\nSend title and URL separated by hyphen (-)\nExample: `Website - https://example.com`\nOr send /clear to remove all.';
-          await this.apiCall('sendMessage', { chat_id: chatId, text: m, parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: m, parse_mode: 'Markdown', reply_markup: cancelKb });
         } else if (text.includes('تغيير الترتيب') || text.includes('Change Order')) {
           await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', currentMenuId: state.currentMenuId, viewingMenuDetailsId: menuId });
           await this.sendAdminMoveOrder(chatId, menuId, lang);
         } else if (text.includes('نقل إلى قائمة أخرى') || text.includes('Move Menu')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_move_target', menuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الـ ID الخاص بالقائمة الهدف (اكتب null لنقله للقائمة الرئيسية):' : 'Send target Menu ID (or null for root):', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الـ ID الخاص بالقائمة الهدف (اكتب null لنقله للقائمة الرئيسية):' : 'Send target Menu ID (or null for root):', reply_markup: cancelKb });
         } else if (text.includes('حذف الزر') || text.includes('Delete Button')) {
           const menu = await dbHelper.getMenuById(menuId);
           if (menu) {
@@ -746,14 +769,19 @@ class TelegramBotService {
       }
 
       // 4. Add Actions (when viewing sibling list)
-      if (text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId });
+      const rowAddMatch = text.match(/➕.*\(r(\d+)\)/i);
+      let targetRow = null;
+      if (rowAddMatch) targetRow = parseInt(rowAddMatch[1], 10);
+      else if (text.includes('سطر جديد') || text.includes('New Row')) targetRow = 'new';
+      
+      if (targetRow !== null || text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId, targetRow });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ما نوع الزر الجديد؟' : 'What type of button?', reply_markup: {
           keyboard: [
             [{ text: lang === 'ar' ? '📁 زر قائمة (مجلد)' : '📁 Menu Button (Folder)' }],
             [{ text: lang === 'ar' ? '📄 زر ملفات' : '📄 File Button' }],
             [{ text: lang === 'ar' ? '📝 زر نصي' : '📝 Text Button' }],
-            [{ text: lang === 'ar' ? '⬅️ إلغاء' : '⬅️ Cancel' }]
+            [{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]
           ], resize_keyboard: true
         }});
         return;
@@ -761,7 +789,7 @@ class TelegramBotService {
     }
 
     if (state.action === 'managing_menus_add_type') {
-      if (text.includes('إلغاء') || text.includes('Cancel')) {
+      if (text.includes('إلغاء الأمر') || text.includes('Cancel Operation') || text.includes('إلغاء') || text.includes('Cancel')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, state.currentMenuId, lang);
         return;
@@ -772,8 +800,8 @@ class TelegramBotService {
       else if (text.includes('نصي') || text.includes('Text')) type = 'text';
 
       if (type) {
-        await dbHelper.setAdminState(chatId, { action: 'awaiting_newmenu_title_ar', currentMenuId: state.currentMenuId, newType: type });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل اسم الزر الجديد (بالعربية):' : 'Send the new button name (Arabic):', reply_markup: { remove_keyboard: true } });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_newmenu_title_ar', currentMenuId: state.currentMenuId, newType: type, targetRow: state.targetRow });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل اسم الزر الجديد (بالعربية):' : 'Send the new button name (Arabic):', reply_markup: cancelKb });
       }
       return;
     }
@@ -914,7 +942,7 @@ class TelegramBotService {
         if (text === '/skip' || text === '✅ Done' || text === '✅ تم' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
         } else {
           const doc2 = this.extractTelegramAttachment(message);
           if (doc2) {
@@ -977,19 +1005,27 @@ class TelegramBotService {
         const lastOrderRes = await dbHelper.runQuery('SELECT MAX(sort_order) as max_order FROM menus WHERE parent_id IS NOT DISTINCT FROM $1 AND faculty_id = $2', [state.currentMenuId, this.facultyId]);
         const nextOrder = (lastOrderRes.rows[0].max_order || 0) + 1;
         
+        let targetRowIndex = state.targetRow;
+        if (targetRowIndex === 'new') {
+          const lastRowRes = await dbHelper.runQuery('SELECT MAX(row_index) as max_row FROM menus WHERE parent_id IS NOT DISTINCT FROM $1 AND faculty_id = $2', [state.currentMenuId, this.facultyId]);
+          targetRowIndex = (lastRowRes.rows[0].max_row || 0) + 1;
+        } else if (targetRowIndex === null || targetRowIndex === undefined) {
+          targetRowIndex = 0;
+        }
+        
         if (state.newType === 'submenu') {
-          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'submenu', null, null, null, null, null, null, nextOrder);
+          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'submenu', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: newMenuId });
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إضافة القائمة! يمكنك الدخول إليها الآن لإضافة أزرار فرعية.' : '✅ Submenu added!' });
           await this.sendAdminMenuDetails(chatId, newMenuId, lang);
         } else if (state.newType === 'text') {
-          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'text', null, null, null, null, null, null, nextOrder);
+          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'text', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن المحتوى النصي للزر (بالعربي):' : '✅ Name saved. Send text content (Arabic):' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن المحتوى النصي للزر (بالعربي):' : '✅ Name saved. Send text content (Arabic):', reply_markup: cancelKb });
         } else if (state.newType === 'file') {
-          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'file', null, null, null, null, null, null, nextOrder);
+          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'file', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن الملف المرفق (Document):' : '✅ Name saved. Send the file document:' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن الملف المرفق (Document):' : '✅ Name saved. Send the file document:', reply_markup: cancelKb });
         }
         break;
 
@@ -1257,21 +1293,41 @@ class TelegramBotService {
 
   async sendAdminReplyMenus(chatId, parentId, lang) {
     const menus = await dbHelper.getMenusByFaculty(this.facultyId);
-    const siblings = menus.filter(m => m.parent_id === parentId).sort((a,b) => a.sort_order - b.sort_order);
+    const siblings = menus.filter(m => m.parent_id === parentId);
     let txt = lang === 'ar' ? '📂 القوائم الحالية:' : '📂 Current Menus:';
     if (parentId !== null) {
       const pMenu = menus.find(m => m.id === parentId);
       txt = lang === 'ar' ? `📂 داخل: ${pMenu.title_ar}` : `📂 Inside: ${pMenu.title_en}`;
     }
 
-    const kb = [];
-    for (const s of siblings) {
-      const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
-      const title = lang === 'ar' ? s.title_ar : s.title_en;
-      kb.push([{ text: `${icon} ${title} (#${s.id})` }]);
-    }
+    const rowsMap = new Map();
+    siblings.forEach(item => {
+      const ri = item.row_index || 0;
+      if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+      rowsMap.get(ri).push(item);
+    });
 
-    kb.push([{ text: lang === 'ar' ? '➕ إضافة زر جديد' : '➕ Add New Button' }]);
+    const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
+    const kb = [];
+
+    sortedRows.forEach(ri => {
+      const rowItems = rowsMap.get(ri).sort((a,b) => a.sort_order - b.sort_order);
+      const maxButtonsPerRow = 3;
+      
+      const chunk = rowItems.slice(0, maxButtonsPerRow);
+      const rowKb = chunk.map(s => {
+        const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
+        const title = lang === 'ar' ? s.title_ar : s.title_en;
+        return { text: `${icon} ${title} (#${s.id})` };
+      });
+
+      if (rowKb.length < maxButtonsPerRow) {
+        rowKb.push({ text: lang === 'ar' ? `➕ بجانبهم (r${ri})` : `➕ Add Here (r${ri})` });
+      }
+      kb.push(rowKb);
+    });
+
+    kb.push([{ text: lang === 'ar' ? '➕ سطر جديد' : '➕ New Row' }]);
 
     if (parentId !== null) {
       kb.push([{ text: lang === 'ar' ? '⬆️ المستوى السابق' : '⬆️ Parent Menu' }]);
@@ -1304,6 +1360,10 @@ class TelegramBotService {
 
     if (menu.reply_type === 'file') {
       kb.push([{ text: lang === 'ar' ? '📎 استبدال الملف' : '📎 Replace File' }]);
+      kb.push([
+        { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files' },
+        { text: lang === 'ar' ? '➕ إضافة ملف آخر' : '➕ Add Another File' }
+      ]);
     }
     
     if (menu.reply_type === 'text') {
