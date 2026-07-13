@@ -64,6 +64,7 @@ async function initDb() {
       mime_type TEXT,
       file_size INTEGER,
       sort_order INTEGER DEFAULT 0,
+      row_index INTEGER DEFAULT 0,
       inline_buttons TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (faculty_id) REFERENCES faculties (id) ON DELETE CASCADE,
@@ -204,6 +205,7 @@ async function initDb() {
   const alterQueries = [
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_deputy_owner BOOLEAN NOT NULL DEFAULT FALSE;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;`,
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS row_index INTEGER DEFAULT 0;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS inline_buttons TEXT;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS mime_type TEXT;`,
@@ -398,34 +400,34 @@ async function getMenuById(id) {
   return rows[0];
 }
 
-async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder) {
+async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, rowIndex) {
   const { rows } = await pool.query(`
-    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
-  `, [facultyId, parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0]);
+    INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order, row_index)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
+  `, [facultyId, parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, rowIndex || 0]);
   
   await cache.del(`menus:faculty:${facultyId}`);
   return rows[0].id;
 }
 
-async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, inlineButtons = undefined) {
+async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, rowIndex, inlineButtons = undefined) {
   const existing = await getMenuById(id);
   if (inlineButtons !== undefined) {
     await pool.query(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
           reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
-          mime_type = $9, file_size = $10, sort_order = $11, inline_buttons = $12
-      WHERE id = $13
-    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, inlineButtons, id]);
+          mime_type = $9, file_size = $10, sort_order = $11, row_index = $12, inline_buttons = $13
+      WHERE id = $14
+    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, rowIndex || 0, inlineButtons, id]);
   } else {
     await pool.query(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
           reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
-          mime_type = $9, file_size = $10, sort_order = $11
-      WHERE id = $12
-    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, id]);
+          mime_type = $9, file_size = $10, sort_order = $11, row_index = $12
+      WHERE id = $13
+    `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, rowIndex || 0, id]);
   }
 
   if (existing) await cache.del(`menus:faculty:${existing.faculty_id}`);

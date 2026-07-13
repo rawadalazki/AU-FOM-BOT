@@ -163,7 +163,10 @@
                 <div class="menu-tree-container">
                   <div class="tree-header">
                     <h3 data-i18n="menus_list_title">Menu Hierarchy</h3>
-                    <button class="btn btn-primary btn-xs" id="btn-add-root-menu" data-i18n="add_root_menu">+ Add Root Button</button>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="btn btn-secondary btn-xs" id="btn-undo-action" style="display:none;" title="Undo Last Action">↶ Undo</button>
+                      <button class="btn btn-primary btn-xs" id="btn-add-root-menu" data-i18n="add_root_menu">+ Add Root Button</button>
+                    </div>
                   </div>
                   <div class="tree-body" id="menu-tree">
                     <!-- Populated dynamically -->
@@ -176,6 +179,7 @@
                     <h3 id="menu-editor-title" data-i18n="edit_menu_title">Edit Menu Option</h3>
                     <form id="menu-item-form">
                       <input type="hidden" id="menu-item-id">
+                      <input type="hidden" id="menu-row-index">
                       <div class="form-group">
                         <label for="menu-parent-id" data-i18n="parent_label">Parent Menu</label>
                         <select id="menu-parent-id" name="parent_id" class="form-control">
@@ -236,12 +240,21 @@
                               <input type="checkbox" id="menu-remove-file-chk"> <span data-i18n="remove_file">Remove attachment</span>
                             </label>
                           </div>
-                          <div id="menu-files-list" style="display: none; margin-top: 8px;">
+                          <div id="menu-files-list" style="display: none; margin-top: 12px;">
                             <span style="font-weight: 600; font-size: 13px;" data-i18n="attached_files">Attached Files:</span>
-                            <ul id="menu-files-ul" style="list-style: none; padding: 0; margin: 4px 0 0 0;"></ul>
+                            <ul id="menu-files-ul" style="list-style: none; padding: 0; margin: 8px 0 0 0; display: flex; flex-direction: column; gap: 8px;"></ul>
                           </div>
                         </div>
 
+                      </div>
+
+                      <!-- Quick Add Child Actions -->
+                      <div class="form-group" id="menu-quick-add-child" style="display: none; border-top: 1px solid var(--card-border); padding-top: 16px; margin-top: 16px;">
+                        <label>Quick Add Child Options:</label>
+                        <div style="display: flex; gap: 10px;">
+                          <button type="button" class="btn btn-secondary btn-sm flex-1" id="btn-quick-add-submenu">+ Add Submenu</button>
+                          <button type="button" class="btn btn-secondary btn-sm flex-1" id="btn-quick-add-file">+ Add File/Content</button>
+                        </div>
                       </div>
 
                       <div class="form-actions">

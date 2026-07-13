@@ -967,6 +967,11 @@ const server = http.createServer(async (req, res) => {
           telegramFileId = tgResult.telegram_file_id;
           if (tgResult.file_size) fileSize = tgResult.file_size;
           if (tgResult.mime_type) mimeType = tgResult.mime_type;
+        } else if (fields.telegram_file_id) {
+          telegramFileId = fields.telegram_file_id;
+          fileName = fields.file_name;
+          mimeType = fields.mime_type;
+          fileSize = fields.file_size ? parseInt(fields.file_size, 10) : null;
         }
 
         const id = await dbHelper.createMenu(
@@ -981,7 +986,8 @@ const server = http.createServer(async (req, res) => {
           telegramFileId,
           mimeType,
           fileSize,
-          parseInt(fields.sort_order || 0, 10)
+          parseInt(fields.sort_order || 0, 10),
+          parseInt(fields.row_index || 0, 10)
         );
         
         if (telegramFileId) {
@@ -1052,6 +1058,11 @@ const server = http.createServer(async (req, res) => {
           telegramFileId = null;
           mimeType = null;
           fileSize = null;
+        } else if (fields.telegram_file_id) {
+          telegramFileId = fields.telegram_file_id;
+          fileName = fields.file_name;
+          mimeType = fields.mime_type;
+          fileSize = fields.file_size ? parseInt(fields.file_size, 10) : null;
         }
 
         await dbHelper.updateMenu(
@@ -1066,7 +1077,8 @@ const server = http.createServer(async (req, res) => {
           telegramFileId,
           mimeType,
           fileSize,
-          parseInt(fields.sort_order || 0, 10)
+          parseInt(fields.sort_order || 0, 10),
+          parseInt(fields.row_index || 0, 10)
         );
 
         if (files.file) {
@@ -1074,6 +1086,8 @@ const server = http.createServer(async (req, res) => {
         } else if (fields.remove_file === 'true') {
           // Backward compatibility: clear the multiple files as well
           await dbHelper.pool.query('DELETE FROM menu_files WHERE menu_id = $1', [id]);
+        } else if (fields.telegram_file_id && !menu.telegram_file_id) {
+          await dbHelper.addMenuFile(id, telegramFileId, fileName, mimeType, fileSize);
         }
 
         return sendJson(res, 200, { success: true });
@@ -1095,6 +1109,19 @@ const server = http.createServer(async (req, res) => {
         logger.error({ reqId, err: e }, 'DELETE /api/menus error');
         return sendJson(res, 500, { error: e.message });
       }
+    }
+  }
+
+  // --- Menu Files Individual DELETE API ---
+  const menuFileDelMatch = pathname.match(/^\/api\/menu-files\/(\d+)$/);
+  if (menuFileDelMatch && method === 'DELETE') {
+    const fileId = parseInt(menuFileDelMatch[1], 10);
+    try {
+      await dbHelper.deleteMenuFile(fileId);
+      return sendJson(res, 200, { ok: true });
+    } catch (e) {
+      logger.error({ reqId, err: e }, 'DELETE /api/menu-files error');
+      return sendJson(res, 500, { error: e.message });
     }
   }
 

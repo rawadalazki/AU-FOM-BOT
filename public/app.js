@@ -6,6 +6,7 @@ let activeFaculty = null;
 let activeTab = 'tab-menus';
 let activeMenuNode = null;
 let menuTreeData = [];
+let undoStack = [];
 
 // Localization dictionaries
 const i18n = {
@@ -522,6 +523,7 @@ function setupFormListeners() {
     const replyContentEn = document.getElementById('menu-content-en').value.trim();
     const replyContentAr = document.getElementById('menu-content-ar').value.trim();
     const sortOrder = document.getElementById('menu-sort-order').value || '0';
+    const rowIndex = document.getElementById('menu-row-index').value || '0';
     const fileInput = document.getElementById('menu-file-input');
     const removeFile = document.getElementById('menu-remove-file-chk').checked;
 
@@ -534,6 +536,7 @@ function setupFormListeners() {
     formData.append('reply_content_en', replyContentEn);
     formData.append('reply_content_ar', replyContentAr);
     formData.append('sort_order', sortOrder);
+    formData.append('row_index', rowIndex);
     formData.append('remove_file', removeFile ? 'true' : 'false');
     
     if (fileInput.files.length > 0) {
@@ -543,6 +546,11 @@ function setupFormListeners() {
     try {
       let res;
       if (id) {
+        const oldState = menuTreeData.find(m => m.id == id);
+        if (oldState) {
+          undoStack.push({ action: 'EDIT', data: oldState });
+          updateUndoButton();
+        }
         // Update
         res = await fetch(`/api/menus/${id}`, {
           method: 'PUT',
@@ -557,6 +565,11 @@ function setupFormListeners() {
       }
 
       if (res.ok) {
+        if (!id) {
+           const newData = await res.json();
+           undoStack.push({ action: 'CREATE', id: newData.id });
+           updateUndoButton();
+        }
         document.getElementById('menu-form-card').style.display = 'none';
         menuForm.reset();
         loadMenusTree();
@@ -567,6 +580,23 @@ function setupFormListeners() {
     } catch (e) {
       alert('Network error saving menu item');
     }
+  });
+
+  // Quick Add Child Listeners
+  document.getElementById('btn-quick-add-submenu').addEventListener('click', () => {
+    const parentId = document.getElementById('menu-item-id').value;
+    if (!parentId) return;
+    openNewMenuForm(parentId, '', 0, 0);
+    document.getElementById('menu-reply-type').value = 'submenu';
+    updateConditionalFormFields('submenu');
+  });
+
+  document.getElementById('btn-quick-add-file').addEventListener('click', () => {
+    const parentId = document.getElementById('menu-item-id').value;
+    if (!parentId) return;
+    openNewMenuForm(parentId, '', 0, 0);
+    document.getElementById('menu-reply-type').value = 'file';
+    updateConditionalFormFields('file');
   });
 
   // Reply Type Conditional Show/Hide
@@ -646,7 +676,49 @@ function updateConditionalFormFields(val) {
   }
 }
 
-// ----------------------------------------------------
+// Undo Action Handling
+function handleUndo() {
+  if (undoStack.length === 0) return;
+  const lastAction = undoStack.pop();
+  updateUndoButton();
+
+  if (lastAction.action === 'EDIT') {
+    const old = lastAction.data;
+    const formData = new FormData();
+    formData.append('faculty_id', old.faculty_id);
+    formData.append('parent_id', old.parent_id || 'null');
+    formData.append('title_en', old.title_en);
+    formData.append('title_ar', old.title_ar);
+    formData.append('reply_type', old.reply_type);
+    formData.append('reply_content_en', old.reply_content_en || '');
+    formData.append('reply_content_ar', old.reply_content_ar || '');
+    formData.append('sort_order', old.sort_order || 0);
+    formData.append('row_index', old.row_index || 0);
+    if (old.telegram_file_id) formData.append('telegram_file_id', old.telegram_file_id);
+    if (old.file_name) formData.append('file_name', old.file_name);
+    if (old.mime_type) formData.append('mime_type', old.mime_type);
+    if (old.file_size) formData.append('file_size', old.file_size);
+
+    fetch(`/api/menus/${old.id}`, { method: 'PUT', body: formData })
+      .then(res => { if (res.ok) loadMenusTree(); });
+  } else if (lastAction.action === 'CREATE') {
+    // Undo create = delete
+    fetch(`/api/menus/${lastAction.id}`, { method: 'DELETE' })
+      .then(res => { if (res.ok) loadMenusTree(); });
+  }
+}
+
+function updateUndoButton() {
+  const btn = document.getElementById('btn-undo-action');
+  if (undoStack.length > 0) {
+    btn.style.display = 'inline-block';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+document.getElementById('btn-undo-action').addEventListener('click', handleUndo);
+
 // Menu Tree Building Engine
 // ----------------------------------------------------
 async function loadMenusTree() {
@@ -670,7 +742,7 @@ function renderMenuTree() {
 
   const rootItems = menuTreeData.filter(m => m.parent_id === null);
 
-  if (rootItems.length === 0) {
+  if (menuTreeData.length === 0) {
     treeContainer.innerHTML = `
       <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13.5px;">
         ${currentLang === 'ar' ? 'لا توجد عناصر في القائمة التفاعلية. اضغط على الزر بالأعلى لإضافة زر.' : 'No menu items found. Click above to add a root menu button.'}
@@ -679,20 +751,70 @@ function renderMenuTree() {
     return;
   }
 
-  // Create document fragment for speed
-  const fragment = document.createDocumentFragment();
+  treeContainer.appendChild(buildGridLevel(null));
+}
+
+function buildGridLevel(parentId) {
+  const levelContainer = document.createElement('div');
+  levelContainer.className = 'menu-grid-level';
   
-  rootItems.forEach(item => {
-    const nodeEl = buildTreeNodeElement(item);
-    fragment.appendChild(nodeEl);
+  const items = menuTreeData.filter(m => m.parent_id === parentId);
+  
+  const rowsMap = new Map();
+  items.forEach(item => {
+    const ri = item.row_index || 0;
+    if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+    rowsMap.get(ri).push(item);
   });
 
-  treeContainer.appendChild(fragment);
+  const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
+  let nextRowIndex = 0;
+
+  sortedRows.forEach(ri => {
+    const rowItems = rowsMap.get(ri).sort((a,b) => a.sort_order - b.sort_order);
+    nextRowIndex = Math.max(nextRowIndex, ri + 1);
+
+    const rowEl = document.createElement('div');
+    rowEl.className = 'menu-row';
+
+    const rowItemsEl = document.createElement('div');
+    rowItemsEl.className = 'menu-row-items';
+
+    rowItems.forEach(item => {
+      rowItemsEl.appendChild(buildTreeNodeElement(item));
+    });
+
+    rowEl.appendChild(rowItemsEl);
+
+    if (rowItems.length < 3) {
+      const addInlineBtn = document.createElement('button');
+      addInlineBtn.className = 'btn-add-inline';
+      addInlineBtn.innerHTML = '+';
+      addInlineBtn.title = currentLang === 'ar' ? 'إضافة زر في نفس السطر' : 'Add button to this row';
+      addInlineBtn.addEventListener('click', () => {
+        openNewMenuForm(parentId, '', ri, rowItems.length);
+      });
+      rowEl.appendChild(addInlineBtn);
+    }
+
+    levelContainer.appendChild(rowEl);
+  });
+
+  const addRowBtn = document.createElement('button');
+  addRowBtn.className = 'btn-add-row';
+  addRowBtn.innerHTML = '+ ' + (currentLang === 'ar' ? 'إضافة سطر جديد' : 'Add New Row');
+  addRowBtn.addEventListener('click', () => {
+    openNewMenuForm(parentId, '', nextRowIndex, 0);
+  });
+  levelContainer.appendChild(addRowBtn);
+
+  return levelContainer;
 }
 
 function buildTreeNodeElement(item) {
   const node = document.createElement('div');
   node.className = 'tree-node';
+  node.style.flex = '1';
   node.id = `menu-node-${item.id}`;
 
   const title = currentLang === 'ar' ? item.title_ar : item.title_en;
@@ -724,42 +846,26 @@ function buildTreeNodeElement(item) {
     <div class="node-title-group">
       <span class="node-icon">${typeIcon}</span>
       <span class="node-title">${escapeHTML(title)}</span>
-      <span class="node-lang-indicator">(${typeLabel})</span>
     </div>
     <div class="node-actions">
-      ${item.reply_type === 'submenu' ? `<button class="btn btn-secondary btn-xs btn-add-child" title="Add Child">+ Add Child</button>` : ''}
       <button class="btn btn-danger btn-xs btn-delete-menu">🗑️</button>
     </div>
   `;
 
-  // Select node for editing
   content.addEventListener('click', (e) => {
-    if (e.target.classList.contains('btn-add-child') || e.target.classList.contains('btn-delete-menu')) return;
+    if (e.target.classList.contains('btn-delete-menu')) return;
     openMenuEditor(item);
   });
 
-  // Delete node option
   content.querySelector('.btn-delete-menu').addEventListener('click', (e) => {
     e.stopPropagation();
     deleteMenuItem(item.id);
   });
 
-  // Add child to submenu
-  if (item.reply_type === 'submenu') {
-    content.querySelector('.btn-add-child').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openNewMenuForm(item.id, title);
-    });
-  }
-
   node.appendChild(content);
 
-  // Recursively append child nodes
-  const children = menuTreeData.filter(m => m.parent_id === item.id);
-  if (children.length > 0) {
-    children.forEach(child => {
-      node.appendChild(buildTreeNodeElement(child));
-    });
+  if (item.reply_type === 'submenu') {
+    node.appendChild(buildGridLevel(item.id));
   }
 
   return node;
@@ -777,6 +883,7 @@ function openMenuEditor(item) {
   document.getElementById('menu-editor-title').innerText = currentLang === 'ar' ? 'تعديل خيار القائمة' : 'Edit Menu Option';
   document.getElementById('menu-item-id').value = item.id;
   document.getElementById('menu-parent-id').value = item.parent_id || '';
+  document.getElementById('menu-row-index').value = item.row_index || 0;
   document.getElementById('menu-title-en').value = item.title_en;
   document.getElementById('menu-title-ar').value = item.title_ar;
   document.getElementById('menu-sort-order').value = item.sort_order;
@@ -804,8 +911,13 @@ function openMenuEditor(item) {
     // Multi-file display
     item.files.forEach(f => {
       const li = document.createElement('li');
-      li.style.cssText = 'padding: 4px 0; font-size: 13px;';
-      li.innerHTML = `📄 <a href="${f.file_url}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:500;">${escapeHTML(f.file_name || 'file')}</a>`;
+      li.style.cssText = 'padding: 6px 0; font-size: 13px; display: flex; align-items: center; justify-content: space-between;';
+      li.innerHTML = `
+        <span>📄 <a href="${f.file_url}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:500;">${escapeHTML(f.file_name || 'file')}</a></span>
+        <div class="file-item-actions">
+          <button type="button" class="btn btn-danger btn-xs" onclick="deleteIndividualFile(${f.id})" title="Delete File">🗑️</button>
+        </div>
+      `;
       filesUl.appendChild(li);
     });
     filesListDiv.style.display = 'block';
@@ -823,10 +935,11 @@ function openMenuEditor(item) {
   }
 
   updateConditionalFormFields(item.reply_type);
+  document.getElementById('menu-quick-add-child').style.display = 'block';
   document.getElementById('menu-form-card').style.display = 'block';
 }
 
-function openNewMenuForm(parentId = null, parentTitle = '') {
+function openNewMenuForm(parentId = null, parentTitle = '', rowIndex = 0, sortOrder = 0) {
   activeMenuNode = null;
   document.querySelectorAll('.tree-node-content').forEach(el => el.classList.remove('active'));
 
@@ -834,6 +947,8 @@ function openNewMenuForm(parentId = null, parentTitle = '') {
   document.getElementById('menu-item-form').reset();
   document.getElementById('menu-item-id').value = '';
   document.getElementById('menu-parent-id').value = parentId || '';
+  document.getElementById('menu-row-index').value = rowIndex;
+  document.getElementById('menu-sort-order').value = sortOrder;
   document.getElementById('menu-editor-title').innerText = currentLang === 'ar' ? 'إضافة زر جديد للقائمة' : 'Add New Menu Button';
   
   // Populate parent dropdown
@@ -841,9 +956,24 @@ function openNewMenuForm(parentId = null, parentTitle = '') {
   document.getElementById('menu-parent-id').value = parentId || '';
 
   document.getElementById('menu-current-file').style.display = 'none';
+  document.getElementById('menu-quick-add-child').style.display = 'none';
   updateConditionalFormFields('submenu'); // default select type triggers hide of replies
   document.getElementById('menu-reply-type').value = 'submenu';
   document.getElementById('menu-form-card').style.display = 'block';
+}
+
+async function deleteIndividualFile(fileId) {
+  if (confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا الملف؟' : 'Are you sure you want to delete this file?')) {
+    try {
+      const res = await fetch(`/api/menu-files/${fileId}`, { method: 'DELETE' });
+      if (res.ok) {
+        loadMenusTree();
+        document.getElementById('menu-form-card').style.display = 'none';
+      }
+    } catch (e) {
+      alert('Error deleting file');
+    }
+  }
 }
 
 async function deleteMenuItem(menuId) {

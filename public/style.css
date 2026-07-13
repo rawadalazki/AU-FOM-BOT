@@ -526,6 +526,88 @@ html[dir="rtl"] .tree-node {
   gap: 8px;
 }
 
+/* Grid Layout for Menus */
+.menu-grid-level {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 20px;
+  margin-top: 8px;
+  border-left: 1px dashed rgba(255,255,255,0.1);
+}
+
+html[dir="rtl"] .menu-grid-level {
+  padding-left: 0;
+  padding-right: 20px;
+  border-left: none;
+  border-right: 1px dashed rgba(255,255,255,0.1);
+}
+
+.menu-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.menu-row-items {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.menu-row-items .tree-node-content {
+  flex: 1;
+  min-width: 120px;
+}
+
+.btn-add-inline, .btn-add-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-speed);
+}
+
+.btn-add-inline {
+  width: 44px;
+  font-size: 18px;
+}
+
+.btn-add-inline:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-add-row {
+  width: 100%;
+  padding: 10px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-add-row:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.file-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+html[dir="rtl"] .file-item-actions {
+  margin-left: 0;
+  margin-right: auto;
+}
+
 /* Editor Form Components */
 .form-group {
   display: flex;
