@@ -1552,14 +1552,6 @@ class TelegramBotService {
     
     await updateProgress(true);
   }
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم البث!' : '✅ Broadcasted!' });
-      await this.sendAdminHome(chatId, lang);
-    } catch(e) {
-      this.logError('Broadcast failed', e, { chat_id: chatId });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
-      await dbHelper.deleteAdminState(chatId);
-    }
-  }
 
   async handleAdminAddFileButton(chatId, state, doc, lang) {
     try {
