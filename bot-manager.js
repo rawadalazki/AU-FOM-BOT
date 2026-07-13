@@ -576,11 +576,16 @@ class TelegramBotService {
         } else if (menu.reply_type === 'file') {
           const files = await dbHelper.getFilesByMenu(menuId);
           for (const f of files) {
-            await dbHelper.deleteFile(f.id);
+            await dbHelper.deleteMenuFile(f.id);
           }
         }
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف المحتوى' : '✅ Content Deleted' });
         await this.sendAdminMenuDetails(chatId, menuId, lang);
+      } else if (action === 'delsinglefile') {
+        const fileId = parseInt(data.split('_')[3], 10);
+        await dbHelper.deleteMenuFile(fileId);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الملف' : '✅ File Deleted' });
+        await this.sendFilePage(chatId, menuId, 0, lang);
       } else if (action === 'previewfiles') {
         await this.sendFilePage(chatId, menuId, 0, lang);
       } else if (action === 'addfile') {
@@ -619,10 +624,27 @@ class TelegramBotService {
   async handleAdminStateMessage(chatId, message, lang, state) {
     const text = message.text || '';
 
+    if (text === '🚫 إلغاء العملية' || text === '🚫 Cancel Operation') {
+       if (state && state.menuId) {
+         const menu = await dbHelper.getMenuById(state.menuId);
+         if (menu) {
+           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id, viewingMenuDetailsId: menu.id });
+           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء.' : 'Action cancelled.', reply_markup: { remove_keyboard: true } });
+           await this.sendAdminMenuDetails(chatId, menu.id, lang);
+           return;
+         }
+       }
+       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء.' : 'Action cancelled.', reply_markup: { remove_keyboard: true } });
+       await this.sendAdminHome(chatId, lang);
+       return;
+    }
+
     // Global admin intercepts for navigation
     if (text === '❌ إغلاق' || text === '❌ Close') {
       await dbHelper.deleteAdminState(chatId);
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+      await this.handleMessage({ ...message, text: '/start' });
       return;
     }
     
@@ -659,6 +681,7 @@ class TelegramBotService {
           [{ text: lang === 'ar' ? '📝 الترحيب' : '📝 Welcome Msg' }, { text: lang === 'ar' ? '⏸️ رسالة الإيقاف' : '⏸️ Maintenance Msg' }],
           [{ text: lang === 'ar' ? '❓ رسالة الزر الفارغ' : '❓ Empty Button Msg' }, { text: lang === 'ar' ? '❓ رسالة نص غير معروف' : '❓ Unknown Text Msg' }],
           [{ text: lang === 'ar' ? '⚠️ رسالة لا يوجد ملف' : '⚠️ No File Msg' }],
+          [{ text: lang === 'ar' ? '👀 إظهار المراقبة' : '👀 Toggle Monitoring' }],
           [{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
@@ -686,6 +709,14 @@ class TelegramBotService {
       } else if (text.includes('لا يوجد ملف') || text.includes('No File Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_no_file_msg_ar' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يحاول المستخدم فتح زر ملف ولكن الملف محذوف (بالعربي):' : 'Send message when a file is missing (Arabic):', reply_markup: { remove_keyboard: true } });
+      } else if (text.includes('إظهار المراقبة') || text.includes('Toggle Monitoring')) {
+        const fac = await dbHelper.getFacultyById(this.facultyId);
+        const newState = !fac.forward_user_messages;
+        await dbHelper.toggleFacultyForwarding(this.facultyId, newState);
+        const msg = newState 
+            ? (lang === 'ar' ? '✅ تم تفعيل مراقبة النشاط للأدمن.' : '✅ Admin activity monitoring enabled.')
+            : (lang === 'ar' ? '❌ تم إيقاف مراقبة النشاط.' : '❌ Admin activity monitoring disabled.');
+        await this.apiCall('sendMessage', { chat_id: chatId, text: msg });
       }
       return;
     }
@@ -693,11 +724,14 @@ class TelegramBotService {
     // --- MANAGING MENUS ---
     if (state.action === 'managing_menus') {
       // 1. Check if they clicked a specific menu from the list
-      const match = text.match(/\(#(\d+)\)/);
-      if (match) {
-        const menuId = parseInt(match[1], 10);
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: menuId });
-        await this.sendAdminMenuDetails(chatId, menuId, lang);
+      const cleanText = text.replace(/^(📁|📄|📝)\s*/, '').trim();
+      const menus = await dbHelper.getMenusByFaculty(this.facultyId);
+      const siblings = menus.filter(m => m.parent_id === state.currentMenuId);
+      const clickedMenu = siblings.find(m => m.title_ar === cleanText || m.title_en === cleanText);
+
+      if (clickedMenu) {
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: clickedMenu.id });
+        await this.sendAdminMenuDetails(chatId, clickedMenu.id, lang);
         return;
       }
 
@@ -764,14 +798,14 @@ class TelegramBotService {
       }
 
       // 4. Add Actions (when viewing sibling list)
-      if (text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
+      if (text === '➕') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ما نوع الزر الجديد؟' : 'What type of button?', reply_markup: {
           keyboard: [
-            [{ text: lang === 'ar' ? '📁 زر قائمة (مجلد)' : '📁 Menu Button (Folder)' }],
-            [{ text: lang === 'ar' ? '📄 زر ملفات' : '📄 File Button' }],
-            [{ text: lang === 'ar' ? '📝 زر نصي' : '📝 Text Button' }],
-            [{ text: lang === 'ar' ? '⬅️ إلغاء' : '⬅️ Cancel' }]
+            [{ text: lang === 'ar' ? '📁 زر قائمة' : '📁 Menu Button' }],
+            [{ text: lang === 'ar' ? '📄 زر ملف' : '📄 File Button' }],
+            [{ text: lang === 'ar' ? '📝 زر نص' : '📝 Text Button' }],
+            [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]
           ], resize_keyboard: true
         }});
         return;
@@ -1283,13 +1317,21 @@ class TelegramBotService {
     }
 
     const kb = [];
+    let currentRow = [];
     for (const s of siblings) {
       const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
       const title = lang === 'ar' ? s.title_ar : s.title_en;
-      kb.push([{ text: `${icon} ${title} (#${s.id})` }]);
+      currentRow.push({ text: `${icon} ${title}` });
+      if (currentRow.length === 3) {
+        kb.push(currentRow);
+        currentRow = [];
+      }
+    }
+    if (currentRow.length > 0) {
+      kb.push(currentRow);
     }
 
-    kb.push([{ text: lang === 'ar' ? '➕ إضافة زر جديد' : '➕ Add New Button' }]);
+    kb.push([{ text: '➕' }]);
 
     if (parentId !== null) {
       kb.push([{ text: lang === 'ar' ? '⬆️ المستوى السابق' : '⬆️ Parent Menu' }]);
@@ -1369,216 +1411,6 @@ class TelegramBotService {
     });
   }
 
-  async sendAdminMoveOrder(chatId, menuId, lang) {
-    const kb = [
-      [
-        { text: '⬆️ Up' },
-        { text: '⬇️ Down' }
-      ],
-      [{ text: lang === 'ar' ? '⬅️ إلغاء الترتيب' : '⬅️ Cancel Order' }]
-    ];
-    await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'اختر الاتجاه لزر النقل:' : 'Choose direction:', reply_markup: { keyboard: kb, resize_keyboard: true } });
-  }
-
-  async moveMenuOrder(chatId, menuId, direction, lang) {
-    const menu = await dbHelper.getMenuById(menuId);
-    const menus = await dbHelper.getMenusByFaculty(this.facultyId);
-    const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
-    const idx = siblings.findIndex(m => m.id === menuId);
-
-    if (direction === 'up' && idx > 0) {
-      const swap = siblings[idx - 1];
-      const temp = menu.sort_order;
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-    } else if (direction === 'down' && idx < siblings.length - 1) {
-      const swap = siblings[idx + 1];
-      const temp = menu.sort_order;
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-    }
-    await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id, viewingMenuDetailsId: menuId });
-    await this.sendAdminMenuDetails(chatId, menuId, lang);
-  }
-
-  async sendLanguageSelection(chatId) {
-    await this.apiCall('sendMessage', {
-      chat_id: chatId,
-      text: "Please select your language / الرجاء اختيار اللغة:",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🇺🇸 English", callback_data: "lang_en" }, { text: "🇸🇦 العربية", callback_data: "lang_ar" }]
-        ]
-      }
-    });
-  }
-
-  async sendMenu(chatId, parentId, lang) {
-    const menus = await dbHelper.getMenusByFaculty(this.facultyId);
-    const currentLevel = menus.filter(m => m.parent_id === parentId);
-    const faculty = await dbHelper.getFacultyById(this.facultyId);
-    
-    let promptText = '';
-    if (parentId === null) {
-      promptText = lang === 'ar' ? (faculty.welcome_ar || 'مرحباً بك') : (faculty.welcome_en || 'Welcome');
-    } else {
-      const pMenu = menus.find(m => m.id === parentId);
-      promptText = lang === 'ar' ? pMenu.title_ar : pMenu.title_en;
-    }
-
-    const keyboard = [];
-    for (let i = 0; i < currentLevel.length; i += 2) {
-      const row = [{ text: lang === 'ar' ? currentLevel[i].title_ar : currentLevel[i].title_en }];
-      if (i + 1 < currentLevel.length) {
-        row.push({ text: lang === 'ar' ? currentLevel[i+1].title_ar : currentLevel[i+1].title_en });
-      }
-      keyboard.push(row);
-    }
-
-    if (parentId !== null) {
-      keyboard.push([{ text: lang === 'ar' ? '⬅️ عودة' : '⬅️ Back' }]);
-    }
-
-    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
-    if (isAdmin && parentId === null) {
-      keyboard.push([{ text: lang === 'ar' ? '🛠️ لوحة التحكم للمشرفين' : '🛠️ Admin Panel' }]);
-    }
-
-    const replyMarkup = keyboard.length > 0 ? { keyboard, resize_keyboard: true } : { remove_keyboard: true };
-
-    const res = await this.apiCall('sendMessage', {
-      chat_id: chatId,
-      text: promptText,
-      parse_mode: 'Markdown',
-      reply_markup: replyMarkup
-    });
-
-    if (!res.ok) {
-      this.logError('Failed to send menu', null, { description: res.description, promptText });
-      // Fallback without Markdown if the welcome message has bad characters
-      await this.apiCall('sendMessage', {
-        chat_id: chatId,
-        text: promptText,
-        reply_markup: replyMarkup
-      });
-    }
-  }
-
-  async registerBotCommands() {
-    const en = [
-      { command: 'start', description: 'Start the bot and view main menu' },
-      { command: 'changelanguage', description: 'Change interface language' },
-      { command: 'back', description: 'Go back to previous menu' },
-      { command: 'id', description: 'Get your Telegram Chat ID' },
-      { command: 'admin', description: 'Admin control panel' }
-    ];
-    const ar = [
-      { command: 'start', description: 'البدء واستعراض القائمة' },
-      { command: 'changelanguage', description: 'تغيير لغة البوت' },
-      { command: 'back', description: 'العودة للقائمة السابقة' },
-      { command: 'id', description: 'الحصول على معرف تيليجرام' },
-      { command: 'admin', description: 'لوحة التحكم للمشرفين' }
-    ];
-    await this.apiCall('setMyCommands', { commands: en });
-    await this.apiCall('setMyCommands', { commands: ar, language_code: 'ar' });
-  }
-
-  async apiCall(method, payload, isRetry = false) {
-    try {
-      const res = await this._rawApiCall(method, payload);
-      if (!res.ok) {
-        const desc = (res.description || '').toLowerCase();
-        const shouldRetry = res.error_code === 400 || res.error_code === 404 || res.error_code === 403 || desc.includes('invalid file') || desc.includes('file reference expired');
-        if (shouldRetry && !isRetry) {
-          this.logInfo(`Automatic recovery: Retrying ${method} due to ${res.error_code} ${res.description}`);
-          return await this.apiCall(method, payload, true);
-        }
-      }
-      return res;
-    } catch (e) {
-      if (!isRetry) {
-        this.logInfo(`Automatic recovery: Retrying ${method} due to exception ${e.message}`);
-        return await this.apiCall(method, payload, true);
-      }
-      throw e;
-    }
-  }
-
-  _rawApiCall(method, payload) {
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(payload);
-      const req = https.request({
-        hostname: this.apiServer,
-        port: 443,
-        path: `/bot${this.token}/${method}`,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-      }, (res) => {
-        let body = '';
-        res.on('data', c => body += c);
-        res.on('end', () => {
-          try { 
-            const parsed = JSON.parse(body);
-            if (!parsed.ok) {
-              console.error(`[TELEGRAM API ERROR] Method: ${method}, Payload: ${data}, Response: ${body}`);
-            } else {
-              console.log(`[TELEGRAM SUCCESS] Method: ${method}, ChatId: ${payload.chat_id || 'N/A'}`);
-            }
-            resolve(parsed); 
-          } catch(e) { reject(e); }
-        });
-      });
-      req.on('error', (err) => {
-        console.error(`[TELEGRAM HTTP ERROR] Method: ${method}, Error: ${err.message}`);
-        reject(err);
-      });
-      req.write(data);
-      req.end();
-    });
-  }
-
-  // ── Centralized file delivery helper ──────────────────────────────────────
-  // All file delivery code MUST use this method instead of calling Telegram
-  // API methods directly. It inspects mime_type and chooses the correct API.
-  async sendTelegramFile(chatId, file, caption = null, replyMarkup = null) {
-    const telegramFileId = file.telegram_file_id;
-    if (!telegramFileId) throw new Error('No telegram_file_id available for this file');
-
-    const method = this._getTelegramMethodForMime(file.mime_type);
-    const field = this._getFieldNameForMethod(method);
-    const payload = { chat_id: chatId, [field]: telegramFileId };
-    if (caption) payload.caption = caption;
-    if (replyMarkup) payload.reply_markup = replyMarkup;
-
-    try {
-      const res = await this.apiCall(method, payload);
-      if (res.ok) return res;
-
-      // If a specific method failed, fall back to sendDocument
-      if (method !== 'sendDocument') {
-        this.logWarn(`${method} failed for ${file.file_name}, falling back to sendDocument`, { description: res.description });
-        const fbPayload = { chat_id: chatId, document: telegramFileId };
-        if (caption) fbPayload.caption = caption;
-        if (replyMarkup) fbPayload.reply_markup = replyMarkup;
-        const fbRes = await this.apiCall('sendDocument', fbPayload);
-        if (fbRes.ok) return fbRes;
-      }
-
-      // Notify admin about the failure
-      await this._notifyAdminFileError(file.file_name, res.description);
-      throw new Error(`File delivery failed: ${res.description || 'Unknown error'}`);
-    } catch (e) {
-      // If the primary method threw (network error etc.) and wasn't sendDocument, try fallback
-      if (method !== 'sendDocument' && !e.message.startsWith('File delivery failed')) {
-        try {
-          const fbPayload = { chat_id: chatId, document: telegramFileId };
-          if (caption) fbPayload.caption = caption;
-          if (replyMarkup) fbPayload.reply_markup = replyMarkup;
-          const fbRes = await this.apiCall('sendDocument', fbPayload);
-          if (fbRes.ok) return fbRes;
-        } catch (_) { /* fallback also failed */ }
-      }
-      this.logError('sendTelegramFile failed', e, { telegramFileId, method });
       throw e;
     }
   }
