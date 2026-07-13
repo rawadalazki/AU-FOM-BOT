@@ -1,4 +1,4 @@
-const https = require('node:https');
+﻿const https = require('node:https');
 const crypto = require('node:crypto');
 const FormData = require('form-data');
 const dbHelper = require('./database');
@@ -265,7 +265,8 @@ class TelegramBotService {
     const faculty = await dbHelper.getFacultyById(this.facultyId);
     if (!faculty) return;
 
-    if (faculty.bot_enabled === 0) {
+    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
+    if (faculty.bot_enabled === 0 && !isAdmin) {
       const disabledMsg = user.language === 'ar' 
         ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً لإجراء بعض التحديثات.') 
         : (faculty.disabled_message_en || 'Sorry, the bot is temporarily offline for maintenance.');
@@ -291,7 +292,7 @@ class TelegramBotService {
       }
     }
 
-    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
+
     const adminState = await dbHelper.getAdminState(chatId);
 
     if (text === '/start' || text.startsWith('/start ')) {
@@ -1591,6 +1592,12 @@ class TelegramBotService {
         reply_markup: replyMarkup
       });
     }
+
+
+
+
+
+
 
     if (!res.ok) {
       this.logError('Failed to send menu', null, { description: res.description, promptText, chat_id: chatId });
