@@ -1090,8 +1090,8 @@ async function loadMenuBuilderBeta() {
 
   try {
     const [treeRes, validRes] = await Promise.all([
-      fetch(\/api/menu-builder/tree?faculty_id=\\),
-      fetch(\/api/menu-builder/validate?faculty_id=\\)
+      fetch(`/api/menu-builder/tree?faculty_id=${activeFaculty.id}`),
+      fetch(`/api/menu-builder/validate?faculty_id=${activeFaculty.id}`)
     ]);
     
     if (!treeRes.ok || !validRes.ok) throw new Error('Failed to fetch menu builder data');
@@ -1101,16 +1101,16 @@ async function loadMenuBuilderBeta() {
     
     // Render Stats
     const s = validData.statistics;
-    statsPanel.innerHTML = \
+    statsPanel.innerHTML = `
       <ul style="list-style:none; padding:0; margin:0; line-height:1.6;">
-        <li><strong>Total Menus:</strong> \</li>
-        <li><strong>Root Menus:</strong> \</li>
-        <li><strong>Deepest Level:</strong> \</li>
-        <li><strong>File Menus:</strong> \</li>
-        <li><strong>Text Menus:</strong> \</li>
-        <li><strong>Media Menus:</strong> \</li>
+        <li><strong>Total Menus:</strong> ${s.total_menus}</li>
+        <li><strong>Root Menus:</strong> ${s.root_menus}</li>
+        <li><strong>Deepest Level:</strong> ${s.deepest_level}</li>
+        <li><strong>File Menus:</strong> ${s.file_menus}</li>
+        <li><strong>Text Menus:</strong> ${s.text_menus}</li>
+        <li><strong>Media Menus:</strong> ${s.media_menus}</li>
       </ul>
-    \;
+    `;
 
     // Render Validation
     if (validData.valid) {
@@ -1120,7 +1120,7 @@ async function loadMenuBuilderBeta() {
       validPanel.style.color = '#dc3545';
       let wHtml = '<strong>Validation Warnings:</strong><ul style="padding-left: 20px; margin-top: 10px;">';
       validData.warnings.forEach(w => {
-        wHtml += \<li>\</li>\;
+        wHtml += `<li>${escapeHTML(w)}</li>`;
       });
       wHtml += '</ul>';
       validPanel.innerHTML = wHtml;
@@ -1183,7 +1183,7 @@ async function loadMenuBuilderBeta() {
       const metaSpan = document.createElement('span');
       metaSpan.style.fontSize = '12px';
       metaSpan.style.color = 'var(--text-muted)';
-      metaSpan.textContent = \[ID: \] \ + (node.has_children ? \(\ children)\ : '');
+      metaSpan.textContent = `[ID: ${node.id}] ` + (node.has_children ? `(${node.children_count} children)` : '');
 
       contentDiv.appendChild(toggleBtn);
       contentDiv.appendChild(titleSpan);
@@ -1225,7 +1225,7 @@ async function loadMenuBuilderBeta() {
 
   } catch (err) {
     console.error(err);
-    rootUl.innerHTML = \<li style="color:red;">Error loading menu builder: \</li>\;
+    rootUl.innerHTML = `<li style="color:red;">Error loading menu builder: ${escapeHTML(err.message)}</li>`;
   }
 }
 
