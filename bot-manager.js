@@ -553,6 +553,12 @@ class TelegramBotService {
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '✅' });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
+    else if (data.startsWith('del_file_')) {
+      const fileId = parseInt(data.replace('del_file_', ''), 10);
+      await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [fileId]);
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '🗑️ تم الحذف', show_alert: true });
+      await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
+    }
   }
 
   // --- Admin State Machine ---
@@ -563,6 +569,10 @@ class TelegramBotService {
     if (text === '❌ إغلاق' || text === '❌ Close') {
       await dbHelper.deleteAdminState(chatId);
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      if (userObj) {
+        await this.handleMessage({ text: '/start', chat: { id: chatId }, from: { id: chatId, username: userObj.username, first_name: userObj.username } });
+      }
       return;
     }
     
@@ -576,9 +586,22 @@ class TelegramBotService {
       const isHome = state.action === 'admin_home' || !state.action;
       if (isHome) {
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء.' : 'Action cancelled.', reply_markup: { remove_keyboard: true } });
-        await this.sendAdminHome(chatId, lang);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء والخروج من لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+        const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+        if (userObj) {
+          await this.handleMessage({ text: '/start', chat: { id: chatId }, from: { id: chatId, username: userObj.username, first_name: userObj.username } });
+        }
       } else {
+        if (state.menuId) {
+          const m = await dbHelper.getMenuById(state.menuId);
+          if (m) {
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m.parent_id, viewingMenuDetailsId: state.menuId });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
+            await this.sendAdminMenuDetails(chatId, state.menuId, lang);
+            return;
+          }
+        }
+        
         // Go back to managing menus or home
         if (state.currentMenuId !== undefined) {
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
@@ -649,11 +672,19 @@ class TelegramBotService {
     // --- MANAGING MENUS ---
     if (state.action === 'managing_menus') {
       // 1. Check if they clicked a specific menu from the list
-      const match = text.match(/\(#(\d+)\)/);
-      if (match) {
-        const menuId = parseInt(match[1], 10);
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: menuId });
-        await this.sendAdminMenuDetails(chatId, menuId, lang);
+      const siblingMenus = await dbHelper.getMenusByFaculty(this.facultyId);
+      const possibleMenus = siblingMenus.filter(m => m.parent_id === state.currentMenuId);
+      
+      const clickedMenu = possibleMenus.find(m => {
+        const icon = m.reply_type === 'submenu' ? '📁' : (m.reply_type === 'file' ? '📄' : '📝');
+        const expectedAr = `${icon} ${m.title_ar}`;
+        const expectedEn = `${icon} ${m.title_en}`;
+        return text === expectedAr || text === expectedEn;
+      });
+
+      if (clickedMenu) {
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: clickedMenu.id });
+        await this.sendAdminMenuDetails(chatId, clickedMenu.id, lang);
         return;
       }
 
@@ -721,28 +752,18 @@ class TelegramBotService {
         } else if (text.includes('إعادة التسمية') || text.includes('Rename')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
-        } else if (text.includes('تعديل المحتوى') || text.includes('Edit Content')) {
-          const menu = await dbHelper.getMenuById(menuId);
-          if (menu.reply_type === 'submenu') {
-             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_submenu_ar', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التمهيدية التي ستظهر عند دخول هذه القائمة (بالعربي):' : 'Send the prompt message for this submenu (Arabic):', reply_markup: cancelKb });
-          } else if (menu.reply_type === 'text') {
-             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
-          } else if (menu.reply_type === 'file') {
-             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_cap_ar', menuId });
-             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
-          }
-        } else if (text.includes('استبدال الملف') || text.includes('Replace File')) {
-          await dbHelper.setAdminState(chatId, { action: 'awaiting_replace_file_doc', menuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد ليحل مكان جميع الملفات القديمة، أو ارجع بالزر بالأسفل:' : 'Send the new file to replace all old ones, or go back:', reply_markup: cancelKb });
+        } else if (text.includes('حذف محتوى الزر') || text.includes('Delete Content')) {
+          await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [menuId]);
+          await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL WHERE id = $1', [menuId]);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف كافة الملفات والمحتوى من الزر.' : '✅ Button content deleted.' });
+          await this.sendAdminMenuDetails(chatId, menuId, lang);
         } else if (text.includes('إضافة ملف آخر') || text.includes('Add Another File')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد الآن:' : 'Send the new file now:', reply_markup: cancelKb });
         } else if (text.includes('معاينة الملفات') || text.includes('Preview Files')) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض الملفات:' : '👁️ Previewing files:' });
           const menu = await dbHelper.getMenuById(menuId);
-          await this.sendFilePage(chatId, menuId, 1, lang, lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en);
+          await this.sendFilePage(chatId, menuId, 0, lang, lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en, true);
         } else if (text.includes('أزرار شفافة') || text.includes('Inline Buttons')) {
           await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
           const m = lang === 'ar' 
@@ -1318,7 +1339,7 @@ class TelegramBotService {
       const rowKb = chunk.map(s => {
         const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
         const title = lang === 'ar' ? s.title_ar : s.title_en;
-        return { text: `${icon} ${title} (#${s.id})` };
+        return { text: `${icon} ${title}` };
       });
 
       if (rowKb.length < maxButtonsPerRow) {
@@ -1351,7 +1372,7 @@ class TelegramBotService {
     }
     
     const kb = [
-      [{ text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename' }, { text: lang === 'ar' ? '📝 تعديل المحتوى' : '📝 Edit Content' }]
+      [{ text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename' }]
     ];
 
     if (menu.reply_type === 'submenu') {
@@ -1359,7 +1380,7 @@ class TelegramBotService {
     }
 
     if (menu.reply_type === 'file') {
-      kb.push([{ text: lang === 'ar' ? '📎 استبدال الملف' : '📎 Replace File' }]);
+      kb.push([{ text: lang === 'ar' ? '🗑️ حذف محتوى الزر' : '🗑️ Delete Content' }]);
       kb.push([
         { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files' },
         { text: lang === 'ar' ? '➕ إضافة ملف آخر' : '➕ Add Another File' }
@@ -1677,7 +1698,7 @@ class TelegramBotService {
   }
 
   // ── Paginated file delivery ───────────────────────────────────────────────
-  async sendFilePage(chatId, menuId, page, lang, caption = null) {
+  async sendFilePage(chatId, menuId, page, lang, caption = null, isAdminPreview = false) {
     const FILES_PER_PAGE = 10;
     const allFiles = await dbHelper.getMenuFiles(menuId);
 
@@ -1713,7 +1734,11 @@ class TelegramBotService {
       const file = pageFiles[i];
       const fileCaption = (page === 0 && i === 0) ? caption : null;
       try {
-        await this.sendTelegramFile(chatId, file, fileCaption);
+        let replyMarkup = null;
+        if (isAdminPreview) {
+          replyMarkup = { inline_keyboard: [[{ text: lang === 'ar' ? '🗑️ حذف هذا الملف' : '🗑️ Delete this file', callback_data: `del_file_${file.id}` }]] };
+        }
+        await this.sendTelegramFile(chatId, file, fileCaption, replyMarkup);
       } catch (e) {
         this.logError('Error sending file', e, { chat_id: chatId });
         hasError = true;
