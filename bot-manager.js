@@ -282,7 +282,7 @@ class TelegramBotService {
           const userStr = message.from.username ? `@${message.from.username}` : message.from.first_name;
           await this.apiCall('sendMessage', { 
             chat_id: adminId, 
-            text: `?? **?????? ??????**\n\n?? ????????: ${userStr} (ID: ${message.from.id})\n?? ????: ${message.text || ''}`,
+            text: `👀 **مراقبة النشاط**\n\n👤 المستخدم: ${userStr} (ID: ${message.from.id})\n💬 النص: ${message.text || ''}`,
             parse_mode: 'Markdown'
           });
         }
@@ -382,7 +382,7 @@ class TelegramBotService {
 
   async processMenuClick(chatId, user, clickedMenu, allMenus) {
     if (clickedMenu.is_active === false) {
-      const msg = user.language === 'ar' ? '? ??? ???? ???? ??????.' : '? This button is currently disabled.';
+      const msg = user.language === 'ar' ? '⛔ هذا الزر معطل حالياً.' : '⛔ This button is currently disabled.';
       await this.apiCall('sendMessage', { chat_id: chatId, text: msg });
       return;
     }
@@ -509,7 +509,7 @@ class TelegramBotService {
             const userStr = callbackQuery.from.username ? `@${callbackQuery.from.username}` : callbackQuery.from.first_name;
             await this.apiCall('sendMessage', { 
               chat_id: adminId, 
-              text: `?? **?????? ?????? (??)**\n\n?? ????????: ${userStr} (ID: ${callbackQuery.from.id})\n?? ????: ${data} ()`,
+              text: `👀 **مراقبة النشاط (زر)**\n\n👤 المستخدم: ${userStr} (ID: ${callbackQuery.from.id})\n🔘 الزر: ${data} ()`,
               parse_mode: 'Markdown'
             });
           }
@@ -554,17 +554,17 @@ class TelegramBotService {
       const lang = userObj ? userObj.language : 'ar';
       const action = data.split('_')[1];
       const menuId = parseInt(data.split('_')[2], 10);
-      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '?? ????? ???????' : '?? Cancel Operation' }]], resize_keyboard: true };
+      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '🚫 إلغاء العملية' : '🚫 Cancel Operation' }]], resize_keyboard: true };
 
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 
       if (action === 'rename') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '???? ????? ?????? ???? (????????):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (بالعربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
         const menu = await dbHelper.getMenuById(menuId);
         await dbHelper.deleteMenu(menuId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? ?? ??? ????' : '? Button Deleted' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الزر' : '✅ Button Deleted' });
         if (menu) await this.sendAdminReplyMenus(chatId, menu.parent_id, lang);
       } else if (action === 'open') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
@@ -579,25 +579,25 @@ class TelegramBotService {
             await dbHelper.deleteFile(f.id);
           }
         }
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? ?? ??? ???????' : '? Content Deleted' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف المحتوى' : '✅ Content Deleted' });
         await this.sendAdminMenuDetails(chatId, menuId, lang);
       } else if (action === 'previewfiles') {
         await this.sendFilePage(chatId, menuId, 0, lang);
       } else if (action === 'addfile') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '???? ????? ??????. ?????? ????? ????? ?????? ??????? ???:' : 'Send the new file, with optional Arabic caption:', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد. ويمكنك إرفاق الشرح باللغة العربية معه:' : 'Send the new file, with optional Arabic caption:', reply_markup: cancelKb });
       } else if (action === 'edittext') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '???? ???? ?????? (???????):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
       } else if (action === 'inline') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
         const m = lang === 'ar' 
-          ? '?? ????? ?? ???? (????)\n\n???? ??? ???? ??????? ??????? ????? (-)\n????: ???? ??????? - https://example.com\n?? ???? /clear ???? ??????? ???????.' 
-          : '?? Add Inline Button (URL)\n\nSend title and URL separated by hyphen (-)\nExample: Website - https://example.com\nOr send /clear to remove all.';
+          ? '🔗 إضافة زر شفاف (رابط)\n\nأرسل اسم الزر والرابط مفصولين بشرطة (-)\nمثال: موقع الجامعة - https://example.com\nأو أرسل /clear لمسح الأزرار الحالية.' 
+          : '🔗 Add Inline Button (URL)\n\nSend title and URL separated by hyphen (-)\nExample: Website - https://example.com\nOr send /clear to remove all.';
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, parse_mode: 'Markdown', reply_markup: cancelKb });
       } else if (action === 'move') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_move_target', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '???? ??? ID ????? ???????? ????? (???? null ????? ??????? ????????):' : 'Send target Menu ID (or null for root):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الـ ID الخاص بالقائمة الهدف (اكتب null لنقله للقائمة الرئيسية):' : 'Send target Menu ID (or null for root):', reply_markup: cancelKb });
       } else if (action === 'order') {
         const menu = await dbHelper.getMenuById(menuId);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', currentMenuId: menu.parent_id, viewingMenuDetailsId: menuId });
@@ -1307,54 +1307,54 @@ class TelegramBotService {
     const menu = await dbHelper.getMenuById(menuId);
     if (!menu) return;
 
-    const typeStr = menu.reply_type === 'submenu' ? (lang === 'ar' ? '?? ???? (?????)' : 'Folder') :
-                    menu.reply_type === 'file' ? (lang === 'ar' ? '?? ???' : 'Files') :
-                    (lang === 'ar' ? '?? ??' : 'Text');
+    const typeStr = menu.reply_type === 'submenu' ? (lang === 'ar' ? '📁 مجلد (قائمة)' : 'Folder') :
+                    menu.reply_type === 'file' ? (lang === 'ar' ? '📑 ملف' : 'Files') :
+                    (lang === 'ar' ? '📝 نص' : 'Text');
 
     let txt = lang === 'ar' 
-      ? "<b>?? ?????? ????:</b>\n\n<b>?????:</b> \n<b>?????:</b> "
-      : "<b>?? Button Details:</b>\n\n<b>Name:</b> \n<b>Type:</b> ";
+      ? "<b>📋 تفاصيل الزر:</b>\n\n<b>الاسم:</b> \n<b>النوع:</b> "
+      : "<b>📋 Button Details:</b>\n\n<b>Name:</b> \n<b>Type:</b> ";
 
     const kb = [];
     
     // Core actions for all types
     kb.push([
-      { text: lang === 'ar' ? '?? ????? ???????' : '?? Rename', callback_data: "admin_rename_" },
-      { text: lang === 'ar' ? '??? ??? ????' : '??? Delete Button', callback_data: "admin_delbtn_" }
+      { text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename', callback_data: "admin_rename_" },
+      { text: lang === 'ar' ? '🗑️ حذف الزر' : '🗑️ Delete Button', callback_data: "admin_delbtn_" }
     ]);
 
     // Type specific actions
     if (menu.reply_type === 'submenu') {
-      kb.push([{ text: lang === 'ar' ? '?? ??? ??????' : '?? Open Folder', callback_data: "admin_open_" }]);
+      kb.push([{ text: lang === 'ar' ? '📂 فتح المجلد' : '📂 Open Folder', callback_data: "admin_open_" }]);
     } else if (menu.reply_type === 'file') {
-      kb.push([{ text: lang === 'ar' ? '??? ??? ???????' : '??? Delete Content', callback_data: "admin_delcontent_" }]);
+      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" }]);
       kb.push([
-        { text: lang === 'ar' ? '??? ?????? ???????' : '??? Preview Files', callback_data: "admin_previewfiles_" },
-        { text: lang === 'ar' ? '? ????? ???' : '? Add File', callback_data: "admin_addfile_" }
+        { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files', callback_data: "admin_previewfiles_" },
+        { text: lang === 'ar' ? '➕ إضافة ملف' : '➕ Add File', callback_data: "admin_addfile_" }
       ]);
     } else if (menu.reply_type === 'text') {
-      kb.push([{ text: lang === 'ar' ? '??? ??? ???????' : '??? Delete Content', callback_data: "admin_delcontent_" }]);
-      kb.push([{ text: lang === 'ar' ? '?? ????? ????' : '?? Edit Text', callback_data: "admin_edittext_" }]);
+      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" }]);
+      kb.push([{ text: lang === 'ar' ? '📝 تعديل النص' : '📝 Edit Text', callback_data: "admin_edittext_" }]);
     }
 
     // Advanced options (Inline buttons, Move, Order)
     kb.push([
-      { text: lang === 'ar' ? '?? ????? ?????' : '?? Inline Buttons', callback_data: "admin_inline_" },
-      { text: lang === 'ar' ? '?? ???' : '?? Move', callback_data: "admin_move_" }
+      { text: lang === 'ar' ? '🔗 أزرار شفافة' : '🔗 Inline Buttons', callback_data: "admin_inline_" },
+      { text: lang === 'ar' ? '🔄 نقل' : '🔄 Move', callback_data: "admin_move_" }
     ]);
 
-    kb.push([{ text: lang === 'ar' ? '?? ????? ???????' : '?? Change Order', callback_data: "admin_order_" }]);
+    kb.push([{ text: lang === 'ar' ? '↕️ تغيير الترتيب' : '↕️ Change Order', callback_data: "admin_order_" }]);
 
     // Status Toggles
     const isActive = menu.is_active !== false; 
     const isHidden = menu.is_hidden === true;
 
     const toggleActiveStr = isActive
-      ? (lang === 'ar' ? '?? ????? ????' : '?? Disable') 
-      : (lang === 'ar' ? '?? ????? ????' : '?? Enable');
+      ? (lang === 'ar' ? '🔴 إيقاف الزر' : '🔴 Disable') 
+      : (lang === 'ar' ? '🟢 تشغيل الزر' : '🟢 Enable');
     const toggleHiddenStr = isHidden
-      ? (lang === 'ar' ? '??? ????? ????' : '??? Show Button')
-      : (lang === 'ar' ? '?? ????? ????' : '?? Hide Button');
+      ? (lang === 'ar' ? '👁️ إظهار الزر' : '👁️ Show Button')
+      : (lang === 'ar' ? '🚫 إخفاء الزر' : '🚫 Hide Button');
 
     kb.push([
       { text: toggleActiveStr, callback_data: "admin_toggleactive_" },
