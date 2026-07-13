@@ -1319,31 +1319,31 @@ class TelegramBotService {
     
     // Core actions for all types
     kb.push([
-      { text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename', callback_data: "admin_rename_" },
-      { text: lang === 'ar' ? '🗑️ حذف الزر' : '🗑️ Delete Button', callback_data: "admin_delbtn_" }
+      { text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename', callback_data: "admin_rename_" + menuId },
+      { text: lang === 'ar' ? '🗑️ حذف الزر' : '🗑️ Delete Button', callback_data: "admin_delbtn_" + menuId }
     ]);
 
     // Type specific actions
     if (menu.reply_type === 'submenu') {
-      kb.push([{ text: lang === 'ar' ? '📂 فتح المجلد' : '📂 Open Folder', callback_data: "admin_open_" }]);
+      kb.push([{ text: lang === 'ar' ? '📂 فتح المجلد' : '📂 Open Folder', callback_data: "admin_open_" + menuId }]);
     } else if (menu.reply_type === 'file') {
-      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" }]);
+      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" + menuId }]);
       kb.push([
-        { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files', callback_data: "admin_previewfiles_" },
-        { text: lang === 'ar' ? '➕ إضافة ملف' : '➕ Add File', callback_data: "admin_addfile_" }
+        { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files', callback_data: "admin_previewfiles_" + menuId },
+        { text: lang === 'ar' ? '➕ إضافة ملف' : '➕ Add File', callback_data: "admin_addfile_" + menuId }
       ]);
     } else if (menu.reply_type === 'text') {
-      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" }]);
-      kb.push([{ text: lang === 'ar' ? '📝 تعديل النص' : '📝 Edit Text', callback_data: "admin_edittext_" }]);
+      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: "admin_delcontent_" + menuId }]);
+      kb.push([{ text: lang === 'ar' ? '📝 تعديل النص' : '📝 Edit Text', callback_data: "admin_edittext_" + menuId }]);
     }
 
     // Advanced options (Inline buttons, Move, Order)
     kb.push([
-      { text: lang === 'ar' ? '🔗 أزرار شفافة' : '🔗 Inline Buttons', callback_data: "admin_inline_" },
-      { text: lang === 'ar' ? '🔄 نقل' : '🔄 Move', callback_data: "admin_move_" }
+      { text: lang === 'ar' ? '🔗 أزرار شفافة' : '🔗 Inline Buttons', callback_data: "admin_inline_" + menuId },
+      { text: lang === 'ar' ? '🔄 نقل' : '🔄 Move', callback_data: "admin_move_" + menuId }
     ]);
 
-    kb.push([{ text: lang === 'ar' ? '↕️ تغيير الترتيب' : '↕️ Change Order', callback_data: "admin_order_" }]);
+    kb.push([{ text: lang === 'ar' ? '↕️ تغيير الترتيب' : '↕️ Change Order', callback_data: "admin_order_" + menuId }]);
 
     // Status Toggles
     const isActive = menu.is_active !== false; 
@@ -1357,8 +1357,8 @@ class TelegramBotService {
       : (lang === 'ar' ? '🚫 إخفاء الزر' : '🚫 Hide Button');
 
     kb.push([
-      { text: toggleActiveStr, callback_data: "admin_toggleactive_" },
-      { text: toggleHiddenStr, callback_data: "admin_togglehidden_" }
+      { text: toggleActiveStr, callback_data: "admin_toggleactive_" + menuId },
+      { text: toggleHiddenStr, callback_data: "admin_togglehidden_" + menuId }
     ]);
 
     await this.apiCall('sendMessage', { 
