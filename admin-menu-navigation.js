@@ -151,6 +151,7 @@ class AdminMenuNavigation {
   }
 
   static async handleNavigation(botCtx, chatId, text, state, lang) {
+    console.log(`[DEBUG admin-menu-navigation start] text: "${text}", action: "${state.action}"`);
     const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
 
     if (state.action === 'managing_menus') {
@@ -173,6 +174,7 @@ class AdminMenuNavigation {
 
       // 2. Navigation Actions
       if (text.includes('المستوى السابق') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('عودة') || text.includes('Back')) {
+        console.log(`[DEBUG admin-menu-navigation condition] Entered navigation action with currentMenuId: ${state.currentMenuId}`);
         if (state.currentMenuId !== null) {
           const pMenu = await dbHelper.getMenuById(state.currentMenuId);
           const targetId = pMenu ? pMenu.parent_id : null;

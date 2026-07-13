@@ -940,6 +940,7 @@ class TelegramBotService {
 
     // --- MANAGING MENUS ---
     const AdminMenuNavigation = require('./admin-menu-navigation');
+    console.log(`[DEBUG bot-manager] text: "${text}", action: "${state.action}", currentMenuId: ${state.currentMenuId}`);
     const handledByAdminNav = await AdminMenuNavigation.handleNavigation(this, chatId, text, state, lang);
     if (handledByAdminNav) return;
 
