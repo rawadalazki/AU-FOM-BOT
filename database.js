@@ -167,6 +167,31 @@ async function initDb() {
     )
   `);
 
+  // Idempotent migrations for new features
+  await pool.query(`
+    ALTER TABLE menus
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+    ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT false;
+  `);
+
+  await pool.query(`
+    ALTER TABLE faculties
+    ADD COLUMN IF NOT EXISTS forward_user_messages BOOLEAN DEFAULT false;
+  `);
+
+  // Keep the `bot_users_log` from earlier migrations if it exists
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bot_users_log (
+      id SERIAL PRIMARY KEY,
+      faculty_id INTEGER NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
+      platform TEXT,
+      chat_id TEXT,
+      operation TEXT NOT NULL,
+      details JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Phase B: Multi-File Support
   await pool.query(`
     CREATE TABLE IF NOT EXISTS menu_files (
@@ -634,8 +659,18 @@ async function assignDeputyOwner(newDeputyId) {
     client.release();
   }
 }
+async function toggleMenuStatus(menuId, field, value) {
+  if (field !== 'is_active' && field !== 'is_hidden') throw new Error('Invalid field');
+  await runQuery(`UPDATE menus SET ${field} = $1 WHERE id = $2`, [value, menuId]);
+}
+
+async function toggleFacultyForwarding(facultyId, value) {
+  await runQuery(`UPDATE faculties SET forward_user_messages = $1 WHERE id = $2`, [value, facultyId]);
+}
 
 module.exports = {
+  toggleMenuStatus,
+  toggleFacultyForwarding,
   pool,
   runQuery,
   initDb,
