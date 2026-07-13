@@ -1,4 +1,4 @@
-﻿const https = require('node:https');
+const https = require('node:https');
 const crypto = require('node:crypto');
 const FormData = require('form-data');
 const dbHelper = require('./database');
@@ -212,15 +212,23 @@ class TelegramBotService {
 
   // --- Webhook Update Handler ---
   async handleUpdate(update) {
-    console.log("UPDATE RECEIVED:");
-    console.log(JSON.stringify(update, null, 2));
+    const startTime = Date.now();
+    try {
+      console.log("UPDATE RECEIVED:");
+      console.log(JSON.stringify(update, null, 2));
 
-    if (update.message) {
-        await this.handleMessage(update.message);
-    } else if (update.callback_query) {
-        await this.handleCallbackQuery(update.callback_query);
-    } else {
-        console.log("UNKNOWN UPDATE TYPE");
+      if (update.message) {
+          await this.handleMessage(update.message);
+      } else if (update.callback_query) {
+          await this.handleCallbackQuery(update.callback_query);
+      } else {
+          console.log("UNKNOWN UPDATE TYPE");
+      }
+    } finally {
+      const latency = Date.now() - startTime;
+      if (!global.botLatencies) global.botLatencies = [];
+      global.botLatencies.push(latency);
+      if (global.botLatencies.length > 100) global.botLatencies.shift();
     }
   }
 
@@ -260,6 +268,8 @@ class TelegramBotService {
         message.from.username || message.from.first_name, 
         'en'
       );
+    } else {
+      await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     }
 
     const faculty = await dbHelper.getFacultyById(this.facultyId);
@@ -392,6 +402,8 @@ class TelegramBotService {
       return;
     }
 
+    await dbHelper.incrementMenuClickCount(clickedMenu.id);
+
     if (clickedMenu.reply_type === 'submenu') {
       await dbHelper.updateBotUserMenu(user.id, clickedMenu.id);
       await this.sendMenu(chatId, clickedMenu.id, user.language);
@@ -503,6 +515,7 @@ class TelegramBotService {
       }
     }
     
+    await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     this.updateUserContext(chatId, {
       telegramUserId: callbackQuery.from.id,
       username: callbackQuery.from.username || 'Unknown',
@@ -725,8 +738,102 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_title_ar' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 إرسال إعلان جديد\n\nالرجاء إرسال **عنوان** الإعلان (باللغة العربية):' : '📢 New Announcement\n\nPlease send the **Title** in Arabic:', reply_markup: { remove_keyboard: true }});
       } else if (text.includes('إحصائيات') || text.includes('Stats')) {
-        const users = await dbHelper.getBotUsersByFaculty(this.facultyId, 'telegram');
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `📊 إحصائيات البوت:\n\nإجمالي المشتركين: ${users.length}` : `📊 Bot Stats:\n\nTotal Subscribers: ${users.length}` });
+        const pool = dbHelper.pool;
+        
+        const usersRes = await pool.query('SELECT created_at, last_active_at, is_blocked FROM bot_users WHERE faculty_id = $1 AND platform = $2', [this.facultyId, 'telegram']);
+        const allUsers = usersRes.rows;
+        
+        const now = new Date();
+        const oneDay = 24 * 60 * 60 * 1000;
+        
+        let dailyActive = 0, weeklyActive = 0, monthlyActive = 0;
+        let weeklySubscribers = 0, monthlySubscribers = 0;
+        let blockedUsers = 0;
+        
+        allUsers.forEach(u => {
+          if (u.is_blocked) blockedUsers++;
+          
+          if (u.last_active_at) {
+             const diff = now - new Date(u.last_active_at);
+             if (diff <= oneDay) dailyActive++;
+             if (diff <= 7 * oneDay) weeklyActive++;
+             if (diff <= 30 * oneDay) monthlyActive++;
+          }
+          
+          if (u.created_at) {
+             const diff = now - new Date(u.created_at);
+             if (diff <= 7 * oneDay) weeklySubscribers++;
+             if (diff <= 30 * oneDay) monthlySubscribers++;
+          }
+        });
+        
+        const totalUsers = allUsers.length;
+        const nonBlocked = totalUsers - blockedUsers;
+        const reachPercentage = nonBlocked > 0 ? ((monthlyActive / nonBlocked) * 100).toFixed(1) : 0;
+        
+        const logRes = await pool.query('SELECT COUNT(*) as cnt FROM bot_users_log WHERE faculty_id = $1', [this.facultyId]);
+        const totalRequests = logRes.rows[0].cnt;
+        
+        const menusRes = await pool.query('SELECT COUNT(*) as cnt FROM menus WHERE faculty_id = $1', [this.facultyId]);
+        const totalButtons = menusRes.rows[0].cnt;
+        
+        const filesRes = await pool.query('SELECT COUNT(*) as cnt FROM menu_files mf JOIN menus m ON mf.menu_id = m.id WHERE m.faculty_id = $1', [this.facultyId]);
+        const totalFiles = filesRes.rows[0].cnt;
+        
+        const topMenuRes = await pool.query('SELECT title_ar, title_en, click_count FROM menus WHERE faculty_id = $1 ORDER BY click_count DESC LIMIT 1', [this.facultyId]);
+        let topButtonStr = (lang === 'ar' ? 'لا يوجد' : 'None');
+        if (topMenuRes.rows.length > 0 && topMenuRes.rows[0].click_count > 0) {
+           const tm = topMenuRes.rows[0];
+           topButtonStr = `${lang === 'ar' ? tm.title_ar : tm.title_en} (${tm.click_count})`;
+        }
+        
+        let avgLatency = 0;
+        if (global.botLatencies && global.botLatencies.length > 0) {
+           const sum = global.botLatencies.reduce((a, b) => a + b, 0);
+           avgLatency = (sum / global.botLatencies.length).toFixed(0);
+        }
+        
+        const statsAr = `📊 **إحصائيات البوت الشاملة:**\n\n` +
+          `👥 **المشتركون**\n` +
+          `- إجمالي المشتركين: ${totalUsers}\n` +
+          `- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n` +
+          `- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n` +
+          `📈 **النشاط**\n` +
+          `- نشط اليوم: ${dailyActive}\n` +
+          `- نشط هذا الأسبوع: ${weeklyActive}\n` +
+          `- نشط هذا الشهر: ${monthlyActive}\n\n` +
+          `🚀 **الأداء والتفاعل**\n` +
+          `- نسبة الوصول (شهرياً): ${reachPercentage}%\n` +
+          `- إجمالي الطلبات/التفاعلات: ${totalRequests}\n` +
+          `- زمن الاستجابة (متوسط): ${avgLatency}ms\n\n` +
+          `🗂️ **المحتوى**\n` +
+          `- عدد الأزرار المتاحة: ${totalButtons}\n` +
+          `- عدد الملفات المرفوعة: ${totalFiles}\n` +
+          `- الزر الأكثر طلباً: ${topButtonStr}\n\n` +
+          `🛑 **الحظر**\n` +
+          `- عدد من قام بحظر أو حذف البوت: ${blockedUsers}`;
+          
+        const statsEn = `📊 **Bot Statistics:**\n\n` +
+          `👥 **Subscribers**\n` +
+          `- Total: ${totalUsers}\n` +
+          `- New (Weekly): ${weeklySubscribers}\n` +
+          `- New (Monthly): ${monthlySubscribers}\n\n` +
+          `📈 **Activity**\n` +
+          `- Daily Active: ${dailyActive}\n` +
+          `- Weekly Active: ${weeklyActive}\n` +
+          `- Monthly Active: ${monthlyActive}\n\n` +
+          `🚀 **Performance**\n` +
+          `- Reach (Monthly): ${reachPercentage}%\n` +
+          `- Total Requests: ${totalRequests}\n` +
+          `- Avg Latency: ${avgLatency}ms\n\n` +
+          `🗂️ **Content**\n` +
+          `- Total Buttons: ${totalButtons}\n` +
+          `- Total Files: ${totalFiles}\n` +
+          `- Top Button: ${topButtonStr}\n\n` +
+          `🛑 **Blocks**\n` +
+          `- Blocked By: ${blockedUsers}`;
+        
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? statsAr : statsEn, parse_mode: 'Markdown' });
       } else if (text.includes('إعدادات') || text.includes('Core Settings')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         const cfgText = lang === 'ar' 
@@ -1633,6 +1740,10 @@ class TelegramBotService {
     try {
       const res = await this._rawApiCall(method, payload);
       if (!res.ok) {
+        if (res.error_code === 403 && payload && payload.chat_id) {
+          const dbHelper = require('./database');
+          await dbHelper.blockBotUser(this.facultyId, 'telegram', payload.chat_id.toString());
+        }
         const desc = (res.description || '').toLowerCase();
         const shouldRetry = res.error_code === 400 || res.error_code === 404 || res.error_code === 403 || desc.includes('invalid file') || desc.includes('file reference expired');
         if (shouldRetry && !isRetry) {

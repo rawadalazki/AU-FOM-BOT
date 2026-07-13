@@ -247,7 +247,10 @@ async function initDb() {
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS unknown_msg_en TEXT;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS unknown_msg_ar TEXT;`,
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_en TEXT;`,
-    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_ar TEXT;`
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_ar TEXT;`,
+    `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();`,
+    `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;`,
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0;`
   ];
 
   for (const q of alterQueries) {
@@ -541,7 +544,7 @@ async function upsertBotUser(facultyId, platform, chatId, username, language) {
     INSERT INTO bot_users (faculty_id, platform, chat_id, username, language)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (faculty_id, platform, chat_id) 
-    DO UPDATE SET username = EXCLUDED.username, language = EXCLUDED.language
+    DO UPDATE SET username = EXCLUDED.username, language = EXCLUDED.language, last_active_at = NOW(), is_blocked = FALSE
     RETURNING *
   `, [facultyId, platform, chatId, username, language]);
   return rows[0];
@@ -668,7 +671,40 @@ async function toggleFacultyForwarding(facultyId, value) {
   await runQuery(`UPDATE faculties SET forward_user_messages = $1 WHERE id = $2`, [value, facultyId]);
 }
 
+async function updateUserActivity(facultyId, platform, chatId) {
+  try {
+    await pool.query(
+      'UPDATE bot_users SET last_active_at = NOW(), is_blocked = FALSE WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3',
+      [facultyId, platform, chatId]
+    );
+  } catch (err) {
+    logger.error('Error updating user activity', err);
+  }
+}
+
+async function blockBotUser(facultyId, platform, chatId) {
+  try {
+    await pool.query(
+      'UPDATE bot_users SET is_blocked = TRUE WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3',
+      [facultyId, platform, chatId]
+    );
+  } catch (err) {
+    logger.error('Error blocking user', err);
+  }
+}
+
+async function incrementMenuClickCount(menuId) {
+  try {
+    await pool.query('UPDATE menus SET click_count = click_count + 1 WHERE id = $1', [menuId]);
+  } catch (err) {
+    logger.error('Error incrementing menu click count', err);
+  }
+}
+
 module.exports = {
+  updateUserActivity,
+  blockBotUser,
+  incrementMenuClickCount,
   toggleMenuStatus,
   toggleFacultyForwarding,
   pool,
