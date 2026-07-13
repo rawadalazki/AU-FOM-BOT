@@ -612,6 +612,36 @@ class TelegramBotService {
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '🗑️ تم الحذف', show_alert: true });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
+    else if (data.startsWith('edit_ann_')) {
+      const annId = parseInt(data.replace('edit_ann_', ''), 10);
+      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      const lang = userObj ? userObj.language : 'ar';
+      await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_ann_text', annId });
+      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد للإعلان كاملاً (السطر الأول سيكون العنوان):' : 'Send the new full text:', reply_markup: cancelKb });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
+    }
+    else if (data.startsWith('del_ann_')) {
+      const annId = parseInt(data.replace('del_ann_', ''), 10);
+      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      const lang = userObj ? userObj.language : 'ar';
+      await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
+      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'نعم (تأكيد الحذف)' : 'Yes (Confirm Delete)' }], [{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من رغبتك في حذف هذا الإعلان من جميع رسائل الطلاب؟' : '⚠️ Are you sure you want to delete this from all users?', reply_markup: cancelKb });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
+    }
+    else if (data.startsWith('unpin_ann_')) {
+      const annId = parseInt(data.replace('unpin_ann_', ''), 10);
+      const annMsgList = await dbHelper.getAnnouncementMessages(annId);
+      for (const msg of annMsgList) {
+         try {
+            await this.apiCall('unpinChatMessage', { chat_id: msg.chat_id, message_id: msg.message_id });
+         } catch(e) {}
+      }
+      await dbHelper.runQuery('UPDATE announcements SET is_pinned = FALSE WHERE id = $1', [annId]);
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'تم إلغاء التثبيت لدى الجميع.', show_alert: true });
+      await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
+    }
     else if (data.startsWith('admin_')) {
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       const lang = userObj ? userObj.language : 'ar';
@@ -735,8 +765,10 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, null, lang);
       } else if (text.includes('إعلان جديد') || text.includes('Broadcast')) {
-        await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_title_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 إرسال إعلان جديد\n\nالرجاء إرسال **عنوان** الإعلان (باللغة العربية):' : '📢 New Announcement\n\nPlease send the **Title** in Arabic:', reply_markup: { remove_keyboard: true }});
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_text' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 إرسال إعلان جديد\n\nالرجاء إرسال نص الإعلان كاملاً (السطر الأول سيكون العنوان، والباقي هو المحتوى):' : '📢 New Announcement\n\nPlease send the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
+      } else if (text.includes('إدارة الإعلانات') || text.includes('Manage Announcements')) {
+        await this.sendAdminAnnouncementsList(chatId, lang);
       } else if (text.includes('إحصائيات') || text.includes('Stats')) {
         const pool = dbHelper.pool;
         
@@ -999,43 +1031,108 @@ class TelegramBotService {
         await this.sendAdminHome(chatId, lang);
         break;
 
-      case 'awaiting_announcement_title_ar':
-        state.titleAr = text;
-        state.action = 'awaiting_announcement_content_ar';
-        await dbHelper.setAdminState(chatId, state);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ممتاز. الآن أرسل محتوى الإعلان التفصيلي (بالعربي):' : 'Great. Now send the detailed content (Arabic):' });
-        break;
-
-      case 'awaiting_announcement_content_ar':
-        state.contentAr = text;
-        const statusAnnMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '🔄 جاري ترجمة الإعلان تلقائياً...' : '🔄 Translating announcement...' });
-        
-        state.titleEn = await this.translateArToEn(state.titleAr);
-        state.contentEn = await this.translateArToEn(state.contentAr);
+      case 'awaiting_announcement_text':
+        const lines = text.split('\n');
+        state.titleAr = lines[0].trim();
+        state.contentAr = lines.slice(1).join('\n').trim() || ' '; // To ensure content isn't strictly empty
+        // Disable translation: AR = EN
+        state.titleEn = state.titleAr;
+        state.contentEn = state.contentAr;
         state.action = 'awaiting_announcement_file';
         await dbHelper.setAdminState(chatId, state);
-
-        if (statusAnnMsg.result) {
-          await this.apiCall('deleteMessage', { chat_id: chatId, message_id: statusAnnMsg.result.message_id }).catch(()=>({}));
-        }
-
+        
+        const fileKb = {
+          keyboard: [
+             [{ text: lang === 'ar' ? '/skip (تخطي بدون ملف)' : '/skip' }],
+             [{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]
+          ],
+          resize_keyboard: true
+        };
         await this.apiCall('sendMessage', { 
           chat_id: chatId, 
-          text: lang === 'ar' ? 'تمت الترجمة. إذا كان هناك ملف مرفق للإعلان أرسله الآن، أو أرسل /skip لتخطي إرفاق ملف وبث الإعلان مباشرة.' : 'Translated. Send an attachment file now, or /skip to broadcast without a file.'
+          text: lang === 'ar' ? 'تم حفظ النص. هل تريد إرفاق ملف مع الإعلان؟ أرسل الملف أو اضغط /skip.' : 'Text saved. Send a file or press /skip.', 
+          reply_markup: fileKb 
         });
         break;
 
       case 'awaiting_announcement_file':
-        if (text === '/skip') {
-          await this.handleAdminAnnouncementBroadcast(chatId, state, null, lang);
-        } else {
-          const doc = this.extractTelegramAttachment(message);
-          if (doc) {
-            await this.handleAdminAnnouncementBroadcast(chatId, state, doc, lang);
-          } else {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لم أتمكن من التعرف على الملف. الرجاء الإرسال كـ Document أو أرسل /skip.' : 'File not recognized. Send as Document or /skip.' });
+        let doc = null;
+        if (text !== '/skip' && text !== '/skip (تخطي بدون ملف)') {
+          doc = this.extractTelegramAttachment(message);
+          if (!doc) {
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لم أتمكن من التعرف على الملف. الرجاء الإرسال كـ Document أو اضغط /skip.' : 'File not recognized. Send as Document or /skip.' });
+            return;
           }
         }
+        state.doc = doc;
+        state.action = 'awaiting_announcement_pin';
+        await dbHelper.setAdminState(chatId, state);
+
+        const pinKb = {
+          keyboard: [
+             [{ text: lang === 'ar' ? 'نعم (تثبيت)' : 'Yes (Pin)' }, { text: lang === 'ar' ? 'لا (بدون تثبيت)' : 'No (Do not pin)' }],
+             [{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]
+          ],
+          resize_keyboard: true
+        };
+        await this.apiCall('sendMessage', {
+          chat_id: chatId,
+          text: lang === 'ar' ? 'هل تريد تثبيت الإعلان في محادثات جميع الطلاب؟' : 'Do you want to pin this announcement for all users?',
+          reply_markup: pinKb
+        });
+        break;
+
+      case 'awaiting_announcement_pin':
+        state.isPinned = text === 'نعم (تثبيت)' || text === 'Yes (Pin)';
+        await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
+        break;
+
+      case 'awaiting_edit_ann_text':
+        const editLines = text.split('\n');
+        const eTitleAr = editLines[0].trim();
+        const eContentAr = editLines.slice(1).join('\n').trim() || ' ';
+        const eTitleEn = eTitleAr;
+        const eContentEn = eContentAr;
+        
+        await dbHelper.updateAnnouncementContent(state.annId, eTitleAr, eTitleEn, eContentAr, eContentEn);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري تحديث الإعلان لدى جميع الطلاب...' : '⏳ Updating for all users...' });
+        
+        // Background process
+        (async () => {
+          const msgs = await dbHelper.getAnnouncementMessages(state.annId);
+          const txt = `📢 *${eTitleAr}*\n\n${eContentAr}`;
+          for (const msg of msgs) {
+            try {
+               await this.apiCall('editMessageText', { chat_id: msg.chat_id, message_id: msg.message_id, text: txt, parse_mode: 'Markdown' });
+            } catch(e) {}
+          }
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ اكتمل تحديث الإعلان.' : '✅ Update complete.' });
+        })();
+        
+        await dbHelper.deleteAdminState(chatId);
+        await this.sendAdminHome(chatId, lang);
+        break;
+
+      case 'awaiting_del_ann_confirm':
+        if (text.includes('نعم') || text.includes('Yes')) {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري حذف الإعلان لدى جميع الطلاب...' : '⏳ Deleting for all users...' });
+          
+          // Background process
+          (async () => {
+            const msgs = await dbHelper.getAnnouncementMessages(state.annId);
+            for (const msg of msgs) {
+              try {
+                 await this.apiCall('deleteMessage', { chat_id: msg.chat_id, message_id: msg.message_id });
+              } catch(e) {}
+            }
+            await dbHelper.deleteAnnouncement(state.annId);
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الإعلان من الجميع.' : '✅ Announcement deleted from everyone.' });
+          })();
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الحذف.' : 'Deletion cancelled.' });
+        }
+        await dbHelper.deleteAdminState(chatId);
+        await this.sendAdminHome(chatId, lang);
         break;
 
       case 'awaiting_rename_title_ar':
@@ -1338,13 +1435,14 @@ class TelegramBotService {
     });
   }
 
-  async handleAdminAnnouncementBroadcast(chatId, state, doc, lang) {
+  async handleAdminAnnouncementBroadcast(chatId, state, lang) {
+    let doc = state.doc || null;
     let fileName = null;
     let telegramFileId = null;
     let mimeType = null;
     let fileSize = null;
 
-    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 جاري البث...' : '📢 Broadcasting...' });
+    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '🚀 يتم تجهيز الإرسال...' : '🚀 Preparing broadcast...' });
     
     try {
       if (doc) {
@@ -1354,7 +1452,7 @@ class TelegramBotService {
         fileSize = doc.file_size || 0;
       }
 
-      const annId = await dbHelper.createAnnouncement(this.facultyId, state.titleEn, state.titleAr, state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize);
+      const annId = await dbHelper.createAnnouncement(this.facultyId, state.titleEn, state.titleAr, state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, state.isPinned);
       
       const announcement = {
         id: annId,
@@ -1364,13 +1462,96 @@ class TelegramBotService {
         content_en: state.contentEn,
         content_ar: state.contentAr,
         file_name: fileName,
-        telegram_file_id: telegramFileId
+        telegram_file_id: telegramFileId,
+        mime_type: mimeType,
+        is_pinned: state.isPinned
       };
 
-      await this.sendAnnouncement(announcement);
+      // Start the broadcast async (don't await so the admin panel unblocks immediately)
+      this.sendAnnouncementLive(announcement, chatId, stMsg.result ? stMsg.result.message_id : null, lang).catch(e => {
+        this.logError('Broadcast failed in background', e);
+      });
 
       await dbHelper.deleteAdminState(chatId);
-      if (stMsg.result) await this.apiCall('deleteMessage', { chat_id: chatId, message_id: stMsg.result.message_id }).catch(()=>({}));
+      await this.sendAdminHome(chatId, lang);
+    } catch(e) {
+      this.logError('Broadcast preparation failed', e, { chat_id: chatId });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
+      await dbHelper.deleteAdminState(chatId);
+    }
+  }
+
+  async sendAnnouncementLive(announcement, adminChatId, statusMsgId, lang) {
+    const users = await dbHelper.getBotUsersByFaculty(this.facultyId, 'telegram');
+    const totalUsers = users.length;
+    let sent = 0;
+    let blocked = 0;
+    let failed = 0;
+    const startTime = Date.now();
+    let lastUpdateTime = Date.now();
+    
+    const updateProgress = async (final = false) => {
+       const now = Date.now();
+       if (!final && now - lastUpdateTime < 1000) return; // Update at most once per second
+       lastUpdateTime = now;
+       
+       const avgLatencyMs = sent > 0 ? Math.round((now - startTime) / sent) : 0;
+       const reach = (totalUsers - blocked) > 0 ? ((sent / (totalUsers - blocked)) * 100).toFixed(1) : 0;
+       
+       const txt = lang === 'ar' ? 
+          `⏳ **جاري بث الإعلان...**\n\n👥 إجمالي الطلاب: ${totalUsers}\n✅ تم الإرسال إلى: ${sent}\n❌ لم يصلهم (حظر/حذف): ${blocked}\n⚠️ فشل (أخرى): ${failed}\n📈 نسبة الوصول: ${reach}%\n⏱️ سرعة الاستجابة الحالية: ${avgLatencyMs}ms\n\n${final ? '✅ **اكتمل البث بنجاح!**' : ''}` :
+          `⏳ **Broadcasting...**\n\n👥 Total: ${totalUsers}\n✅ Sent: ${sent}\n❌ Blocked: ${blocked}\n⚠️ Failed: ${failed}\n📈 Reach: ${reach}%\n⏱️ Speed/Latency: ${avgLatencyMs}ms\n\n${final ? '✅ **Complete!**' : ''}`;
+          
+       if (statusMsgId && adminChatId) {
+          await this.apiCall('editMessageText', { chat_id: adminChatId, message_id: statusMsgId, text: txt, parse_mode: 'Markdown' });
+       } else if (adminChatId) {
+          const m = await this.apiCall('sendMessage', { chat_id: adminChatId, text: txt, parse_mode: 'Markdown' });
+          if (m.result) statusMsgId = m.result.message_id;
+       }
+    };
+    
+    for (const user of users) {
+      try {
+        await this.withRetry(async () => {
+          const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
+          const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
+          // Clean format without 'translated'
+          const txt = `📢 *${title}*\n\n${content}`;
+          
+          let res;
+          if (announcement.telegram_file_id) {
+            res = await this.sendTelegramFile(
+              user.chat_id,
+              { telegram_file_id: announcement.telegram_file_id, file_name: announcement.file_name, mime_type: announcement.mime_type || null },
+              txt,
+              { parse_mode: 'Markdown' }
+            );
+          } else {
+            res = await this.apiCall('sendMessage', { chat_id: user.chat_id, text: txt, parse_mode: 'Markdown' });
+          }
+          
+          if (res && res.ok && res.result && res.result.message_id) {
+             const msgId = res.result.message_id;
+             await dbHelper.addAnnouncementMessage(announcement.id, user.chat_id, msgId);
+             
+             if (announcement.is_pinned) {
+                await this.apiCall('pinChatMessage', { chat_id: user.chat_id, message_id: msgId, disable_notification: false });
+             }
+             sent++;
+          } else if (res && !res.ok) {
+             if (res.error_code === 403) blocked++;
+             else failed++;
+          }
+        });
+        
+        await updateProgress();
+      } catch(e) {
+        failed++;
+      }
+    }
+    
+    await updateProgress(true);
+  }
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم البث!' : '✅ Broadcasted!' });
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
@@ -1421,6 +1602,38 @@ class TelegramBotService {
     }
   }
 
+  async sendAdminAnnouncementsList(chatId, lang) {
+    const anns = await dbHelper.getAnnouncementsByFaculty(this.facultyId);
+    if (!anns || anns.length === 0) {
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'لا توجد إعلانات سابقة.' : 'No previous announcements.' });
+      return;
+    }
+    
+    // Show the last 5 announcements
+    const recentAnns = anns.slice(0, 5);
+    for (const ann of recentAnns) {
+      const title = lang === 'ar' ? ann.title_ar : ann.title_en;
+      const date = new Date(ann.sent_at).toLocaleString('en-US', { timeZone: 'Asia/Damascus' });
+      const txt = `📢 *${title}*\n📅 ${date}\n${ann.is_pinned ? '📌 (Pinned)' : ''}`;
+      
+      const inlineKeyboard = [
+        [{ text: lang === 'ar' ? '✏️ تعديل الإعلان' : '✏️ Edit', callback_data: `edit_ann_${ann.id}` }],
+        [{ text: lang === 'ar' ? '🗑️ حذف الإعلان من الجميع' : '🗑️ Delete', callback_data: `del_ann_${ann.id}` }]
+      ];
+      
+      if (ann.is_pinned) {
+        inlineKeyboard.push([{ text: lang === 'ar' ? '❌ إلغاء التثبيت' : '❌ Unpin', callback_data: `unpin_ann_${ann.id}` }]);
+      }
+      
+      await this.apiCall('sendMessage', { 
+        chat_id: chatId, 
+        text: txt, 
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: inlineKeyboard }
+      });
+    }
+  }
+
   async sendAdminHome(chatId, lang) {
     const faculty = await dbHelper.getFacultyById(this.facultyId);
     const centralAdminId = faculty && faculty.admin_chat_id ? faculty.admin_chat_id.split(',')[0].trim() : null;
@@ -1428,8 +1641,8 @@ class TelegramBotService {
 
     const keyboard = [
       [{ text: lang === 'ar' ? '📂 إدارة القوائم والملفات' : '📂 Manage Menus & Files' }],
-      [{ text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' },
-       { text: lang === 'ar' ? '📊 إحصائيات البوت' : '📊 Bot Statistics' }]
+      [{ text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' }, { text: lang === 'ar' ? '📋 إدارة الإعلانات' : '📋 Manage Announcements' }],
+      [{ text: lang === 'ar' ? '📊 إحصائيات البوت' : '📊 Bot Statistics' }]
     ];
     
     if (isCentralAdmin) {
@@ -2025,30 +2238,8 @@ class TelegramBotService {
   }
 
   async sendAnnouncement(announcement) {
-    const users = await dbHelper.getBotUsersByFaculty(this.facultyId, 'telegram');
-    for (const user of users) {
-      try {
-        await this.withRetry(async () => {
-          const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
-          const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
-          const txt = `📢 *${title}*\n\n${content}`;
-          
-          if (announcement.telegram_file_id) {
-            const res = await this.sendTelegramFile(
-              user.chat_id,
-              { telegram_file_id: announcement.telegram_file_id, file_name: announcement.file_name, mime_type: announcement.mime_type || null },
-              txt
-            );
-            if (res && !res.ok) throw new Error(res.description);
-          } else {
-            const res = await this.apiCall('sendMessage', { chat_id: user.chat_id, text: txt, parse_mode: 'Markdown' });
-            if (res && !res.ok) throw new Error(res.description);
-          }
-        });
-      } catch(e) {
-        this.logError('Failed to deliver announcement to user after retries', e, { chat_id: user.chat_id });
-      }
-    }
+    // Fallback for API usage
+    await this.sendAnnouncementLive(announcement, null, null, 'ar');
   }
 
   async translateArToEn(text) {

@@ -206,6 +206,16 @@ async function initDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS announcement_messages (
+      id SERIAL PRIMARY KEY,
+      announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+      chat_id TEXT NOT NULL,
+      message_id INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Idempotent Migration: Move existing single files from menus to menu_files
   await pool.query(`
     INSERT INTO menu_files (menu_id, telegram_file_id, file_name, mime_type, file_size, sort_order)
@@ -250,7 +260,8 @@ async function initDb() {
     `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS no_file_msg_ar TEXT;`,
     `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();`,
     `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;`,
-    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0;`
+    `ALTER TABLE menus ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0;`,
+    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;`
   ];
 
   for (const q of alterQueries) {
@@ -520,12 +531,41 @@ async function getAnnouncementsByFaculty(facultyId) {
   return rows; // Unlikely to need heavy caching for announcements list since it's only occasionally fetched by users/admins
 }
 
-async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize) {
+async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, isPinned = false) {
   const { rows } = await pool.query(`
-    INSERT INTO announcements (faculty_id, title_en, title_ar, content_en, content_ar, file_name, telegram_file_id, mime_type, file_size)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-  `, [facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize]);
+    INSERT INTO announcements (faculty_id, title_en, title_ar, content_en, content_ar, file_name, telegram_file_id, mime_type, file_size, is_pinned)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+  `, [facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, isPinned]);
   return rows[0].id;
+}
+
+async function addAnnouncementMessage(announcementId, chatId, messageId) {
+  try {
+    await pool.query('INSERT INTO announcement_messages (announcement_id, chat_id, message_id) VALUES ($1, $2, $3)', [announcementId, chatId, messageId]);
+  } catch(e) {
+    logger.warn('Failed to save announcement message ' + e.message);
+  }
+}
+
+async function getAnnouncementMessages(announcementId) {
+  const { rows } = await pool.query('SELECT chat_id, message_id FROM announcement_messages WHERE announcement_id = $1', [announcementId]);
+  return rows;
+}
+
+async function getAnnouncementById(announcementId) {
+  const { rows } = await pool.query('SELECT * FROM announcements WHERE id = $1', [announcementId]);
+  return rows.length ? rows[0] : null;
+}
+
+async function updateAnnouncementContent(id, titleAr, titleEn, contentAr, contentEn) {
+  await pool.query(
+    'UPDATE announcements SET title_ar = $1, title_en = $2, content_ar = $3, content_en = $4 WHERE id = $5',
+    [titleAr, titleEn, contentAr, contentEn, id]
+  );
+}
+
+async function deleteAnnouncement(id) {
+  await pool.query('DELETE FROM announcements WHERE id = $1', [id]);
 }
 
 async function updateAnnouncementFileId(id, fileId) {
@@ -702,6 +742,11 @@ async function incrementMenuClickCount(menuId) {
 }
 
 module.exports = {
+  addAnnouncementMessage,
+  getAnnouncementMessages,
+  getAnnouncementById,
+  updateAnnouncementContent,
+  deleteAnnouncement,
   updateUserActivity,
   blockBotUser,
   incrementMenuClickCount,
