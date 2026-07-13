@@ -1,4 +1,4 @@
-﻿const https = require('node:https');
+const https = require('node:https');
 const crypto = require('node:crypto');
 const FormData = require('form-data');
 const dbHelper = require('./database');
@@ -279,10 +279,10 @@ class TelegramBotService {
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim());
       for (const adminId of adminIds) {
         if (adminId) {
-          const userStr = message.from.username ? @ : message.from.first_name;
+          const userStr = message.from.username ? `@${message.from.username}` : message.from.first_name;
           await this.apiCall('sendMessage', { 
             chat_id: adminId, 
-            text: 👀 **مراقبة النشاط**\n\n👤 المستخدم:  (ID: )\n💬 النص: ,
+            text: `👀 **مراقبة النشاط**\n\n👤 المستخدم: ${userStr} (ID: ${message.from.id})\n💬 النص: ${message.text || ''}`,
             parse_mode: 'Markdown'
           });
         }
