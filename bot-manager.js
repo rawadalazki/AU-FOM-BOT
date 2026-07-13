@@ -1411,6 +1411,33 @@ class TelegramBotService {
     });
   }
 
+
+  async sendTelegramFile(chatId, file, caption = null, replyMarkup = null) {
+    const telegramFileId = file.telegram_file_id;
+    if (!telegramFileId) throw new Error('No telegram_file_id available for this file');
+
+    const method = this._getTelegramMethodForMime(file.mime_type);
+    const field = this._getFieldNameForMethod(method);
+    const payload = { chat_id: chatId, [field]: telegramFileId };
+    if (caption) payload.caption = caption;
+    if (replyMarkup) payload.reply_markup = replyMarkup;
+
+    try {
+      const res = await this.apiCall(method, payload);
+      if (res.ok) return res;
+
+      // If a specific method failed, fall back to sendDocument
+      if (method !== 'sendDocument') {
+        this.logWarn(`${method} failed for ${file.file_name}, falling back to sendDocument`, { description: res.description });
+        const fbPayload = { chat_id: chatId, document: telegramFileId };
+        if (caption) fbPayload.caption = caption;
+        if (replyMarkup) fbPayload.reply_markup = replyMarkup;
+        const fbRes = await this.apiCall('sendDocument', fbPayload);
+        if (fbRes.ok) return fbRes;
+        throw new Error(fbRes.description);
+      }
+      throw new Error(res.description);
+    } catch (e) {
       throw e;
     }
   }
@@ -1650,3 +1677,4 @@ module.exports = {
   getWebhookSecret,
   getBotService
 };
+
