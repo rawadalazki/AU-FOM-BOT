@@ -172,7 +172,7 @@ class AdminMenuNavigation {
       }
 
       // 2. Navigation Actions
-      if (text.includes('المستوى السابق') || text.includes('Parent Menu')) {
+      if (text.includes('المستوى السابق') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('عودة') || text.includes('Back')) {
         if (state.currentMenuId !== null) {
           const pMenu = await dbHelper.getMenuById(state.currentMenuId);
           const targetId = pMenu ? pMenu.parent_id : null;
@@ -191,6 +191,9 @@ class AdminMenuNavigation {
             }
           }
           await this.sendAdminReplyMenus(botCtx, chatId, targetId, lang);
+        } else {
+          // If already at root and they press back, just reload root or send to admin home
+          await this.sendAdminReplyMenus(botCtx, chatId, null, lang);
         }
         return true;
       }
