@@ -1271,14 +1271,18 @@ class TelegramBotService {
           break;
         }
 
-        const btnParts = text.split('-');
-        if (btnParts.length < 2) {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تنسيق خاطئ. استخدم: الاسم - الرابط' : 'Invalid format. Use: Title - URL' });
-          break;
+        let bTitleAr = '';
+        let bUrl = '';
+        
+        if (text.includes('-')) {
+          const btnParts = text.split('-');
+          bTitleAr = btnParts[0].trim();
+          bUrl = btnParts.slice(1).join('-').trim();
+        } else {
+          bTitleAr = text.trim();
+          bUrl = text.trim();
         }
-
-        const bTitleAr = btnParts[0].trim();
-        const bUrl = btnParts.slice(1).join('-').trim();
+        
         // No validation needed here, it will be mapped correctly at render time
         
         const bTitleEn = await this.translateArToEn(bTitleAr);
@@ -1968,7 +1972,16 @@ class TelegramBotService {
               const btns = JSON.parse(menu.inline_buttons);
               if (btns && btns.length > 0) {
                 btns.forEach(b => {
-                  kbButtons.push([{ text: lang === 'ar' ? b.text_ar : b.text_en, url: b.url }]);
+                  const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };
+                  const link = (b.url || '').trim();
+                  if (link.startsWith('@')) {
+                    btn.url = 'https://t.me/' + link.substring(1);
+                  } else if (link.startsWith('http') || link.startsWith('tg://')) {
+                    btn.url = link;
+                  } else {
+                    btn.callback_data = 'btn_cmd_' + link;
+                  }
+                  kbButtons.push([btn]);
                 });
               }
             } catch(e) {}
