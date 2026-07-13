@@ -1381,14 +1381,25 @@ class TelegramBotService {
       promptText = lang === 'ar' ? pMenu.title_ar : pMenu.title_en;
     }
 
+    const rowsMap = new Map();
+    currentLevel.forEach(item => {
+      const ri = item.row_index || 0;
+      if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+      rowsMap.get(ri).push(item);
+    });
+
+    const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
     const keyboard = [];
-    for (let i = 0; i < currentLevel.length; i += 2) {
-      const row = [{ text: lang === 'ar' ? currentLevel[i].title_ar : currentLevel[i].title_en }];
-      if (i + 1 < currentLevel.length) {
-        row.push({ text: lang === 'ar' ? currentLevel[i+1].title_ar : currentLevel[i+1].title_en });
+
+    sortedRows.forEach(ri => {
+      const rowItems = rowsMap.get(ri).sort((a,b) => a.sort_order - b.sort_order);
+      const maxButtonsPerRow = 3;
+      for (let i = 0; i < rowItems.length; i += maxButtonsPerRow) {
+        const chunk = rowItems.slice(i, i + maxButtonsPerRow);
+        const row = chunk.map(item => ({ text: lang === 'ar' ? item.title_ar : item.title_en }));
+        keyboard.push(row);
       }
-      keyboard.push(row);
-    }
+    });
 
     if (parentId !== null) {
       keyboard.push([{ text: lang === 'ar' ? '⬅️ عودة' : '⬅️ Back' }]);
