@@ -1590,13 +1590,7 @@ class TelegramBotService {
         parse_mode: 'HTML',
         reply_markup: replyMarkup
       });
-    } else {
-      const res = await this.apiCall('sendMessage', {
-        chat_id: chatId,
-        text: promptText,
-        parse_mode: 'HTML',
-        reply_markup: replyMarkup
-      });
+    }
 
     if (!res.ok) {
       this.logError('Failed to send menu', null, { description: res.description, promptText, chat_id: chatId });
