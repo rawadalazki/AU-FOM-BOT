@@ -370,7 +370,7 @@ class TelegramBotService {
         return;
       }
       
-      if (text === '🛠️ Admin Panel' || text === '🛠️ لوحة التحكم للمشرفين') {
+      if (text === '🛠️ Admin Panel' || text === '🛠️ لوحة تحكم المشرفين') {
         if (isAdmin) {
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null });
           await this.sendAdminReplyMenus(chatId, null, user.language);
