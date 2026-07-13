@@ -1474,7 +1474,8 @@ class TelegramBotService {
         port: 443,
         path: `/bot${this.token}/${method}`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+        timeout: 5000
       }, (res) => {
         let body = '';
         res.on('data', c => body += c);
@@ -1489,6 +1490,10 @@ class TelegramBotService {
             resolve(parsed); 
           } catch(e) { reject(e); }
         });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Telegram API request timed out'));
       });
       req.on('error', (err) => {
         console.error(`[TELEGRAM HTTP ERROR] Method: ${method}, Error: ${err.message}`);
