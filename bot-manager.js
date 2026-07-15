@@ -729,7 +729,8 @@ class TelegramBotService {
       } else if (action === 'order') {
         const menu = await dbHelper.getMenuById(menuId);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', menuId, currentMenuId: menu ? menu.parent_id : null });
-        await this.sendAdminMoveOrder(chatId, menuId, lang);
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+        await AdminMenuNavigation.sendAdminMoveOrderPosition(this, chatId, menuId, lang);
       } else if (action === 'toggleactive') {
         const menu = await dbHelper.getMenuById(menuId);
         await dbHelper.toggleMenuStatus(menuId, 'is_active', menu.is_active === false ? true : false);
@@ -1658,15 +1659,6 @@ class TelegramBotService {
     await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, menuId, lang);
   }
 
-  async sendAdminMoveOrder(chatId, menuId, lang) {
-    const AdminMenuNavigation = require('./admin-menu-navigation');
-    await AdminMenuNavigation.sendAdminMoveOrder(this, chatId, menuId, lang);
-  }
-
-  async moveMenuOrder(chatId, menuId, direction, lang) {
-    const AdminMenuNavigation = require('./admin-menu-navigation');
-    await AdminMenuNavigation.moveMenuOrder(this, chatId, menuId, direction, lang);
-  }
 
   async sendLanguageSelection(chatId) {
     await this.apiCall('sendMessage', {
