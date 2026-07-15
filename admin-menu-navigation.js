@@ -123,43 +123,118 @@ class AdminMenuNavigation {
     if (!menu) return;
 
     const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
-    const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
+    const siblings = menus.filter(m => m.parent_id === menu.parent_id);
     
-    const kb = [];
-    
-    siblings.forEach((s, index) => {
-      kb.push([{ text: `📍 انقل إلى هذا السطر (${index + 1})` }]);
-      const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
-      const title = lang === 'ar' ? s.title_ar : s.title_en;
-      const marker = s.id === menuId ? '🔄 ' : ''; 
-      kb.push([{ text: `${marker}${icon} ${title}` }]);
+    // Group siblings by row_index
+    const rowsMap = new Map();
+    siblings.forEach(item => {
+      const ri = item.row_index || 0;
+      if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+      rowsMap.get(ri).push(item);
     });
-    
-    kb.push([{ text: '📍 انقل إلى نهاية القائمة' }]);
+
+    const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
+    const kb = [];
+
+    let rowDisplayCount = 1;
+
+    sortedRows.forEach(ri => {
+      const rowItems = rowsMap.get(ri).sort((a,b) => a.sort_order - b.sort_order);
+      // Exclude the currently moving button from the row capacity calculation
+      const rowItemsExcludingMoving = rowItems.filter(m => m.id !== menuId);
+      
+      if (rowItemsExcludingMoving.length > 0) {
+        if (rowItemsExcludingMoving.length < 3) {
+          const buttonNames = rowItemsExcludingMoving.map(m => lang === 'ar' ? m.title_ar : m.title_en).join('، ');
+          kb.push([{ text: `📍 السطر ${rowDisplayCount} (${buttonNames})` }]);
+        }
+        rowDisplayCount++;
+      }
+    });
+
+    kb.push([{ text: '📍 سطر جديد في نهاية القائمة' }]);
     kb.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
     
-    const txt = lang === 'ar' ? 'اختر الموضع الجديد الذي تريد نقل الزر إليه:' : 'Choose the new position for the button:';
+    const txt = lang === 'ar' ? 'اختر السطر الذي تريد نقل الزر إليه:' : 'Choose the row to move the button to:';
     await botCtx.apiCall('sendMessage', { chat_id: chatId, text: txt, reply_markup: { keyboard: kb, resize_keyboard: true } });
   }
 
-  static async moveMenuOrderPosition(botCtx, chatId, menuId, newPositionIndex, lang) {
+  static async moveMenuOrderPosition(botCtx, chatId, menuId, targetRowDisplay, lang) {
     const menu = await dbHelper.getMenuById(menuId);
     if (!menu) return;
 
     const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
-    const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
+    const siblings = menus.filter(m => m.parent_id === menu.parent_id);
     
-    const filteredSiblings = siblings.filter(m => m.id !== menuId);
+    const rowsMap = new Map();
+    siblings.forEach(item => {
+      const ri = item.row_index || 0;
+      if (!rowsMap.has(ri)) rowsMap.set(ri, []);
+      rowsMap.get(ri).push(item);
+    });
+
+    const sortedRows = Array.from(rowsMap.keys()).sort((a,b) => a - b);
     
-    let finalIndex = newPositionIndex;
-    if (finalIndex < 0) finalIndex = 0;
-    if (finalIndex > filteredSiblings.length) finalIndex = filteredSiblings.length;
+    let targetRowIndex = -1;
+
+    if (targetRowDisplay === 'new') {
+      targetRowIndex = sortedRows.length > 0 ? sortedRows[sortedRows.length - 1] + 1 : 0;
+    } else {
+      let rowDisplayCount = 1;
+      for (const ri of sortedRows) {
+        const rowItems = rowsMap.get(ri);
+        const rowItemsExcludingMoving = rowItems.filter(m => m.id !== menuId);
+        
+        if (rowItemsExcludingMoving.length > 0) {
+          if (rowDisplayCount === targetRowDisplay) {
+            targetRowIndex = ri;
+            break;
+          }
+          rowDisplayCount++;
+        }
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ أثناء تحديد السطر.' : '⚠️ Error identifying row.' });
+      return;
+    }
+
+    // Change the moving menu's row_index
+    menu.row_index = targetRowIndex;
     
-    filteredSiblings.splice(finalIndex, 0, menu);
+    // We now have all siblings including the moved menu with their updated row_index
+    // We must sequence all row_indices to 0, 1, 2... and sort_order within each row
+    const newRowsMap = new Map();
+    siblings.forEach(item => {
+      const ri = item.id === menu.id ? targetRowIndex : (item.row_index || 0);
+      if (!newRowsMap.has(ri)) newRowsMap.set(ri, []);
+      newRowsMap.get(ri).push(item);
+    });
+
+    const newSortedRows = Array.from(newRowsMap.keys()).sort((a,b) => a - b);
     
-    for (let i = 0; i < filteredSiblings.length; i++) {
-      const item = filteredSiblings[i];
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [i + 1, item.id]);
+    let globalRowIndex = 0;
+    for (const ri of newSortedRows) {
+      const itemsInRow = newRowsMap.get(ri);
+      // If a row is completely empty, it is naturally skipped because newRowsMap only has populated rows!
+      if (itemsInRow.length > 0) {
+        // Sort items inside this row. The newly moved menu should be at the end.
+        // We do this by sorting existing ones by sort_order, but the moved one gets put at the end artificially
+        const existingItems = itemsInRow.filter(m => m.id !== menu.id).sort((a,b) => a.sort_order - b.sort_order);
+        const movedItem = itemsInRow.find(m => m.id === menu.id);
+        
+        if (movedItem) {
+          existingItems.push(movedItem);
+        }
+
+        for (let i = 0; i < existingItems.length; i++) {
+          const item = existingItems[i];
+          // We update row_index = globalRowIndex and sort_order = i + 1
+          await dbHelper.runQuery('UPDATE menus SET row_index = $1, sort_order = $2 WHERE id = $3', [globalRowIndex, i + 1, item.id]);
+        }
+        globalRowIndex++;
+      }
     }
     
     await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم نقل الزر بنجاح.' : '✅ Button moved successfully.', reply_markup: { remove_keyboard: true } });
@@ -262,21 +337,19 @@ class AdminMenuNavigation {
         return true;
       }
 
-      let newPositionIndex = null;
+      let targetRowDisplay = null;
       
-      if (text.includes('📍 انقل إلى هذا السطر (')) {
-        // Extract the number
-        const match = text.match(/\((\d+)\)/);
+      if (text.includes('📍 السطر ')) {
+        const match = text.match(/📍 السطر (\d+)/);
         if (match) {
-          newPositionIndex = parseInt(match[1], 10) - 1; // 0-based index
+          targetRowDisplay = parseInt(match[1], 10);
         }
-      } else if (text.includes('📍 انقل إلى نهاية القائمة')) {
-        // Will be bounded to max length in the move function
-        newPositionIndex = 99999;
+      } else if (text.includes('📍 سطر جديد في نهاية القائمة')) {
+        targetRowDisplay = 'new';
       }
 
-      if (newPositionIndex !== null) {
-        await this.moveMenuOrderPosition(botCtx, chatId, targetMenuId, newPositionIndex, lang);
+      if (targetRowDisplay !== null) {
+        await this.moveMenuOrderPosition(botCtx, chatId, targetMenuId, targetRowDisplay, lang);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
       }
       return true;
