@@ -748,7 +748,7 @@ class TelegramBotService {
       return;
     }
 
-    if (text === '/cancel' || text === '⬅️ إلغاء الأمر' || text === '⬅️ Cancel Operation') {
+    if (text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) {
       const isHome = state.action === 'admin_home' || !state.action;
       if (isHome) {
         await dbHelper.deleteAdminState(chatId);
