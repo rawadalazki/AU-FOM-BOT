@@ -1178,7 +1178,7 @@ class TelegramBotService {
       case 'awaiting_rename_title_ar':
         const rTitleEn = await this.translateArToEn(text);
         const rMenu = await dbHelper.getMenuById(state.menuId);
-        await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu.reply_content_en, rMenu.reply_content_ar, rMenu.file_name, rMenu.telegram_file_id, rMenu.mime_type, rMenu.file_size, rMenu.sort_order);
+        await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu.reply_content_en, rMenu.reply_content_ar, rMenu.file_name, rMenu.telegram_file_id, rMenu.mime_type, rMenu.file_size, rMenu.sort_order, rMenu.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: rMenu.parent_id, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إعادة التسمية بنجاح!' : '✅ Renamed!' });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
@@ -1187,7 +1187,7 @@ class TelegramBotService {
       case 'awaiting_edit_submenu_ar':
         const rSubEn = await this.translateArToEn(text);
         const rMenu2 = await dbHelper.getMenuById(state.menuId);
-        await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu2.reply_type, rSubEn, text, rMenu2.file_name, rMenu2.telegram_file_id, rMenu2.mime_type, rMenu2.file_size, rMenu2.sort_order);
+        await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu2.reply_type, rSubEn, text, rMenu2.file_name, rMenu2.telegram_file_id, rMenu2.mime_type, rMenu2.file_size, rMenu2.sort_order, rMenu2.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: rMenu2.parent_id, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث الرسالة التمهيدية!' : '✅ Prompt message updated!' });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
@@ -1196,7 +1196,7 @@ class TelegramBotService {
       case 'awaiting_edit_text_ar':
         const textEn = await this.translateArToEn(text);
         const m1 = await dbHelper.getMenuById(state.menuId);
-        await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order);
+        await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order, m1.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m1.parent_id, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث النص!' : '✅ Text updated!' });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
@@ -1247,7 +1247,7 @@ class TelegramBotService {
                 state.captionAr = message.caption;
                 state.captionEn = await this.translateArToEn(message.caption);
                 const m2 = await dbHelper.getMenuById(state.menuId);
-                await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order);
+                await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order, m2.row_index);
               }
 
               const files = await dbHelper.getMenuFiles(state.menuId);
@@ -1279,7 +1279,7 @@ class TelegramBotService {
           cEn = await this.translateArToEn(text);
         }
         
-        await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order);
+        await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order, m3.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم الحفظ بنجاح!' : '✅ Saved successfully!', reply_markup: { remove_keyboard: true } });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
@@ -1288,7 +1288,7 @@ class TelegramBotService {
       case 'awaiting_move_dest':
         const m4 = await dbHelper.getMenuById(state.menuId);
         const targetMenuId = text === 'null' ? null : parseInt(text, 10);
-        await dbHelper.updateMenu(state.menuId, targetMenuId, m4.title_en, m4.title_ar, m4.reply_type, m4.reply_content_en, m4.reply_content_ar, m4.file_name, m4.telegram_file_id, m4.mime_type, m4.file_size, m4.sort_order);
+        await dbHelper.updateMenu(state.menuId, targetMenuId, m4.title_en, m4.title_ar, m4.reply_type, m4.reply_content_en, m4.reply_content_ar, m4.file_name, m4.telegram_file_id, m4.mime_type, m4.file_size, m4.sort_order, m4.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: targetMenuId, viewingMenuDetailsId: state.menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم النقل بنجاح!' : '✅ Moved successfully!' });
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
@@ -1624,7 +1624,7 @@ class TelegramBotService {
       const fileSize = doc.file_size || 0;
 
       await dbHelper.addMenuFile(menu.id, telegramFileId, fileName, mimeType, fileSize);
-      await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, menu.sort_order);
+      await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, menu.sort_order, menu.row_index);
 
       await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id });
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث' : '✅ Updated' });
