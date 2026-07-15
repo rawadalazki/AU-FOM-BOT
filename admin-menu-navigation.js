@@ -118,73 +118,51 @@ class AdminMenuNavigation {
     });
   }
 
-  static async sendAdminMoveOrder(botCtx, chatId, menuId, lang) {
-    const kb = [
-      [
-        { text: '⬆️ Up' },
-        { text: '⬇️ Down' }
-      ],
-      [{ text: lang === 'ar' ? '⬅️ إلغاء الترتيب' : '⬅️ Cancel Order' }]
-    ];
-    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'اختر الاتجاه لزر النقل:' : 'Choose direction:', reply_markup: { keyboard: kb, resize_keyboard: true } });
-  }
-
-  static async moveMenuOrder(botCtx, chatId, menuId, direction, lang) {
-    console.log('[moveMenuOrder]', { menuId, direction });
-    if (!menuId) {
-      console.log('[RETURN A] - menuId is missing');
-      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: الزر غير محدد.' : '⚠️ Error: Button not specified.' });
-      return;
-    }
+  static async sendAdminMoveOrderPosition(botCtx, chatId, menuId, lang) {
     const menu = await dbHelper.getMenuById(menuId);
-    console.log('[moveMenuOrder] after getMenuById:', menu ? menu.id : null);
-    if (!menu) {
-      console.log('[RETURN B] - menu not found in DB');
-      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: لم يتم العثور على الزر.' : '⚠️ Error: Button not found.' });
-      return;
-    }
+    if (!menu) return;
+
     const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
     const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
-    console.log('[moveMenuOrder] after siblings fetch, count:', siblings.length);
-    const idx = siblings.findIndex(m => m.id === menuId);
-    console.log('[moveMenuOrder] after calculating idx:', idx);
-
-    const targetIndex = direction === 'up' ? idx - 1 : (direction === 'down' ? idx + 1 : null);
-    console.log('[PRE-UPDATE CHECK]', {
-      idx: idx,
-      siblingsLength: siblings.length,
-      targetIndex: targetIndex,
-      direction: direction
+    
+    const kb = [];
+    
+    siblings.forEach((s, index) => {
+      kb.push([{ text: `📍 انقل إلى هذا السطر (${index + 1})` }]);
+      const icon = s.reply_type === 'submenu' ? '📁' : (s.reply_type === 'file' ? '📄' : '📝');
+      const title = lang === 'ar' ? s.title_ar : s.title_en;
+      const marker = s.id === menuId ? '🔄 ' : ''; 
+      kb.push([{ text: `${marker}${icon} ${title}` }]);
     });
+    
+    kb.push([{ text: '📍 انقل إلى نهاية القائمة' }]);
+    kb.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
+    
+    const txt = lang === 'ar' ? 'اختر الموضع الجديد الذي تريد نقل الزر إليه:' : 'Choose the new position for the button:';
+    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: txt, reply_markup: { keyboard: kb, resize_keyboard: true } });
+  }
 
-    if (direction === 'up' && idx > 0) {
-      const swap = siblings[idx - 1];
-      const temp = menu.sort_order;
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-      
-      const checkMenu = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [menu.id]);
-      const checkSwap = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [swap.id]);
-      console.log('[moveMenuOrder] AFTER UP:', {
-        movedElement: checkMenu.rows[0],
-        swappedElement: checkSwap.rows[0]
-      });
+  static async moveMenuOrderPosition(botCtx, chatId, menuId, newPositionIndex, lang) {
+    const menu = await dbHelper.getMenuById(menuId);
+    if (!menu) return;
 
-    } else if (direction === 'down' && idx < siblings.length - 1) {
-      const swap = siblings[idx + 1];
-      const temp = menu.sort_order;
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
-      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-      
-      const checkMenu = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [menu.id]);
-      const checkSwap = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [swap.id]);
-      console.log('[moveMenuOrder] AFTER DOWN:', {
-        movedElement: checkMenu.rows[0],
-        swappedElement: checkSwap.rows[0]
-      });
+    const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
+    const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
+    
+    const filteredSiblings = siblings.filter(m => m.id !== menuId);
+    
+    let finalIndex = newPositionIndex;
+    if (finalIndex < 0) finalIndex = 0;
+    if (finalIndex > filteredSiblings.length) finalIndex = filteredSiblings.length;
+    
+    filteredSiblings.splice(finalIndex, 0, menu);
+    
+    for (let i = 0; i < filteredSiblings.length; i++) {
+      const item = filteredSiblings[i];
+      await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [i + 1, item.id]);
     }
     
-    console.log('[moveMenuOrder] before sending menu details (return)');
+    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم نقل الزر بنجاح.' : '✅ Button moved successfully.', reply_markup: { remove_keyboard: true } });
     await this.sendAdminMenuDetails(botCtx, chatId, menuId, lang);
   }
 
@@ -278,32 +256,27 @@ class AdminMenuNavigation {
 
     if (state.action === 'managing_menus_move_order') {
       const targetMenuId = state.menuId || state.viewingMenuDetailsId;
-      if (text.includes('إلغاء الترتيب') || text.includes('Cancel Order')) {
+      if (text.includes('إلغاء') || text.includes('Cancel')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
         await this.sendAdminMenuDetails(botCtx, chatId, targetMenuId, lang);
         return true;
       }
-      let direction = null;
-      if (text.includes('Up') || text.includes('⬆️')) direction = 'up';
-      if (text.includes('Down') || text.includes('⬇️')) direction = 'down';
 
-      if (direction) {
-        await dbHelper.setAdminState(chatId, {
-          action: state.action,
-          menuId: targetMenuId,
-          currentMenuId: state.currentMenuId,
-          direction
-        });
+      let newPositionIndex = null;
+      
+      if (text.includes('📍 انقل إلى هذا السطر (')) {
+        // Extract the number
+        const match = text.match(/\((\d+)\)/);
+        if (match) {
+          newPositionIndex = parseInt(match[1], 10) - 1; // 0-based index
+        }
+      } else if (text.includes('📍 انقل إلى نهاية القائمة')) {
+        // Will be bounded to max length in the move function
+        newPositionIndex = 99999;
+      }
 
-        console.log({
-          action: state.action,
-          menuId: targetMenuId,
-          currentMenuId: state.currentMenuId,
-          direction
-        });
-
-        await this.moveMenuOrder(botCtx, chatId, targetMenuId, direction, lang);
-
+      if (newPositionIndex !== null) {
+        await this.moveMenuOrderPosition(botCtx, chatId, targetMenuId, newPositionIndex, lang);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
       }
       return true;
