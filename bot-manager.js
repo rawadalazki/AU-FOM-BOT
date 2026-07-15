@@ -398,6 +398,11 @@ class TelegramBotService {
         await this.handleBackNavigation(chatId, user);
         return;
       }
+      if (text === '🏠 الرئيسية' || text === '🏠 Home') {
+        await dbHelper.updateBotUserMenu(user.id, null);
+        await this.sendMenu(chatId, null, user.language);
+        return;
+      }
       
       const faculty = await dbHelper.getFacultyById(this.facultyId);
       let unknownMsg = user.language === 'ar' ? 'عذراً، لم أفهم طلبك. الرجاء اختيار من القائمة.' : 'Sorry, I did not understand that. Please select from the menu.';
@@ -950,19 +955,19 @@ class TelegramBotService {
         return this.handleAdminStateMessage(chatId, { text: lang === 'ar' ? 'إعدادات' : 'Settings' }, lang, { action: 'managing_admin' });
       } else if (text.includes('الترحيب') || text.includes('Welcome Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_welcome_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الترحيب الجديدة (بالعربي):' : 'Send new welcome message (Arabic):', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الترحيب الجديدة (بالعربي):' : 'Send new welcome message (Arabic):', reply_markup: cancelKb });
       } else if (text.includes('رسالة الإيقاف') || text.includes('Maintenance Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_disabled_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الإيقاف للصيانة (بالعربي):' : 'Send maintenance message (Arabic):', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الإيقاف للصيانة (بالعربي):' : 'Send maintenance message (Arabic):', reply_markup: cancelKb });
       } else if (text.includes('رسالة الزر الفارغ') || text.includes('Empty Button Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_empty_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عند الضغط على زر لا يحتوي على نص مخصص (بالعربي):' : 'Send new empty button message (Arabic):', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عند الضغط على زر لا يحتوي على نص مخصص (بالعربي):' : 'Send new empty button message (Arabic):', reply_markup: cancelKb });
       } else if (text.includes('نص غير معروف') || text.includes('Unknown Text Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_unknown_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يرسل المستخدم نصاً لا يفهمه البوت (بالعربي):' : 'Send message for unknown user input (Arabic):', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يرسل المستخدم نصاً لا يفهمه البوت (بالعربي):' : 'Send message for unknown user input (Arabic):', reply_markup: cancelKb });
       } else if (text.includes('لا يوجد ملف') || text.includes('No File Msg')) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_no_file_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يحاول المستخدم فتح زر ملف ولكن الملف محذوف (بالعربي):' : 'Send message when a file is missing (Arabic):', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يحاول المستخدم فتح زر ملف ولكن الملف محذوف (بالعربي):' : 'Send message when a file is missing (Arabic):', reply_markup: cancelKb });
       }
       return;
     }
@@ -1138,6 +1143,18 @@ class TelegramBotService {
           } else { 
             await dbHelper.deleteAdminState(chatId); 
             await this.sendAdminHome(chatId, lang); 
+          }
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع عن الحذف.' : 'Deletion cancelled.', reply_markup: { remove_keyboard: true } });
+          if (state.menuId) {
+            const mFile = await dbHelper.getMenuById(state.menuId);
+            if (mFile) {
+              await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: mFile.parent_id, viewingMenuDetailsId: state.menuId });
+              await this.sendAdminMenuDetails(chatId, state.menuId, lang);
+            }
+          } else {
+            await dbHelper.deleteAdminState(chatId);
+            await this.sendAdminHome(chatId, lang);
           }
         }
         break;
@@ -1753,7 +1770,12 @@ class TelegramBotService {
     });
 
     if (parentId !== null) {
-      keyboard.push([{ text: lang === 'ar' ? '🔙 عودة' : '🔙 Back' }]);
+      const backRow = [{ text: lang === 'ar' ? '🔙 عودة' : '🔙 Back' }];
+      const pMenu = menus.find(m => m.id === parentId);
+      if (pMenu && pMenu.parent_id !== null) {
+        backRow.push({ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' });
+      }
+      keyboard.push(backRow);
     }
 
     if (isAdmin && parentId === null) {
