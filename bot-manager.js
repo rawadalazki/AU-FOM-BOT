@@ -790,19 +790,19 @@ class TelegramBotService {
 
   // --- Admin State Machine ---
   async handleAdminStateMessage(chatId, message, lang, state) {
-    const text = message.text || '';
+    let text = message.text || '';
 
     // Global admin intercepts for navigation
     if (text === '❌ إغلاق' || text === '❌ Close') {
       await dbHelper.deleteAdminState(chatId);
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة الإدارة.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       if (userObj) {
-        await this.handleMessage({ text: '/start', chat: { id: chatId }, from: { id: chatId, username: userObj.username, first_name: userObj.username } });
+        await this.sendUserHome(chatId, userObj.language);
       }
       return;
     }
-    
+
     if (text === '🏠 الرئيسية' || text === '🏠 Home') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, lang);
@@ -814,6 +814,22 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
       await this.sendAdminHome(chatId, lang);
       return;
+    }
+
+    const premiumTextStates = [
+      'awaiting_edit_submenu_ar',
+      'awaiting_edit_text_ar',
+      'awaiting_edit_file_cap_ar',
+      'awaiting_welcome_ar',
+      'awaiting_disabled_msg_ar',
+      'awaiting_empty_msg_ar',
+      'awaiting_unknown_msg_ar',
+      'awaiting_no_file_msg_ar',
+      'awaiting_announcement_text',
+      'awaiting_edit_ann_text'
+    ];
+    if (premiumTextStates.includes(state.action)) {
+      text = this.parsePremiumEmojis(message) || text;
     }
 
     const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
@@ -2165,6 +2181,28 @@ class TelegramBotService {
     if (message.video) return { file_id: message.video.file_id, file_name: message.video.file_name || 'video.mp4', mime_type: message.video.mime_type || 'video/mp4', file_size: message.video.file_size };
     if (message.animation) return { file_id: message.animation.file_id, file_name: message.animation.file_name || 'animation.gif', mime_type: message.animation.mime_type || 'image/gif', file_size: message.animation.file_size };
     return null;
+  }
+
+  parsePremiumEmojis(message) {
+    if (!message || !message.text) return '';
+    let text = message.text;
+    
+    // Convert Telegram custom emoji entities to HTML <tg-emoji> tags
+    if (message.entities) {
+      const customEmojis = message.entities
+        .filter(e => e.type === 'custom_emoji')
+        .sort((a, b) => b.offset - a.offset);
+        
+      for (const e of customEmojis) {
+        if (e.custom_emoji_id) {
+          const prefix = text.substring(0, e.offset);
+          const emojiStr = text.substring(e.offset, e.offset + e.length);
+          const suffix = text.substring(e.offset + e.length);
+          text = prefix + `<tg-emoji emoji-id="${e.custom_emoji_id}">${emojiStr}</tg-emoji>` + suffix;
+        }
+      }
+    }
+    return text;
   }
 }
 
