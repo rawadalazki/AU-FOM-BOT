@@ -633,9 +633,12 @@ class TelegramBotService {
     }
     else if (data.startsWith('del_file_')) {
       const fileId = parseInt(data.replace('del_file_', ''), 10);
-      await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [fileId]);
-      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '🗑️ تم الحذف', show_alert: true });
-      await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
+      const fRes = await dbHelper.runQuery('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
+      const fileMenuId = fRes.rows.length > 0 ? fRes.rows[0].menu_id : null;
+      await dbHelper.setAdminState(chatId, { action: 'awaiting_del_file_confirm', fileId, menuId: fileMenuId });
+      const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('edit_ann_')) {
       const annId = parseInt(data.replace('edit_ann_', ''), 10);
@@ -648,11 +651,9 @@ class TelegramBotService {
     }
     else if (data.startsWith('del_ann_')) {
       const annId = parseInt(data.replace('del_ann_', ''), 10);
-      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-      const lang = userObj ? userObj.language : 'ar';
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
-      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'نعم (تأكيد الحذف)' : 'Yes (Confirm Delete)' }], [{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من رغبتك في حذف هذا الإعلان من جميع رسائل الطلاب؟' : '⚠️ Are you sure you want to delete this from all users?', reply_markup: cancelKb });
+      const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('unpin_ann_')) {
@@ -680,18 +681,16 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
-        const menu = await dbHelper.getMenuById(menuId);
-        await dbHelper.deleteMenu(menuId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الزر' : '✅ Button Deleted' });
-        if (menu) await this.sendAdminReplyMenus(chatId, menu.parent_id, lang);
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_del_btn_confirm', menuId });
+        const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
       } else if (action === 'open') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, menuId, lang);
       } else if (action === 'delcontent') {
-        await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [menuId]);
-        await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [menuId]);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تفريغ الزر' : '✅ Content Cleared' });
-        await this.sendAdminMenuDetails(chatId, menuId, lang);
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_del_content_confirm', menuId });
+        const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
       } else if (action === 'previewfiles') {
         const menu = await dbHelper.getMenuById(menuId);
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض الملفات:' : '👁️ Previewing files:' });
@@ -712,7 +711,7 @@ class TelegramBotService {
         const m = lang === 'ar' ? "اضغط على القائمة (المجلد) التي تريد نقل الزر إليها من الأسفل:" : "Select the destination folder from below:";
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: cancelKb });
       } else if (action === 'order') {
-        await dbHelper.setAdminState(chatId, { action: 'managing_order', menuId });
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', menuId });
         await this.sendAdminMoveOrder(chatId, menuId, lang);
       } else if (action === 'toggleactive') {
         const menu = await dbHelper.getMenuById(menuId);
@@ -1047,7 +1046,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_ann_confirm':
-        if (text.includes('نعم') || text.includes('Yes')) {
+        if (text === '✅ نعم، حذف') {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري حذف الإعلان لدى جميع الطلاب...' : '⏳ Deleting for all users...' });
           
           // Background process
@@ -1066,6 +1065,51 @@ class TelegramBotService {
         }
         await dbHelper.deleteAdminState(chatId);
         await this.sendAdminHome(chatId, lang);
+        break;
+
+      case 'awaiting_del_btn_confirm':
+        if (text === '✅ نعم، حذف') {
+          const menu = await dbHelper.getMenuById(state.menuId);
+          await dbHelper.deleteMenu(state.menuId);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الزر بنجاح' : '✅ Button Deleted', reply_markup: { remove_keyboard: true } });
+          if (menu) {
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id, viewingMenuDetailsId: null });
+            await this.sendAdminReplyMenus(chatId, menu.parent_id, lang);
+          } else {
+            await dbHelper.deleteAdminState(chatId);
+            await this.sendAdminHome(chatId, lang);
+          }
+        }
+        break;
+
+      case 'awaiting_del_content_confirm':
+        if (text === '✅ نعم، حذف') {
+          await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
+          await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [state.menuId]);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تفريغ محتوى الزر' : '✅ Content Cleared', reply_markup: { remove_keyboard: true } });
+          const mContent = await dbHelper.getMenuById(state.menuId);
+          if (mContent) {
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: mContent.parent_id, viewingMenuDetailsId: state.menuId });
+            await this.sendAdminMenuDetails(chatId, state.menuId, lang);
+          }
+        }
+        break;
+
+      case 'awaiting_del_file_confirm':
+        if (text === '✅ نعم، حذف') {
+          await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [state.fileId]);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الملف' : '✅ File deleted', reply_markup: { remove_keyboard: true } });
+          if (state.menuId) {
+            const mFile = await dbHelper.getMenuById(state.menuId);
+            if (mFile) {
+              await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: mFile.parent_id, viewingMenuDetailsId: state.menuId });
+              await this.sendAdminMenuDetails(chatId, state.menuId, lang);
+            }
+          } else { 
+            await dbHelper.deleteAdminState(chatId); 
+            await this.sendAdminHome(chatId, lang); 
+          }
+        }
         break;
 
       case 'awaiting_rename_title_ar':
@@ -1178,7 +1222,7 @@ class TelegramBotService {
         await this.sendAdminMenuDetails(chatId, state.menuId, lang);
         break;
 
-      case 'awaiting_move_target':
+      case 'awaiting_move_dest':
         const m4 = await dbHelper.getMenuById(state.menuId);
         const targetMenuId = text === 'null' ? null : parseInt(text, 10);
         await dbHelper.updateMenu(state.menuId, targetMenuId, m4.title_en, m4.title_ar, m4.reply_type, m4.reply_content_en, m4.reply_content_ar, m4.file_name, m4.telegram_file_id, m4.mime_type, m4.file_size, m4.sort_order);
