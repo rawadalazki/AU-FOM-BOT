@@ -727,7 +727,8 @@ class TelegramBotService {
         
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: { keyboard: kb, resize_keyboard: true } });
       } else if (action === 'order') {
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', menuId });
+        const menu = await dbHelper.getMenuById(menuId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', menuId, currentMenuId: menu ? menu.parent_id : null });
         await this.sendAdminMoveOrder(chatId, menuId, lang);
       } else if (action === 'toggleactive') {
         const menu = await dbHelper.getMenuById(menuId);
