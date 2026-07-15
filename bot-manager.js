@@ -636,7 +636,7 @@ class TelegramBotService {
 
       await this.apiCall('sendMessage', { chat_id: chatId, text: welcome });
       
-      const user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       await this.sendMenu(chatId, user ? user.current_menu_id : null, lang);
     }
     else if (data.startsWith('fp_')) {
