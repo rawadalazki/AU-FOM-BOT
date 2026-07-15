@@ -259,6 +259,7 @@ class TelegramBotService {
       });
     } catch(e) {}
 
+    let isNewUserRegistration = false;
     let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
     if (!user) {
       user = await dbHelper.upsertBotUser(
@@ -268,12 +269,29 @@ class TelegramBotService {
         message.from.username || message.from.first_name, 
         'en'
       );
+      isNewUserRegistration = user.isNew;
     } else {
       await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     }
 
     const faculty = await dbHelper.getFacultyById(this.facultyId);
     if (!faculty) return;
+
+    if (isNewUserRegistration && faculty.notify_new_user && faculty.admin_chat_id) {
+      const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
+      const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
+                         `الاسم: ${message.from.first_name || 'غير متوفر'}\n` +
+                         `Username: ${message.from.username ? '@' + message.from.username : 'غير متوفر'}\n` +
+                         `ID: <code>${chatId}</code>`;
+      
+      for (const adminId of adminIds) {
+        await this.apiCall('sendMessage', {
+          chat_id: adminId,
+          text: notifyText,
+          parse_mode: 'HTML'
+        }).catch(() => {});
+      }
+    }
 
     const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
     if (faculty.bot_enabled === 0 && !isAdmin) {
@@ -328,6 +346,12 @@ class TelegramBotService {
       return;
     }
 
+    if ((text === '/admin' || text === '🛠️ Admin Panel' || text === '🛠️ لوحة تحكم المشرفين') && isAdmin) {
+      await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null });
+      await this.sendAdminReplyMenus(chatId, null, user.language);
+      return;
+    }
+
     if (adminState && isAdmin) {
       await this.handleAdminStateMessage(chatId, message, user.language, adminState);
       return;
@@ -344,12 +368,6 @@ class TelegramBotService {
         text: `Your Telegram Chat ID is: \`${chatId}\``,
         parse_mode: 'Markdown'
       });
-      return;
-    }
-
-    if (text === '/admin' && isAdmin) {
-      await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null });
-      await this.sendAdminReplyMenus(chatId, null, user.language);
       return;
     }
 
@@ -381,15 +399,12 @@ class TelegramBotService {
         return;
       }
       
-      if (text === '🛠️ Admin Panel' || text === '🛠️ لوحة تحكم المشرفين') {
-        if (isAdmin) {
-          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null });
-          await this.sendAdminReplyMenus(chatId, null, user.language);
-        }
-        return;
+      const faculty = await dbHelper.getFacultyById(this.facultyId);
+      let unknownMsg = user.language === 'ar' ? 'عذراً، لم أفهم طلبك. الرجاء اختيار من القائمة.' : 'Sorry, I did not understand that. Please select from the menu.';
+      if (faculty) {
+        if (user.language === 'ar' && faculty.unknown_msg_ar) unknownMsg = faculty.unknown_msg_ar;
+        if (user.language === 'en' && faculty.unknown_msg_en) unknownMsg = faculty.unknown_msg_en;
       }
-
-      const unknownMsg = user.language === 'ar' ? 'عذراً، لم أفهم طلبك. الرجاء اختيار من القائمة.' : 'Sorry, I did not understand that. Please select from the menu.';
       await this.apiCall('sendMessage', { chat_id: chatId, text: unknownMsg });
       await this.sendMenu(chatId, currentMenuId, user.language);
     }
@@ -586,11 +601,35 @@ class TelegramBotService {
 
     if (data.startsWith('lang_')) {
       const lang = data === 'lang_ar' ? 'ar' : 'en';
-      await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, lang);
+
+      let isNewUserRegistration = false;
+      let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      if (!user) {
+        user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, lang);
+        isNewUserRegistration = user.isNew;
+      } else {
+        await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
+      }
       
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 
       const faculty = await dbHelper.getFacultyById(this.facultyId);
+      
+      if (isNewUserRegistration && faculty && faculty.notify_new_user && faculty.admin_chat_id) {
+        const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
+        const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
+                           `الاسم: ${callbackQuery.from.first_name || 'غير متوفر'}\n` +
+                           `Username: ${callbackQuery.from.username ? '@' + callbackQuery.from.username : 'غير متوفر'}\n` +
+                           `ID: <code>${chatId}</code>`;
+        for (const adminId of adminIds) {
+          await this.apiCall('sendMessage', {
+            chat_id: adminId,
+            text: notifyText,
+            parse_mode: 'HTML'
+          }).catch(() => {});
+        }
+      }
+
       const welcome = lang === 'ar' 
         ? (faculty.welcome_ar || 'تم تحديث اللغة بنجاح.')
         : (faculty.welcome_en || 'Language updated successfully.');
@@ -766,36 +805,9 @@ class TelegramBotService {
     }
 
     if (text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) {
-      const isHome = state.action === 'admin_home' || !state.action;
-      if (isHome) {
-        await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم الإلغاء والخروج من لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
-        const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-        if (userObj) {
-          await this.handleMessage({ text: '/start', chat: { id: chatId }, from: { id: chatId, username: userObj.username, first_name: userObj.username } });
-        }
-      } else {
-        if (state.menuId) {
-          const m = await dbHelper.getMenuById(state.menuId);
-          if (m) {
-            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m.parent_id, viewingMenuDetailsId: state.menuId });
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
-            await this.sendAdminMenuDetails(chatId, state.menuId, lang);
-            return;
-          }
-        }
-        
-        // Go back to managing menus or home
-        if (state.currentMenuId !== undefined) {
-          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
-          await this.sendAdminReplyMenus(chatId, state.currentMenuId, lang);
-        } else {
-          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم التراجع.' : 'Action cancelled.' });
-          await this.sendAdminHome(chatId, lang);
-        }
-      }
+      await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
+      await this.sendAdminHome(chatId, lang);
       return;
     }
 

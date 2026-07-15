@@ -41,7 +41,7 @@ class AdminMenuNavigation {
     kb.push([{ text: lang === 'ar' ? '➕ سطر جديد' : '➕ New Row' }]);
 
     if (parentId !== null) {
-      kb.push([{ text: lang === 'ar' ? '⬆️ المستوى السابق' : '⬆️ Parent Menu' }]);
+      kb.push([{ text: lang === 'ar' ? '🔙 رجوع' : '🔙 Back' }]);
     }
     kb.push([{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]);
 
@@ -264,29 +264,22 @@ class AdminMenuNavigation {
       }
 
       // 2. Navigation Actions
-      if (text.includes('المستوى السابق') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('عودة') || text.includes('Back')) {
+      if (text.includes('القائمة السابقة') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('الرجوع') || text.includes('Back') || text.includes('عودة')) {
         console.log(`[DEBUG admin-menu-navigation condition] Entered navigation action with currentMenuId: ${state.currentMenuId}`);
-        if (state.currentMenuId !== null) {
-          const pMenu = await dbHelper.getMenuById(state.currentMenuId);
-          const targetId = pMenu ? pMenu.parent_id : null;
-          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: targetId, viewingMenuDetailsId: null });
-          if (targetId) {
-            const { getMenuPathContext } = require('./menu-builder');
-            const pathCtx = await getMenuPathContext(targetId);
-            if (pathCtx) {
-              botCtx.updateUserContext(chatId, {
-                currentMenuId: pathCtx.currentMenuId,
-                currentMenuTitle: pathCtx.currentMenuTitle,
-                parentMenuId: pathCtx.parentMenuId,
-                menuPath: pathCtx.menuPath,
-                currentButtonTitle: pathCtx.currentMenuTitle
-              });
-            }
+        const dbHelper = require('./database');
+        const prevState = await dbHelper.popAdminState(chatId);
+        
+        if (prevState.action === 'admin_home') {
+          await botCtx.sendAdminHome(chatId, lang);
+        } else if (prevState.action === 'managing_menus') {
+          if (prevState.viewingMenuDetailsId) {
+            await botCtx.sendAdminMenuDetails(chatId, prevState.viewingMenuDetailsId, lang);
+          } else {
+            await botCtx.sendAdminReplyMenus(chatId, prevState.currentMenuId, lang);
           }
-          await this.sendAdminReplyMenus(botCtx, chatId, targetId, lang);
         } else {
-          // If already at root and they press back, just reload root or send to admin home
-          await this.sendAdminReplyMenus(botCtx, chatId, null, lang);
+          // Fallback
+          await botCtx.sendAdminReplyMenus(chatId, null, lang);
         }
         return true;
       }

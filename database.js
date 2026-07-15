@@ -43,9 +43,15 @@ async function initDb() {
       unknown_msg_ar TEXT,
       no_file_msg_en TEXT,
       no_file_msg_ar TEXT,
+      notify_new_user BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+
+  try {
+    await pool.query(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS notify_new_user BOOLEAN DEFAULT false;`);
+  } catch(e) {}
+
 
   // 2. Create menus table
   await pool.query(`
@@ -394,15 +400,16 @@ async function createFaculty(nameEn, nameAr, slug) {
   return rows[0].id;
 }
 
-async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr) {
+async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser) {
   await pool.query(`
     UPDATE faculties 
     SET name_en = $1, name_ar = $2, slug = $3, telegram_token = $4, admin_chat_id = $5,
         welcome_en = $6, welcome_ar = $7, bot_enabled = $8, disabled_message_en = $9, 
         disabled_message_ar = $10, telegram_api_server = $11, empty_msg_en = $12, empty_msg_ar = $13,
-        unknown_msg_en = $14, unknown_msg_ar = $15, no_file_msg_en = $16, no_file_msg_ar = $17
-    WHERE id = $18
-  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, id]);
+        unknown_msg_en = $14, unknown_msg_ar = $15, no_file_msg_en = $16, no_file_msg_ar = $17,
+        notify_new_user = $18
+    WHERE id = $19
+  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, id]);
   
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
@@ -580,6 +587,9 @@ async function getBotUser(facultyId, platform, chatId) {
 }
 
 async function upsertBotUser(facultyId, platform, chatId, username, language) {
+  const existing = await pool.query('SELECT id FROM bot_users WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3', [facultyId, platform, chatId]);
+  const isNew = existing.rowCount === 0;
+
   const { rows } = await pool.query(`
     INSERT INTO bot_users (faculty_id, platform, chat_id, username, language)
     VALUES ($1, $2, $3, $4, $5)
@@ -587,7 +597,10 @@ async function upsertBotUser(facultyId, platform, chatId, username, language) {
     DO UPDATE SET username = EXCLUDED.username, language = EXCLUDED.language, last_active_at = NOW(), is_blocked = FALSE
     RETURNING *
   `, [facultyId, platform, chatId, username, language]);
-  return rows[0];
+  
+  const result = rows[0];
+  result.isNew = isNew;
+  return result;
 }
 
 async function getBotUsersByFaculty(facultyId, platform = null) {
@@ -608,12 +621,45 @@ async function getAdminState(chatId) {
   return rows[0] ? rows[0].state : null;
 }
 
-async function setAdminState(chatId, state) {
+async function setAdminState(chatId, state, pushToHistory = false) {
+  const currentState = await getAdminState(chatId) || {};
+  let history = currentState.history_stack || [];
+
+  if (state.action === 'admin_home') {
+    history = [];
+  } else if (pushToHistory) {
+    const stateToSave = { ...currentState };
+    delete stateToSave.history_stack;
+    if (Object.keys(stateToSave).length > 0) {
+      // Avoid pushing duplicate states sequentially
+      const lastState = history.length > 0 ? history[history.length - 1] : null;
+      if (!lastState || JSON.stringify(lastState) !== JSON.stringify(stateToSave)) {
+         history.push(stateToSave);
+      }
+    }
+  }
+
+  state.history_stack = history;
+
   await pool.query(`
     INSERT INTO admin_states (chat_id, state, updated_at)
     VALUES ($1, $2, NOW())
     ON CONFLICT (chat_id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
   `, [chatId, JSON.stringify(state)]);
+}
+
+async function popAdminState(chatId) {
+  const currentState = await getAdminState(chatId) || {};
+  const history = currentState.history_stack || [];
+  if (history.length > 0) {
+    const prevState = history.pop();
+    prevState.history_stack = history;
+    await pool.query('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(prevState), chatId]);
+    return prevState;
+  }
+  const homeState = { action: 'admin_home', history_stack: [] };
+  await pool.query('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(homeState), chatId]);
+  return homeState;
 }
 
 async function deleteAdminState(chatId) {
@@ -779,6 +825,8 @@ module.exports = {
   updateBotUserMenu,
   getAdminState,
   setAdminState,
+  popAdminState,
+  deleteAdminState,
   getAdminByUsername,
   getAdminById,
   createAdmin,
