@@ -709,7 +709,23 @@ class TelegramBotService {
       } else if (action === 'move') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_move_dest', menuId });
         const m = lang === 'ar' ? "اضغط على القائمة (المجلد) التي تريد نقل الزر إليها من الأسفل:" : "Select the destination folder from below:";
-        await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: cancelKb });
+        
+        const allMenus = await dbHelper.getMenusByFaculty(this.facultyId);
+        const folders = allMenus.filter(f => f.reply_type === 'submenu' && f.id !== menuId);
+        const kb = [];
+        kb.push([{ text: 'null' }]);
+        
+        for (let i = 0; i < folders.length; i += 2) {
+          const row = [];
+          row.push({ text: `${folders[i].id} - ${lang === 'ar' ? folders[i].title_ar : folders[i].title_en}` });
+          if (i + 1 < folders.length) {
+            row.push({ text: `${folders[i+1].id} - ${lang === 'ar' ? folders[i+1].title_ar : folders[i+1].title_en}` });
+          }
+          kb.push(row);
+        }
+        kb.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
+        
+        await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: { keyboard: kb, resize_keyboard: true } });
       } else if (action === 'order') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_move_order', menuId });
         await this.sendAdminMoveOrder(chatId, menuId, lang);

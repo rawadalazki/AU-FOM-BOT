@@ -130,7 +130,15 @@ class AdminMenuNavigation {
   }
 
   static async moveMenuOrder(botCtx, chatId, menuId, direction, lang) {
+    if (!menuId) {
+      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: الزر غير محدد.' : '⚠️ Error: Button not specified.' });
+      return;
+    }
     const menu = await dbHelper.getMenuById(menuId);
+    if (!menu) {
+      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: لم يتم العثور على الزر.' : '⚠️ Error: Button not found.' });
+      return;
+    }
     const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
     const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
     const idx = siblings.findIndex(m => m.id === menuId);
@@ -239,9 +247,10 @@ class AdminMenuNavigation {
     }
 
     if (state.action === 'managing_menus_move_order') {
+      const targetMenuId = state.menuId || state.viewingMenuDetailsId;
       if (text.includes('إلغاء الترتيب') || text.includes('Cancel Order')) {
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: state.viewingMenuDetailsId });
-        await this.sendAdminMenuDetails(botCtx, chatId, state.viewingMenuDetailsId, lang);
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
+        await this.sendAdminMenuDetails(botCtx, chatId, targetMenuId, lang);
         return true;
       }
       let direction = null;
@@ -249,7 +258,7 @@ class AdminMenuNavigation {
       if (text.includes('Down') || text.includes('⬇️')) direction = 'down';
 
       if (direction) {
-        await this.moveMenuOrder(botCtx, chatId, state.viewingMenuDetailsId, direction, lang);
+        await this.moveMenuOrder(botCtx, chatId, targetMenuId, direction, lang);
       }
       return true;
     }
