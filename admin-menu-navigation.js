@@ -132,12 +132,14 @@ class AdminMenuNavigation {
   static async moveMenuOrder(botCtx, chatId, menuId, direction, lang) {
     console.log('[moveMenuOrder]', { menuId, direction });
     if (!menuId) {
+      console.log('[RETURN A] - menuId is missing');
       await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: الزر غير محدد.' : '⚠️ Error: Button not specified.' });
       return;
     }
     const menu = await dbHelper.getMenuById(menuId);
     console.log('[moveMenuOrder] after getMenuById:', menu ? menu.id : null);
     if (!menu) {
+      console.log('[RETURN B] - menu not found in DB');
       await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: لم يتم العثور على الزر.' : '⚠️ Error: Button not found.' });
       return;
     }
@@ -146,6 +148,14 @@ class AdminMenuNavigation {
     console.log('[moveMenuOrder] after siblings fetch, count:', siblings.length);
     const idx = siblings.findIndex(m => m.id === menuId);
     console.log('[moveMenuOrder] after calculating idx:', idx);
+
+    const targetIndex = direction === 'up' ? idx - 1 : (direction === 'down' ? idx + 1 : null);
+    console.log('[PRE-UPDATE CHECK]', {
+      idx: idx,
+      siblingsLength: siblings.length,
+      targetIndex: targetIndex,
+      direction: direction
+    });
 
     if (direction === 'up' && idx > 0) {
       const swap = siblings[idx - 1];
