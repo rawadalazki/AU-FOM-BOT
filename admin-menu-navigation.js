@@ -152,13 +152,26 @@ class AdminMenuNavigation {
       const temp = menu.sort_order;
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-      console.log('[moveMenuOrder] after UPDATE for UP');
+      
+      const checkMenu = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [menu.id]);
+      const checkSwap = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [swap.id]);
+      console.log('[moveMenuOrder] AFTER UP:', {
+        movedElement: checkMenu.rows[0],
+        swappedElement: checkSwap.rows[0]
+      });
+
     } else if (direction === 'down' && idx < siblings.length - 1) {
       const swap = siblings[idx + 1];
       const temp = menu.sort_order;
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
-      console.log('[moveMenuOrder] after UPDATE for DOWN');
+      
+      const checkMenu = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [menu.id]);
+      const checkSwap = await dbHelper.runQuery('SELECT id, sort_order FROM menus WHERE id = $1', [swap.id]);
+      console.log('[moveMenuOrder] AFTER DOWN:', {
+        movedElement: checkMenu.rows[0],
+        swappedElement: checkSwap.rows[0]
+      });
     }
     
     console.log('[moveMenuOrder] before sending menu details (return)');
