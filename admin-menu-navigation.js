@@ -130,30 +130,38 @@ class AdminMenuNavigation {
   }
 
   static async moveMenuOrder(botCtx, chatId, menuId, direction, lang) {
+    console.log('[moveMenuOrder]', { menuId, direction });
     if (!menuId) {
       await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: الزر غير محدد.' : '⚠️ Error: Button not specified.' });
       return;
     }
     const menu = await dbHelper.getMenuById(menuId);
+    console.log('[moveMenuOrder] after getMenuById:', menu ? menu.id : null);
     if (!menu) {
       await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ حدث خطأ: لم يتم العثور على الزر.' : '⚠️ Error: Button not found.' });
       return;
     }
     const menus = await dbHelper.getMenusByFaculty(botCtx.facultyId);
     const siblings = menus.filter(m => m.parent_id === menu.parent_id).sort((a,b) => a.sort_order - b.sort_order);
+    console.log('[moveMenuOrder] after siblings fetch, count:', siblings.length);
     const idx = siblings.findIndex(m => m.id === menuId);
+    console.log('[moveMenuOrder] after calculating idx:', idx);
 
     if (direction === 'up' && idx > 0) {
       const swap = siblings[idx - 1];
       const temp = menu.sort_order;
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
+      console.log('[moveMenuOrder] after UPDATE for UP');
     } else if (direction === 'down' && idx < siblings.length - 1) {
       const swap = siblings[idx + 1];
       const temp = menu.sort_order;
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
+      console.log('[moveMenuOrder] after UPDATE for DOWN');
     }
+    
+    console.log('[moveMenuOrder] before sending menu details (return)');
     await this.sendAdminMenuDetails(botCtx, chatId, menuId, lang);
   }
 
