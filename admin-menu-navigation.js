@@ -154,7 +154,6 @@ class AdminMenuNavigation {
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [swap.sort_order, menu.id]);
       await dbHelper.runQuery('UPDATE menus SET sort_order = $1 WHERE id = $2', [temp, swap.id]);
     }
-    await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id, viewingMenuDetailsId: menuId });
     await this.sendAdminMenuDetails(botCtx, chatId, menuId, lang);
   }
 
@@ -258,7 +257,23 @@ class AdminMenuNavigation {
       if (text.includes('Down') || text.includes('⬇️')) direction = 'down';
 
       if (direction) {
+        await dbHelper.setAdminState(chatId, {
+          action: state.action,
+          menuId: targetMenuId,
+          currentMenuId: state.currentMenuId,
+          direction
+        });
+
+        console.log({
+          action: state.action,
+          menuId: targetMenuId,
+          currentMenuId: state.currentMenuId,
+          direction
+        });
+
         await this.moveMenuOrder(botCtx, chatId, targetMenuId, direction, lang);
+
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
       }
       return true;
     }
