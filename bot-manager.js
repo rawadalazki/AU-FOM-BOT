@@ -798,7 +798,8 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة الإدارة.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       if (userObj) {
-        await this.sendUserHome(chatId, userObj.language);
+        await dbHelper.updateBotUserMenu(userObj.id, null);
+        await this.sendMenu(chatId, null, userObj.language);
       }
       return;
     }
