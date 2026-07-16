@@ -1890,6 +1890,50 @@ class TelegramBotService {
     }
   }
 
+  _extractCustomEmojiEntities(payload) {
+    if (!payload) return;
+    const fields = ['text', 'caption'];
+    for (const field of fields) {
+      if (payload[field] && typeof payload[field] === 'string' && payload[field].includes('<tg-emoji')) {
+        if (payload.parse_mode === 'HTML') continue;
+        
+        let text = payload[field];
+        const entities = payload.entities || [];
+        const regex = /<tg-emoji emoji-id="([^"]+)">([^<]+)<\/tg-emoji>/g;
+        let cleanText = '';
+        let lastIndex = 0;
+        let match;
+        
+        while ((match = regex.exec(text)) !== null) {
+          const emojiId = match[1];
+          const emojiChar = match[2];
+          
+          cleanText += text.substring(lastIndex, match.index);
+          const offset = cleanText.length;
+          const length = emojiChar.length;
+          
+          entities.push({
+            type: 'custom_emoji',
+            offset: offset,
+            length: length,
+            custom_emoji_id: emojiId
+          });
+          
+          cleanText += emojiChar;
+          lastIndex = regex.lastIndex;
+        }
+        
+        cleanText += text.substring(lastIndex);
+        
+        payload[field] = cleanText;
+        if (entities.length > 0) {
+          payload.entities = entities;
+          delete payload.parse_mode;
+        }
+      }
+    }
+  }
+
   _rawApiCall(method, payload) {
     this._extractCustomEmojiEntities(payload);
     return new Promise((resolve, reject) => {
@@ -2231,50 +2275,6 @@ module.exports = {
     if (info) return { status: 'Active', username: info.username, error: null };
     return { status: 'Error', username: null, error: 'Could not fetch bot info' };
   },
-
-  _extractCustomEmojiEntities(payload) {
-    if (!payload) return;
-    const fields = ['text', 'caption'];
-    for (const field of fields) {
-      if (payload[field] && typeof payload[field] === 'string' && payload[field].includes('<tg-emoji')) {
-        if (payload.parse_mode === 'HTML') continue;
-        
-        let text = payload[field];
-        const entities = payload.entities || [];
-        const regex = /<tg-emoji emoji-id="([^"]+)">([^<]+)<\/tg-emoji>/g;
-        let cleanText = '';
-        let lastIndex = 0;
-        let match;
-        
-        while ((match = regex.exec(text)) !== null) {
-          const emojiId = match[1];
-          const emojiChar = match[2];
-          
-          cleanText += text.substring(lastIndex, match.index);
-          const offset = cleanText.length;
-          const length = emojiChar.length;
-          
-          entities.push({
-            type: 'custom_emoji',
-            offset: offset,
-            length: length,
-            custom_emoji_id: emojiId
-          });
-          
-          cleanText += emojiChar;
-          lastIndex = regex.lastIndex;
-        }
-        
-        cleanText += text.substring(lastIndex);
-        
-        payload[field] = cleanText;
-        if (entities.length > 0) {
-          payload.entities = entities;
-          delete payload.parse_mode;
-        }
-      }
-    }
-  }
 
   async broadcastAnnouncement(announcement, reqId) {
     const svc = await getBotService(announcement.faculty_id, reqId);
