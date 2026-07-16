@@ -8,9 +8,35 @@ class TranslationService {
     this.projectId = process.env.GOOGLE_PROJECT_ID;
     this.location = process.env.GOOGLE_LOCATION || 'global';
     this.cache = new Map();
+    this.enabled = false;
+    this.testConnection();
+  }
+
+  async testConnection() {
+    try {
+      if (!this.projectId) {
+        console.log('[Translation] Google credentials not configured.');
+        this.enabled = false;
+        return;
+      }
+      const request = {
+        parent: `projects/${this.projectId}/locations/${this.location}`,
+        contents: ['test'],
+        mimeType: 'text/plain',
+        sourceLanguageCode: 'en',
+        targetLanguageCode: 'es',
+      };
+      await this.client.translateText(request);
+      console.log('[Translation] Google Cloud Translation connected.');
+      this.enabled = true;
+    } catch (error) {
+      console.log('[Translation] Google credentials not configured.');
+      this.enabled = false;
+    }
   }
 
   async translate(text, targetLang) {
+    if (!this.enabled) return text;
     if (!text || typeof text !== 'string') return text;
     
     // Return original text if target language is Arabic
