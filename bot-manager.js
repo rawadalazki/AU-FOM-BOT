@@ -1037,9 +1037,8 @@ class TelegramBotService {
         const lines = text.split('\n');
         state.titleAr = lines[0].trim();
         state.contentAr = lines.slice(1).join('\n').trim() || ' '; // To ensure content isn't strictly empty
-        // Disable translation: AR = EN
-        state.titleEn = state.titleAr;
-        state.contentEn = state.contentAr;
+        state.titleEn = '';
+        state.contentEn = '';
         state.action = 'awaiting_announcement_file';
         await dbHelper.setAdminState(chatId, state);
         
@@ -1093,8 +1092,8 @@ class TelegramBotService {
         const editLines = text.split('\n');
         const eTitleAr = editLines[0].trim();
         const eContentAr = editLines.slice(1).join('\n').trim() || ' ';
-        const eTitleEn = eTitleAr;
-        const eContentEn = eContentAr;
+        const eTitleEn = '';
+        const eContentEn = '';
         
         await dbHelper.updateAnnouncementContent(state.annId, eTitleAr, eTitleEn, eContentAr, eContentEn);
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري تحديث الإعلان لدى جميع الطلاب...' : '⏳ Updating for all users...' });
@@ -1102,9 +1101,20 @@ class TelegramBotService {
         // Background process
         (async () => {
           const msgs = await dbHelper.getAnnouncementMessages(state.annId);
-          const txt = `📢 *${eTitleAr}*\n\n${eContentAr}`;
+          const updatedAnn = await dbHelper.getAnnouncementById(state.annId);
+          const translationService = require('./translation-service');
           for (const msg of msgs) {
             try {
+               const u = await dbHelper.getBotUser(this.facultyId, 'telegram', msg.chat_id);
+               const uLang = u ? u.language : 'ar';
+               
+               if (uLang === 'en') {
+                 await translationService.ensureTranslated(updatedAnn, 'announcements', 'id', { title_ar: 'title_en', content_ar: 'content_en' });
+               }
+               const msgTitle = uLang === 'ar' ? updatedAnn.title_ar : updatedAnn.title_en;
+               const msgContent = uLang === 'ar' ? updatedAnn.content_ar : updatedAnn.content_en;
+               const txt = `📢 *${msgTitle}*\n\n${msgContent}`;
+               
                await this.apiCall('editMessageText', { chat_id: msg.chat_id, message_id: msg.message_id, text: txt, parse_mode: 'Markdown' });
             } catch(e) {}
           }
