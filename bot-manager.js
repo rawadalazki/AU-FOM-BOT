@@ -463,7 +463,10 @@ class TelegramBotService {
       await this.sendMenu(chatId, clickedMenu.parent_id, user.language);
     } 
     else if (clickedMenu.reply_type === 'file') {
-      const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;
+    if (user.language === 'en') {
+      await translationService.ensureTranslated(clickedMenu, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
+    }
+    const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;
       await this.sendFilePage(chatId, clickedMenu.id, 0, user.language, caption);
     }
   }
@@ -474,6 +477,9 @@ class TelegramBotService {
         const err = t(lang, 'FILE_NOT_FOUND');
       await this.apiCall('sendMessage', { chat_id: chatId, text: err });
       return;
+    }
+    if (lang === 'en') {
+      await translationService.ensureTranslated(menu, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
     }
     const caption = lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en;
     await this.sendFilePage(chatId, menu.id, 0, lang, caption);
@@ -518,6 +524,11 @@ class TelegramBotService {
     const botInfo = await this.getBotInfo();
     const botUsername = botInfo ? botInfo.username : '';
     
+    if (lang === 'en') {
+      for (const row of rows) {
+        await translationService.ensureTranslated(row, 'menus', 'id', { title_ar: 'title_en' });
+      }
+    }
     for (const row of rows) {
       const title = lang === 'ar' ? row.title_ar : row.title_en;
       resultText += `📄 ${title}\n🔗 https://t.me/${botUsername}?start=file_${row.id}\n\n`;
@@ -617,7 +628,15 @@ class TelegramBotService {
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 
       const faculty = await dbHelper.getFacultyById(this.facultyId);
-      
+      if (lang === 'en' && faculty) {
+        await translationService.ensureTranslated(faculty, 'faculties', 'id', {
+          welcome_ar: 'welcome_en',
+          disabled_message_ar: 'disabled_message_en',
+          empty_msg_ar: 'empty_msg_en',
+          unknown_msg_ar: 'unknown_msg_en',
+          no_file_msg_ar: 'no_file_msg_en'
+        });
+      }
       if (isNewUserRegistration && faculty && faculty.notify_new_user && faculty.admin_chat_id) {
         const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
         const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
@@ -1553,6 +1572,9 @@ class TelegramBotService {
     for (const user of users) {
       try {
         await this.withRetry(async () => {
+          if (user.language === 'en') {
+            await translationService.ensureTranslated(announcement, 'announcements', 'id', { title_ar: 'title_en', content_ar: 'content_en' });
+          }
           const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
           const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
           // Clean format without 'translated'
@@ -1721,8 +1743,22 @@ class TelegramBotService {
 
   async sendMenu(chatId, parentId, lang) {
     const menus = await dbHelper.getMenusByFaculty(this.facultyId);
-    let currentLevel = menus.filter(m => m.parent_id === parentId);
     const faculty = await dbHelper.getFacultyById(this.facultyId);
+    
+    if (lang === 'en') {
+      const pMenu = parentId ? menus.find(m => m.id === parentId) : null;
+      if (pMenu) {
+        await translationService.ensureTranslated(pMenu, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
+      }
+    }
+
+    let currentLevel = menus.filter(m => m.parent_id === parentId);
+    
+    if (lang === 'en') {
+      for (const m of currentLevel) {
+        await translationService.ensureTranslated(m, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
+      }
+    }
     
     const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
 

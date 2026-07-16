@@ -787,6 +787,28 @@ async function incrementMenuClickCount(menuId) {
   }
 }
 
+async function updateTranslationField(table, id, enColumn, translatedText) {
+  const allowedTables = ['menus', 'faculties', 'announcements'];
+  if (!allowedTables.includes(table)) {
+    throw new Error('Invalid table for translation update');
+  }
+  
+  // Safe column name validation (must match exactly the known english columns)
+  const allowedColumns = [
+    'title_en', 'reply_content_en', 'name_en', 'welcome_en', 'disabled_message_en',
+    'empty_msg_en', 'unknown_msg_en', 'no_file_msg_en', 'content_en', 'inline_buttons'
+  ];
+  if (!allowedColumns.includes(enColumn)) {
+    throw new Error('Invalid column for translation update');
+  }
+
+  try {
+    await runQuery(`UPDATE ${table} SET ${enColumn} = $1 WHERE id = $2`, [translatedText, id]);
+  } catch (err) {
+    logger.error(`Error updating translation field ${enColumn} in ${table}`, err);
+  }
+}
+
 module.exports = {
   addAnnouncementMessage,
   getAnnouncementMessages,
@@ -798,6 +820,7 @@ module.exports = {
   incrementMenuClickCount,
   toggleMenuStatus,
   toggleFacultyForwarding,
+  updateTranslationField,
   pool,
   runQuery,
   initDb,

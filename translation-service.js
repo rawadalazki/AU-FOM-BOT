@@ -138,9 +138,49 @@ class TranslationService {
       } else {
         console.error('[Translation] Google Translate API failed:', error.message);
       }
-      // On failure or timeout, return original text without throwing
       return text;
     }
+  }
+
+  async ensureTranslated(item, table, idField, fieldsMap) {
+    if (!item) return;
+    const dbHelper = require('./database');
+    let updated = false;
+
+    for (const arField of Object.keys(fieldsMap)) {
+      const enField = fieldsMap[arField];
+      if (item[arField] && typeof item[arField] === 'string' && item[arField].trim() !== '') {
+        if (!item[enField] || item[enField].trim() === '') {
+          item[enField] = await this.translate(item[arField], 'en');
+          await dbHelper.updateTranslationField(table, item[idField], enField, item[enField]);
+          updated = true;
+        }
+      }
+    }
+    
+    // Special case for inline buttons
+    if (table === 'menus' && item.inline_buttons) {
+      try {
+        let btns = JSON.parse(item.inline_buttons);
+        let btnUpdated = false;
+        for (let b of btns) {
+          if (b.text_ar && typeof b.text_ar === 'string' && b.text_ar.trim() !== '') {
+            if (!b.text_en || typeof b.text_en !== 'string' || b.text_en.trim() === '') {
+              b.text_en = await this.translate(b.text_ar, 'en');
+              btnUpdated = true;
+            }
+          }
+        }
+        if (btnUpdated) {
+          item.inline_buttons = JSON.stringify(btns);
+          await dbHelper.updateTranslationField(table, item[idField], 'inline_buttons', item.inline_buttons);
+          updated = true;
+        }
+      } catch(e) {
+        logger.error({ err: e }, '[Translation] Error parsing inline_buttons for translation');
+      }
+    }
+    return updated;
   }
 }
 
