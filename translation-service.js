@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const crypto = require('crypto');
 const logger = require('./logger');
+const translateApi = require('google-translate-api-x');
 
 class TranslationService {
   constructor() {
@@ -8,9 +9,6 @@ class TranslationService {
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
-    
-    this.libreUrl = process.env.LIBRETRANSLATE_URL || 'https://translate.terraprint.co/translate'; // default public or local instance
-    this.apiKey = process.env.LIBRETRANSLATE_API_KEY || ''; 
     this.memoryCache = new Map();
     this.dbInitialized = false;
 
@@ -95,40 +93,16 @@ class TranslationService {
     processedText = processedText.replace(/(\*|_)[^\n]+?\1/g, addPlaceholder);
     processedText = processedText.replace(/\{"cmd":"[^"]+"\}/g, addPlaceholder);
 
-    // 3. LibreTranslate API Call
+    // 3. Google Translate API Call
     console.log(`[Translation] Request: ${sourceLang} -> ${targetLang} | ${text}`);
-    console.log('[Translation] LibreTranslate API Call');
+    console.log('[Translation] Google Translate API Call');
     try {
-      const requestBody = {
-        q: processedText,
-        source: sourceLang,
-        target: targetLang,
-        format: 'html'
-      };
-      
-      if (this.apiKey) {
-        requestBody.api_key = this.apiKey;
-      }
-
-      // Add AbortController for timeout (e.g. 10 seconds)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch(this.libreUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
+      const response = await translateApi(processedText, {
+        from: sourceLang,
+        to: targetLang
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`LibreTranslate API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      let translatedText = data.translatedText;
+      let translatedText = response.text;
 
       if (translatedText) {
         console.log(`[Translation] Response: ${translatedText}`);
@@ -160,9 +134,9 @@ class TranslationService {
       return text;
     } catch (error) {
       if (logger && logger.error) {
-        logger.error({ err: error.message }, '[Translation] LibreTranslate API failed or timed out');
+        logger.error({ err: error.message }, '[Translation] Google Translate API failed');
       } else {
-        console.error('[Translation] LibreTranslate API failed or timed out:', error.message);
+        console.error('[Translation] Google Translate API failed:', error.message);
       }
       // On failure or timeout, return original text without throwing
       return text;
