@@ -1215,9 +1215,10 @@ class TelegramBotService {
         const textEn = await this.translateArToEn(text);
         const m1 = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order, m1.row_index);
-        await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m1.parent_id, viewingMenuDetailsId: null });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث النص!' : '✅ Text updated!' });
-        await this.sendAdminHome(chatId, lang);
+        const adminNavT = require('./admin-menu-navigation');
+        await adminNavT.sendAdminReplyMenus(this, chatId, m1.parent_id, lang);
         break;
 
       case 'awaiting_replace_file_doc':
@@ -1298,9 +1299,10 @@ class TelegramBotService {
         }
         
         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order, m3.row_index);
-        await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: null });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم الحفظ بنجاح!' : '✅ Saved successfully!', reply_markup: { remove_keyboard: true } });
-        await this.sendAdminHome(chatId, lang);
+        const adminNavF = require('./admin-menu-navigation');
+        await adminNavF.sendAdminReplyMenus(this, chatId, m3.parent_id, lang);
         break;
 
       case 'awaiting_move_dest':
@@ -1327,9 +1329,10 @@ class TelegramBotService {
         
         if (state.newType === 'submenu') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'submenu', null, null, null, null, null, null, nextOrder, targetRowIndex);
-          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إضافة القائمة! يمكنك الدخول إليها الآن لإضافة أزرار فرعية.' : '✅ Submenu added!' });
-        await this.sendAdminHome(chatId, lang);
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: newMenuId, viewingMenuDetailsId: null });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إضافة القائمة! يمكنك الدخول إليها الآن لإضافة أزرار فرعية.' : '✅ Submenu added!' });
+          const adminNav = require('./admin-menu-navigation');
+          await adminNav.sendAdminReplyMenus(this, chatId, newMenuId, lang);
         } else if (state.newType === 'text') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'text', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId: newMenuId });

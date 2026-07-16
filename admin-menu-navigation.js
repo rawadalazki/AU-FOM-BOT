@@ -270,22 +270,29 @@ class AdminMenuNavigation {
       }
 
       // 2. Navigation Actions
+      if (text.includes('الرئيسية') || text.includes('Home')) {
+        await botCtx.sendAdminHome(chatId, lang);
+        return true;
+      }
+
       if (text.includes('القائمة السابقة') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('الرجوع') || text.includes('Back') || text.includes('عودة')) {
-        console.log(`[DEBUG admin-menu-navigation condition] Entered navigation action with currentMenuId: ${state.currentMenuId}`);
         const dbHelper = require('./database');
-        const prevState = await dbHelper.popAdminState(chatId);
         
-        if (prevState.action === 'admin_home') {
-          await botCtx.sendAdminHome(chatId, lang);
-        } else if (prevState.action === 'managing_menus') {
-          if (prevState.viewingMenuDetailsId) {
-            await botCtx.sendAdminMenuDetails(chatId, prevState.viewingMenuDetailsId, lang);
+        if (state.viewingMenuDetailsId) {
+          // If viewing details, go back to sibling list
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
+          await botCtx.sendAdminReplyMenus(chatId, state.currentMenuId, lang);
+        } else if (state.currentMenuId !== null) {
+          // If viewing sibling list, go to parent
+          const currentMenu = await dbHelper.getMenuById(state.currentMenuId);
+          if (currentMenu && currentMenu.parent_id !== null) {
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: currentMenu.parent_id, viewingMenuDetailsId: null });
+            await botCtx.sendAdminReplyMenus(chatId, currentMenu.parent_id, lang);
           } else {
-            await botCtx.sendAdminReplyMenus(chatId, prevState.currentMenuId, lang);
+            await botCtx.sendAdminHome(chatId, lang);
           }
         } else {
-          // Fallback
-          await botCtx.sendAdminReplyMenus(chatId, null, lang);
+          await botCtx.sendAdminHome(chatId, lang);
         }
         return true;
       }
