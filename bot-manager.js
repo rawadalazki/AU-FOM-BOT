@@ -1582,7 +1582,10 @@ class TelegramBotService {
              }
              sent++;
           } else if (res && !res.ok) {
-             if (res.error_code === 403) blocked++;
+             if (res.error_code === 403) {
+               this.logInfo(`[Broadcast] User ${user.chat_id} skipped (blocked/deactivated)`);
+               blocked++;
+             }
              else failed++;
           }
         });
@@ -1869,7 +1872,7 @@ class TelegramBotService {
           await dbHelper.blockBotUser(this.facultyId, 'telegram', payload.chat_id.toString());
         }
         const desc = (res.description || '').toLowerCase();
-        const shouldRetry = res.error_code === 400 || res.error_code === 404 || res.error_code === 403 || desc.includes('invalid file') || desc.includes('file reference expired');
+        const shouldRetry = res.error_code === 429 || [500, 502, 503, 504].includes(res.error_code);
         if (shouldRetry && !isRetry) {
           this.logInfo(`Automatic recovery: Retrying ${method} due to ${res.error_code} ${res.description}`);
           return await this.apiCall(method, payload, true);
