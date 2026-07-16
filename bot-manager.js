@@ -4,6 +4,7 @@ const FormData = require('form-data');
 const dbHelper = require('./database');
 const logger = require('./logger');
 const cache = require('./cache');
+const translationService = require('./translation-service');
 
 function getWebhookSecret(facultyId) {
   const secret = process.env.WEBHOOK_SECRET || 'default-webhook-secret';
@@ -2207,13 +2208,7 @@ class TelegramBotService {
   }
 
   async translateArToEn(text) {
-    const dict = {
-      'عن الكلية': 'About the Faculty', 'الكلية': 'Faculty', 'الأقسام': 'Departments', 'الملفات': 'Files',
-      'المستندات': 'Documents', 'تواصل معنا': 'Contact Us', 'إعلانات': 'Announcements', 'شؤون الطلاب': 'Student Affairs'
-    };
-    const t = text.trim();
-    if (dict[t]) return dict[t];
-    return "Translated: " + t.substring(0, 20); 
+    return await translationService.translate(text, 'en');
   }
 
   extractTelegramAttachment(message) {
