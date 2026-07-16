@@ -267,15 +267,17 @@ class TelegramBotService {
     let isNewUserRegistration = false;
     let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
     if (!user) {
+      console.log(`[LANG] New user: showing language selector`);
       user = await dbHelper.upsertBotUser(
         this.facultyId, 
         'telegram', 
         chatId, 
         message.from.username || message.from.first_name, 
-        faculty.default_language || 'ar'
+        null
       );
       isNewUserRegistration = true;
     } else {
+      console.log(`[LANG] Existing user: id=${user.id}, language=${user.language}`);
       await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     }
 
@@ -340,8 +342,8 @@ class TelegramBotService {
       }
 
       await dbHelper.updateBotUserMenu(user.id, null);
-      if (user.language === 'en' && !text.includes('lang_')) {
-        await this.sendLanguageSelection(chatId, user ? user.language : 'ar');
+      if (isNewUserRegistration || !user.language) {
+        await this.sendLanguageSelection(chatId, user.language || 'ar');
       } else {
         await this.sendMenu(chatId, null, user.language);
       }
@@ -558,7 +560,7 @@ class TelegramBotService {
     const faculty = await dbHelper.getFacultyById(this.facultyId);
     let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
     if (!user) {
-      user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, faculty ? (faculty.default_language || 'ar') : 'ar');
+      user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, null);
     } else {
       await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     }
@@ -626,8 +628,10 @@ class TelegramBotService {
     if (data.startsWith('lang_')) {
       const lang = data === 'lang_ar' ? 'ar' : 'en';
 
-      let isNewUserRegistration = !user;
+      let isNewUserRegistration = !user || !user.language;
       user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, lang);
+      user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+      console.log(`[LANG] Language saved: ${user.language}`);
       
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 

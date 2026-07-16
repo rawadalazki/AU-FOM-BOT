@@ -594,7 +594,7 @@ async function upsertBotUser(facultyId, platform, chatId, username, language) {
     INSERT INTO bot_users (faculty_id, platform, chat_id, username, language)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (faculty_id, platform, chat_id) 
-    DO UPDATE SET username = EXCLUDED.username, language = EXCLUDED.language, last_active_at = NOW(), is_blocked = FALSE
+    DO UPDATE SET username = EXCLUDED.username, language = COALESCE(EXCLUDED.language, bot_users.language), last_active_at = NOW(), is_blocked = FALSE
     RETURNING *
   `, [facultyId, platform, chatId, username, language]);
   
