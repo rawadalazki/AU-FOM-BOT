@@ -52,6 +52,7 @@ class TranslationService {
 
     // 1. In-memory cache lookup
     if (this.memoryCache.has(hashKey)) {
+      console.log('[Translation] Memory Cache Hit');
       return this.memoryCache.get(hashKey);
     }
 
@@ -65,6 +66,7 @@ class TranslationService {
         
         if (rows.length > 0) {
           const savedTranslation = rows[0].text_translated;
+          console.log('[Translation] DB Cache Hit');
           this.memoryCache.set(hashKey, savedTranslation);
           return savedTranslation;
         }
@@ -94,6 +96,8 @@ class TranslationService {
     processedText = processedText.replace(/\{"cmd":"[^"]+"\}/g, addPlaceholder);
 
     // 3. LibreTranslate API Call
+    console.log(`[Translation] Request: ${sourceLang} -> ${targetLang} | ${text}`);
+    console.log('[Translation] LibreTranslate API Call');
     try {
       const requestBody = {
         q: processedText,
@@ -127,6 +131,7 @@ class TranslationService {
       let translatedText = data.translatedText;
 
       if (translatedText) {
+        console.log(`[Translation] Response: ${translatedText}`);
         // Restore placeholders
         translatedText = translatedText.replace(/<\s*span\s+translate\s*=\s*"no"\s+class\s*=\s*"notranslate"\s+id\s*=\s*"p_(\d+)"\s*>\s*<\s*\/\s*span\s*>/ig, (match, id) => {
           return placeholders[parseInt(id)];
