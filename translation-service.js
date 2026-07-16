@@ -102,7 +102,7 @@ class TranslationService {
     const addPlaceholder = (match) => {
       const id = placeholders.length;
       placeholders.push(match);
-      return `<span translate="no" class="notranslate" id="p_${id}"></span>`;
+      return `__TG_EMOJI_${id}__`;
     };
 
     processedText = processedText.replace(/<[^>]+>/g, addPlaceholder);
@@ -129,7 +129,7 @@ class TranslationService {
       if (translatedText) {
         console.log(`[Translation] Response: ${translatedText}`);
         // Restore placeholders
-        translatedText = translatedText.replace(/<\s*span\s+translate\s*=\s*"no"\s+class\s*=\s*"notranslate"\s+id\s*=\s*"p_(\d+)"\s*>\s*<\s*\/\s*span\s*>/ig, (match, id) => {
+        translatedText = translatedText.replace(/__\s*TG_EMOJI_\s*(\d+)\s*__/gi, (match, id) => {
           return placeholders[parseInt(id)];
         });
         
