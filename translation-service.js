@@ -105,6 +105,7 @@ class TranslationService {
       return token;
     };
 
+    processedText = processedText.replace(/<tg-emoji[^>]*>[\s\S]*?<\/tg-emoji>/gi, addPlaceholder);
     processedText = processedText.replace(/<[^>]+>/g, addPlaceholder);
     processedText = processedText.replace(/https?:\/\/[^\s]+/g, addPlaceholder);
     processedText = processedText.replace(/@[a-zA-Z0-9_]+/g, addPlaceholder);
