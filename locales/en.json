@@ -4,5 +4,21 @@
   "BTN_CANCEL": "❌ Cancel",
   "BTN_SETTINGS": "⚙️ Settings",
   "YES": "Yes",
-  "NO": "No"
+  "NO": "No",
+  "CHOOSE_LANGUAGE": "Please select your language:",
+  "LANGUAGE_UPDATED": "Language updated successfully.",
+  "BTN_PREV": "⬅️ Previous",
+  "BTN_NEXT": "Next ➡️",
+  "BTN_CLOSE": "❌ Close",
+  "PAGE": "Page",
+  "OF": "of",
+  "FILE_NOT_FOUND": "File not found or deleted.",
+  "SEARCH_MIN_CHARS": "Please enter at least 2 characters to search.",
+  "SEARCH_NO_RESULTS": "❌ No results found.",
+  "SEARCH_RESULTS_FOR": "🔍 Search results for",
+  "ERROR_SENDING_FILE": "Error sending file",
+  "NO_ATTACHED_FILE": "Sorry, no attached file found.",
+  "ERROR_SENDING_SOME_FILES": "Error sending some files",
+  "MENU_HEADER": "📋 Menu:",
+  "UNKNOWN_MSG_FALLBACK": "Sorry, I did not understand that. Please select from the menu."
 }

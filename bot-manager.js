@@ -5,6 +5,7 @@ const dbHelper = require('./database');
 const logger = require('./logger');
 const cache = require('./cache');
 const translationService = require('./translation-service');
+const { t } = require('./src/localization');
 
 function getWebhookSecret(facultyId) {
   const secret = process.env.WEBHOOK_SECRET || 'default-webhook-secret';
@@ -340,7 +341,7 @@ class TelegramBotService {
 
       await dbHelper.updateBotUserMenu(user.id, null);
       if (user.language === 'en' && !text.includes('lang_')) {
-        await this.sendLanguageSelection(chatId);
+        await this.sendLanguageSelection(chatId, user ? user.language : 'ar');
       } else {
         await this.sendMenu(chatId, null, user.language);
       }
@@ -359,7 +360,7 @@ class TelegramBotService {
     }
 
     if (text === '/changelanguage') {
-      await this.sendLanguageSelection(chatId);
+      await this.sendLanguageSelection(chatId, user ? user.language : 'ar');
       return;
     }
 
@@ -399,18 +400,14 @@ class TelegramBotService {
         await this.handleBackNavigation(chatId, user);
         return;
       }
-      if (text === '🏠 الرئيسية' || text === '🏠 Home') {
+      if (text === t(user.language, 'BTN_HOME') || text === '🏠 الرئيسية' || text === '🏠 Home') {
         await dbHelper.updateBotUserMenu(user.id, null);
         await this.sendMenu(chatId, null, user.language);
         return;
       }
       
       const faculty = await dbHelper.getFacultyById(this.facultyId);
-      let unknownMsg = user.language === 'ar' ? 'عذراً، لم أفهم طلبك. الرجاء اختيار من القائمة.' : 'Sorry, I did not understand that. Please select from the menu.';
-      if (faculty) {
-        if (user.language === 'ar' && faculty.unknown_msg_ar) unknownMsg = faculty.unknown_msg_ar;
-        if (user.language === 'en' && faculty.unknown_msg_en) unknownMsg = faculty.unknown_msg_en;
-      }
+      let unknownMsg = user.language === 'ar' ? (faculty.unknown_msg_ar || t('ar', 'UNKNOWN_MSG_FALLBACK')) : (faculty.unknown_msg_en || t('en', 'UNKNOWN_MSG_FALLBACK'));
       await this.apiCall('sendMessage', { chat_id: chatId, text: unknownMsg });
       await this.sendMenu(chatId, currentMenuId, user.language);
     }
@@ -474,7 +471,7 @@ class TelegramBotService {
   async handleDirectFileLink(chatId, menuId, lang) {
     const menu = await dbHelper.getMenuById(menuId);
     if (!menu || menu.faculty_id !== this.facultyId || menu.reply_type !== 'file') {
-      const err = lang === 'ar' ? 'الملف غير موجود أو تم حذفه.' : 'File not found or deleted.';
+        const err = t(lang, 'FILE_NOT_FOUND');
       await this.apiCall('sendMessage', { chat_id: chatId, text: err });
       return;
     }
@@ -499,7 +496,7 @@ class TelegramBotService {
 
   async searchFiles(chatId, query, lang) {
     if (query.length < 2) {
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إدخال حرفين على الأقل.' : 'Please enter at least 2 characters.' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'SEARCH_MIN_CHARS') });
       return;
     }
     
@@ -513,11 +510,11 @@ class TelegramBotService {
     `, [this.facultyId, term]);
 
     if (rows.length === 0) {
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '❌ لم يتم العثور على نتائج.' : '❌ No results found.' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'SEARCH_NO_RESULTS') });
       return;
     }
 
-    let resultText = lang === 'ar' ? `🔍 نتائج البحث عن "${query}":\n\n` : `🔍 Search results for "${query}":\n\n`;
+      let resultText = `${t(lang, 'SEARCH_RESULTS_FOR')} "${query}":\n\n`;
     const botInfo = await this.getBotInfo();
     const botUsername = botInfo ? botInfo.username : '';
     
@@ -637,8 +634,8 @@ class TelegramBotService {
       }
 
       const welcome = lang === 'ar' 
-        ? (faculty.welcome_ar || 'تم تحديث اللغة بنجاح.')
-        : (faculty.welcome_en || 'Language updated successfully.');
+        ? (faculty.welcome_ar || t(lang, 'LANGUAGE_UPDATED'))
+        : (faculty.welcome_en || t(lang, 'LANGUAGE_UPDATED'));
 
       await this.apiCall('sendMessage', { chat_id: chatId, text: welcome });
       
@@ -1710,10 +1707,10 @@ class TelegramBotService {
   }
 
 
-  async sendLanguageSelection(chatId) {
+  async sendLanguageSelection(chatId, lang = 'ar') {
     await this.apiCall('sendMessage', {
       chat_id: chatId,
-      text: "Please select your language / الرجاء اختيار اللغة:",
+      text: t(lang, 'CHOOSE_LANGUAGE'),
       reply_markup: {
         inline_keyboard: [
           [{ text: "🇺🇸 English", callback_data: "lang_en" }, { text: "🇸🇦 العربية", callback_data: "lang_ar" }]
@@ -1791,10 +1788,10 @@ class TelegramBotService {
     });
 
     if (parentId !== null) {
-      const backRow = [{ text: lang === 'ar' ? '🔙 عودة' : '🔙 Back' }];
+      const backRow = [{ text: t(lang, 'BTN_BACK') }];
       const pMenu = menus.find(m => m.id === parentId);
       if (pMenu && pMenu.parent_id !== null) {
-        backRow.push({ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' });
+        backRow.push({ text: t(lang, 'BTN_HOME') });
       }
       keyboard.push(backRow);
     }
@@ -1815,7 +1812,7 @@ class TelegramBotService {
       });
       res = await this.apiCall('sendMessage', {
         chat_id: chatId,
-        text: lang === 'ar' ? '📋 القائمة:' : '📋 Menu:',
+        text: t(lang, 'MENU_HEADER'),
         reply_markup: replyMarkup
       });
     } else {
@@ -2092,10 +2089,10 @@ class TelegramBotService {
           await this.sendTelegramFile(chatId, { telegram_file_id: menu.telegram_file_id, file_name: menu.file_name, mime_type: menu.mime_type }, caption);
         } catch (e) {
           this.logError('Error sending legacy file', e, { chat_id: chatId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في إرسال الملف' : 'Error sending file' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'ERROR_SENDING_FILE') });
         }
       } else {
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لا يوجد ملف مرفق.' : 'Sorry, no file attached.' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'NO_ATTACHED_FILE') });
       }
       return;
     }
@@ -2154,24 +2151,22 @@ class TelegramBotService {
     }
 
     if (hasError) {
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'خطأ في إرسال بعض الملفات.' : 'Error sending some files.' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'ERROR_SENDING_SOME_FILES') });
     }
 
     // Show pagination controls when there are multiple pages
     if (totalPages > 1) {
-      const pageLabel = lang === 'ar'
-        ? `📁 صفحة ${page + 1} من ${totalPages} (${totalFiles} ملف)`
-        : `📁 Page ${page + 1} of ${totalPages} (${totalFiles} files)`;
+      const pageLabel = `${t(lang, 'PAGE')} ${page + 1} ${t(lang, 'OF')} ${totalPages}`;
       const kb = [];
       const navRow = [];
       if (page > 0) {
-        navRow.push({ text: lang === 'ar' ? '⬅️ السابق' : '⬅️ Previous', callback_data: `fp_${menuId}_${page - 1}` });
+        navRow.push({ text: t(lang, 'BTN_PREV'), callback_data: `fp_${menuId}_${page - 1}` });
       }
       if (page < totalPages - 1) {
-        navRow.push({ text: lang === 'ar' ? 'التالي ➡️' : 'Next ➡️', callback_data: `fp_${menuId}_${page + 1}` });
+        navRow.push({ text: t(lang, 'BTN_NEXT'), callback_data: `fp_${menuId}_${page + 1}` });
       }
       if (navRow.length > 0) kb.push(navRow);
-      kb.push([{ text: lang === 'ar' ? '❌ إغلاق' : '❌ Exit', callback_data: `fe_${menuId}` }]);
+      kb.push([{ text: t(lang, 'BTN_CLOSE'), callback_data: `fe_${menuId}` }]);
 
       await this.apiCall('sendMessage', {
         chat_id: chatId,

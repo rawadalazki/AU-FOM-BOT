@@ -1,8 +1,24 @@
 {
-  "BTN_BACK": "🔙 رجوع",
+  "BTN_BACK": "🔙 عودة",
   "BTN_HOME": "🏠 الرئيسية",
   "BTN_CANCEL": "❌ إلغاء",
   "BTN_SETTINGS": "⚙️ إعدادات",
   "YES": "نعم",
-  "NO": "لا"
+  "NO": "لا",
+  "CHOOSE_LANGUAGE": "الرجاء اختيار لغتك:",
+  "LANGUAGE_UPDATED": "تم تحديث اللغة بنجاح.",
+  "BTN_PREV": "⬅️ السابق",
+  "BTN_NEXT": "التالي ➡️",
+  "BTN_CLOSE": "❌ إغلاق",
+  "PAGE": "الصفحة",
+  "OF": "من",
+  "FILE_NOT_FOUND": "الملف غير موجود أو تم حذفه.",
+  "SEARCH_MIN_CHARS": "الرجاء إدخال حرفين على الأقل للبحث.",
+  "SEARCH_NO_RESULTS": "❌ لم يتم العثور على نتائج.",
+  "SEARCH_RESULTS_FOR": "🔍 نتائج البحث عن",
+  "ERROR_SENDING_FILE": "خطأ في إرسال الملف",
+  "NO_ATTACHED_FILE": "عذراً، لا يوجد ملف مرفق.",
+  "ERROR_SENDING_SOME_FILES": "خطأ في إرسال بعض الملفات",
+  "MENU_HEADER": "📋 القائمة:",
+  "UNKNOWN_MSG_FALLBACK": "عذراً، لم أفهم طلبك. الرجاء الاختيار من القائمة."
 }
