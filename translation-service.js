@@ -95,14 +95,14 @@ class TranslationService {
       }
     }
 
-    // Protect HTML/Markdown logic (similar to previous implementation)
-    const placeholders = [];
+    // Protect HTML/Markdown logic
+    const placeholderMap = new Map();
     let processedText = text;
 
     const addPlaceholder = (match) => {
-      const id = placeholders.length;
-      placeholders.push(match);
-      return `__TG_EMOJI_${id}__`;
+      const token = `{{{${crypto.randomBytes(8).toString('hex')}}}}`;
+      placeholderMap.set(token, match);
+      return token;
     };
 
     processedText = processedText.replace(/<[^>]+>/g, addPlaceholder);
@@ -128,10 +128,21 @@ class TranslationService {
 
       if (translatedText) {
         console.log(`[Translation] Response: ${translatedText}`);
-        // Restore placeholders
-        translatedText = translatedText.replace(/__\s*TG_EMOJI_\s*(\d+)\s*__/gi, (match, id) => {
-          return placeholders[parseInt(id)];
-        });
+        // Restore placeholders and verify integrity
+        let isValid = true;
+        for (const [token, original] of placeholderMap.entries()) {
+          if (!translatedText.includes(token)) {
+            console.error(`[Translation] Token missing or corrupted: ${token}`);
+            isValid = false;
+            break;
+          }
+          translatedText = translatedText.replace(token, original);
+        }
+
+        if (!isValid) {
+          console.warn('[Translation] Fallback to original text due to corrupted placeholders');
+          return text;
+        }
         
         translatedText = this.sanitizeTranslatedText(translatedText);
 
