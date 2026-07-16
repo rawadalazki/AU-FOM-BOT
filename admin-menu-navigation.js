@@ -258,8 +258,14 @@ class AdminMenuNavigation {
       });
 
       if (clickedMenu) {
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: clickedMenu.id });
-        await this.sendAdminMenuDetails(botCtx, chatId, clickedMenu.id, lang);
+        if (clickedMenu.reply_type === 'submenu') {
+          await this.sendAdminMenuDetails(botCtx, chatId, clickedMenu.id, lang);
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: clickedMenu.id, viewingMenuDetailsId: null });
+          await this.sendAdminReplyMenus(botCtx, chatId, clickedMenu.id, lang);
+        } else {
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: clickedMenu.id });
+          await this.sendAdminMenuDetails(botCtx, chatId, clickedMenu.id, lang);
+        }
         return true;
       }
 
