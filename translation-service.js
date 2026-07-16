@@ -38,6 +38,28 @@ class TranslationService {
     return crypto.createHash('sha256').update(`${text}_${targetLang}`).digest('hex');
   }
 
+  sanitizeTranslatedText(text) {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Decode basic HTML entities
+    const entities = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&nbsp;': ' '
+    };
+    let cleaned = text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&nbsp;/g, match => entities[match]);
+
+    // Strip ALL tags EXCEPT Telegram supported tags
+    const allowedTags = 'b|strong|i|em|u|ins|s|strike|del|a|tg\\-emoji|code|pre|blockquote';
+    const tagRegex = new RegExp(`<\\/?(?!(${allowedTags})\\b)[^>]*>`, 'gi');
+    cleaned = cleaned.replace(tagRegex, '');
+
+    return cleaned;
+  }
+
   async translate(text, targetLang) {
     if (!text || typeof text !== 'string') return text;
     
@@ -111,7 +133,7 @@ class TranslationService {
           return placeholders[parseInt(id)];
         });
         
-        translatedText = translatedText.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        translatedText = this.sanitizeTranslatedText(translatedText);
 
         // 4. Save to cache
         this.memoryCache.set(hashKey, translatedText);
