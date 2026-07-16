@@ -261,6 +261,9 @@ class TelegramBotService {
       });
     } catch(e) {}
 
+    const faculty = await dbHelper.getFacultyById(this.facultyId);
+    if (!faculty) return;
+
     let isNewUserRegistration = false;
     let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
     if (!user) {
@@ -269,15 +272,12 @@ class TelegramBotService {
         'telegram', 
         chatId, 
         message.from.username || message.from.first_name, 
-        'en'
+        faculty.default_language || 'ar'
       );
-      isNewUserRegistration = user.isNew;
+      isNewUserRegistration = true;
     } else {
       await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
     }
-
-    const faculty = await dbHelper.getFacultyById(this.facultyId);
-    if (!faculty) return;
 
     if (isNewUserRegistration && faculty.notify_new_user && faculty.admin_chat_id) {
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
@@ -420,6 +420,11 @@ class TelegramBotService {
       return;
     }
 
+    if (user.language === 'en') {
+      const translationService = require('./translation-service');
+      await translationService.ensureTranslated(clickedMenu, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
+    }
+
     await dbHelper.incrementMenuClickCount(clickedMenu.id);
 
     if (clickedMenu.reply_type === 'submenu') {
@@ -463,9 +468,6 @@ class TelegramBotService {
       await this.sendMenu(chatId, clickedMenu.parent_id, user.language);
     } 
     else if (clickedMenu.reply_type === 'file') {
-    if (user.language === 'en') {
-      await translationService.ensureTranslated(clickedMenu, 'menus', 'id', { title_ar: 'title_en', reply_content_ar: 'reply_content_en' });
-    }
     const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;
       await this.sendFilePage(chatId, clickedMenu.id, 0, user.language, caption);
     }
@@ -552,7 +554,15 @@ class TelegramBotService {
       }
     }
     
-    await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
+    const dbHelper = require('./database');
+    const faculty = await dbHelper.getFacultyById(this.facultyId);
+    let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
+    if (!user) {
+      user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, faculty ? (faculty.default_language || 'ar') : 'ar');
+    } else {
+      await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
+    }
+    const lang = user.language || 'ar';
     this.updateUserContext(chatId, {
       telegramUserId: callbackQuery.from.id,
       username: callbackQuery.from.username || 'Unknown',
@@ -616,14 +626,8 @@ class TelegramBotService {
     if (data.startsWith('lang_')) {
       const lang = data === 'lang_ar' ? 'ar' : 'en';
 
-      let isNewUserRegistration = false;
-      let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-      if (!user) {
-        user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, lang);
-        isNewUserRegistration = user.isNew;
-      } else {
-        await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
-      }
+      let isNewUserRegistration = !user;
+      user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, lang);
       
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 
@@ -683,8 +687,7 @@ class TelegramBotService {
 
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
-      const user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-      const lang = user ? user.language : 'en';
+      // using global lang
       await this.sendFilePage(chatId, menuId, page, lang);
     }
     else if (data.startsWith('fe_')) {
@@ -703,8 +706,7 @@ class TelegramBotService {
     }
     else if (data.startsWith('edit_ann_')) {
       const annId = parseInt(data.replace('edit_ann_', ''), 10);
-      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-      const lang = userObj ? userObj.language : 'ar';
+      // using global lang
       await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_ann_text', annId });
       const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'إلغاء العملية' : 'Cancel Operation' }]], resize_keyboard: true };
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد للإعلان كاملاً (السطر الأول سيكون العنوان):' : 'Send the new full text:', reply_markup: cancelKb });
@@ -730,8 +732,7 @@ class TelegramBotService {
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
     else if (data.startsWith('admin_')) {
-      const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
-      const lang = userObj ? userObj.language : 'ar';
+      // using global lang
       const action = data.split('_')[1];
       const menuId = parseInt(data.split('_')[2], 10);
       const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
