@@ -267,7 +267,8 @@ async function initDb() {
     `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();`,
     `ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;`,
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0;`,
-    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;`
+    `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;`,
+    `ALTER TABLE faculties ADD COLUMN IF NOT EXISTS monitoring_enabled BOOLEAN DEFAULT false;`
   ];
 
   for (const q of alterQueries) {
@@ -414,6 +415,21 @@ async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcome
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
   await cache.del(`faculty:slug:${slug}`);
+}
+
+async function updateAdminChatId(facultyId, newAdminChatIds) {
+  const fac = await getFacultyById(facultyId);
+  if (!fac) return;
+  await pool.query('UPDATE faculties SET admin_chat_id = $1 WHERE id = $2', [newAdminChatIds, facultyId]);
+  await cache.del('faculties:all');
+  await cache.del(`faculty:id:${facultyId}`);
+  await cache.del(`faculty:slug:${fac.slug}`);
+}
+
+async function updateMonitoringEnabled(id, enabled) {
+  await pool.query('UPDATE faculties SET monitoring_enabled = $1 WHERE id = $2', [enabled, id]);
+  await cache.del('faculties:all');
+  await cache.del(`faculty:id:${id}`);
 }
 
 async function deleteFaculty(id) {
@@ -829,6 +845,8 @@ module.exports = {
   getFacultyBySlug,
   createFaculty,
   updateFaculty,
+  updateAdminChatId,
+  updateMonitoringEnabled,
   deleteFaculty,
   getMenusByFaculty,
   getMenuById,

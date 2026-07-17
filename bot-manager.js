@@ -720,6 +720,14 @@ class TelegramBotService {
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد للإعلان كاملاً (السطر الأول سيكون العنوان):' : 'Send the new full text:', reply_markup: cancelKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
+    else if (data.startsWith('del_sub_')) {
+      const subId = data.replace('del_sub_', '');
+      await dbHelper.setAdminState(chatId, { action: 'awaiting_del_sub_confirm', subId });
+      const { t } = require('./src/localization');
+      const confirmKb = { keyboard: [[{ text: t(lang, 'BTN_YES_ICON') }, { text: t(lang, 'BTN_NO_ICON') }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ARE_YOU_SURE'), reply_markup: confirmKb });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
+    }
     else if (data.startsWith('del_ann_')) {
       const annId = parseInt(data.replace('del_ann_', ''), 10);
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
@@ -824,7 +832,14 @@ class TelegramBotService {
     if (t === '📢 إدارة الإعلانات' || t === '📢 Manage Announcements') return 'manage_announcements';
     if (t === '📊 الإحصائيات' || t === '📊 Statistics') return 'statistics';
     if (t === '⚙️ الإعدادات' || t === '⚙️ Settings') return 'core_settings';
-    if (t === '👥 المشرفين' || t === '👥 Administrators') return 'add_subadmin';
+    const loc = require('./src/localization').t;
+    if (t === loc('ar', 'BTN_MANAGE_ADMINS') || t === loc('en', 'BTN_MANAGE_ADMINS')) return 'manage_admins';
+    if (t === loc('ar', 'BTN_MONITORING') || t === loc('en', 'BTN_MONITORING')) return 'admin_monitoring';
+    if (t === loc('ar', 'BTN_ADD_SUBADMIN') || t === loc('en', 'BTN_ADD_SUBADMIN')) return 'add_subadmin';
+    if (t === loc('ar', 'BTN_VIEW_SUBADMINS') || t === loc('en', 'BTN_VIEW_SUBADMINS')) return 'view_subadmins';
+    if (t === loc('ar', 'BTN_REMOVE_SUBADMIN') || t === loc('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
+    if (t === loc('ar', 'BTN_ENABLE_MONITORING') || t === loc('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
+    if (t === loc('ar', 'BTN_DISABLE_MONITORING') || t === loc('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
     if (t === '🔙 رجوع' || t === '🔙 Back') return 'back';
     if (t === '❌ إلغاء' || t === '❌ Cancel' || t === '❌ إغلاق' || t === '❌ Close') return 'close';
 
@@ -865,7 +880,7 @@ class TelegramBotService {
       return;
     }
 
-    if (actionId === 'cancel' || text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) {
+    if ((actionId === 'cancel' || text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) && state.action !== 'awaiting_subadmin_id') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
       await this.sendAdminHome(chatId, lang);
@@ -1020,10 +1035,25 @@ class TelegramBotService {
           [{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
-      } else if (actionId === 'add_subadmin') {
-        await dbHelper.setAdminState(chatId, { action: 'awaiting_subadmin_id' });
-        const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال المعرف (ID) الخاص بالمشرف الفرعي الجديد ليتم إضافته:' : 'Please send the Telegram Chat ID of the new sub-admin:', reply_markup: cancelKb });
+      } else if (actionId === 'manage_admins') {
+        const { t } = require('./src/localization');
+        const keyboard = [
+          [{ text: t(lang, 'BTN_ADD_SUBADMIN') }],
+          [{ text: t(lang, 'BTN_VIEW_SUBADMINS') }],
+          [{ text: t(lang, 'BTN_REMOVE_SUBADMIN') }],
+          [{ text: t(lang, 'BTN_BACK') }]
+        ];
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MANAGE_ADMINS') + ':', reply_markup: { keyboard, resize_keyboard: true } });
+        await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
+      } else if (actionId === 'admin_monitoring') {
+        const { t } = require('./src/localization');
+        const keyboard = [
+          [{ text: t(lang, 'BTN_ENABLE_MONITORING') }],
+          [{ text: t(lang, 'BTN_DISABLE_MONITORING') }],
+          [{ text: t(lang, 'BTN_BACK') }]
+        ];
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MONITORING') + ':', reply_markup: { keyboard, resize_keyboard: true } });
+        await dbHelper.setAdminState(chatId, { action: 'admin_monitoring_menu' });
       }
       return;
     }
@@ -1061,8 +1091,73 @@ class TelegramBotService {
     if (handledByAdminNav) return;
 
     // --- NORMAL AWAITING STATES ---
+    const { t } = require('./src/localization');
+    if (state.action === 'admin_manage_admins_menu') {
+      if (actionId === 'add_subadmin') {
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_subadmin_id' });
+        const cancelKb = { keyboard: [[{ text: t(lang, 'BTN_CANCEL_OP') }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SEND_SUBADMIN_ID'), reply_markup: cancelKb });
+        return;
+      } else if (actionId === 'view_subadmins') {
+        const faculty = await dbHelper.getFacultyById(this.facultyId);
+        const adminIds = faculty.admin_chat_id ? faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const secondaryIds = adminIds.slice(1);
+        if (secondaryIds.length === 0) {
+           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_NO_SECONDARY_ADMINS') });
+           return;
+        }
+        let msgText = t(lang, 'MSG_TOTAL_ADMINS') + ' ' + secondaryIds.length + '\\n\\n';
+        for (const secId of secondaryIds) {
+           const secUserRes = await dbHelper.pool.query('SELECT * FROM bot_users WHERE chat_id = $1 AND faculty_id = $2', [secId, this.facultyId]);
+           const secUser = secUserRes.rows[0];
+           msgText += \`ID: <code>\${secId}</code>\\n\`;
+           if (secUser) {
+              msgText += \`Name: \${secUser.username || 'Unknown'}\\nLanguage: \${secUser.language || 'N/A'}\\nRegistered: \${secUser.created_at ? new Date(secUser.created_at).toLocaleString() : 'Unknown'}\\n\\n\`;
+           } else {
+              msgText += \`Name: Unknown\\n\\n\`;
+           }
+        }
+        await this.apiCall('sendMessage', { chat_id: chatId, text: msgText, parse_mode: 'HTML' });
+        return;
+      } else if (actionId === 'remove_subadmin') {
+        const faculty = await dbHelper.getFacultyById(this.facultyId);
+        const adminIds = faculty.admin_chat_id ? faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const secondaryIds = adminIds.slice(1);
+        if (secondaryIds.length === 0) {
+           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_NO_SECONDARY_ADMINS') });
+           return;
+        }
+        const inlineKeyboard = secondaryIds.map(id => ([{ text: \`ID: \${id}\`, callback_data: \`del_sub_\${id}\` }]));
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_CHOOSE_ADMIN_TO_REMOVE'), reply_markup: { inline_keyboard: inlineKeyboard } });
+        return;
+      }
+    }
+    
+    if (state.action === 'admin_monitoring_menu') {
+      if (actionId === 'enable_monitoring' || actionId === 'disable_monitoring') {
+        const isEnable = actionId === 'enable_monitoring';
+        await dbHelper.updateMonitoringEnabled(this.facultyId, isEnable);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: isEnable ? t(lang, 'MSG_MONITORING_ENABLED') : t(lang, 'MSG_MONITORING_DISABLED') });
+        await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+        await this.sendAdminHome(chatId, lang);
+        return;
+      }
+    }
+
     switch (state.action) {
       case 'awaiting_subadmin_id':
+        const { t } = require('./src/localization');
+        if (text === t(lang, 'BTN_CANCEL_OP')) {
+          await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
+          const keyboard = [
+            [{ text: t(lang, 'BTN_ADD_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_VIEW_SUBADMINS') }],
+            [{ text: t(lang, 'BTN_REMOVE_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_BACK') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ACTION_CANCELLED'), reply_markup: { keyboard, resize_keyboard: true } });
+          return;
+        }
         if (!/^\d+$/.test(text)) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'معرف غير صالح. يجب أن يحتوي على أرقام فقط.' : 'Invalid ID. Must contain only digits.' });
           return;
@@ -1073,11 +1168,19 @@ class TelegramBotService {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'هذا المعرف موجود مسبقاً.' : 'This ID already exists.' });
         } else {
           currentAdmins.push(text);
-          await dbHelper.updateFaculty(facultyData.id, facultyData.name_en, facultyData.name_ar, facultyData.slug, facultyData.telegram_token, currentAdmins.join(','), facultyData.welcome_en, facultyData.welcome_ar, facultyData.bot_enabled, facultyData.disabled_message_en, facultyData.disabled_message_ar, facultyData.telegram_api_server, facultyData.empty_msg_en, facultyData.empty_msg_ar, facultyData.unknown_msg_en, facultyData.unknown_msg_ar, facultyData.no_file_msg_en, facultyData.no_file_msg_ar);
+          await dbHelper.updateAdminChatId(facultyData.id, currentAdmins.join(','));
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `✅ تم إضافة المشرف بنجاح.\n\nالمشرفون الحاليون:\n${currentAdmins.join('\n')}` : `✅ Sub-admin added.\n\nCurrent admins:\n${currentAdmins.join('\n')}` });
         }
-        await dbHelper.deleteAdminState(chatId);
-        await this.sendAdminHome(chatId, lang);
+        await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
+        {
+          const keyboard = [
+            [{ text: t(lang, 'BTN_ADD_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_VIEW_SUBADMINS') }],
+            [{ text: t(lang, 'BTN_REMOVE_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_BACK') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MANAGE_ADMINS') + ':', reply_markup: { keyboard, resize_keyboard: true } });
+        }
         break;
 
       case 'awaiting_announcement_text':
@@ -1170,6 +1273,29 @@ class TelegramBotService {
         
         await dbHelper.deleteAdminState(chatId);
         await this.sendAdminHome(chatId, lang);
+        break;
+
+      case 'awaiting_del_sub_confirm':
+        const { t } = require('./src/localization');
+        if (text === t(lang, 'BTN_YES_ICON')) {
+           const faculty = await dbHelper.getFacultyById(this.facultyId);
+           const adminIds = faculty.admin_chat_id ? faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean) : [];
+           if (state.subId !== adminIds[0] && adminIds.includes(state.subId)) {
+               const newIds = adminIds.filter(id => id !== state.subId).join(',');
+               await dbHelper.updateAdminChatId(this.facultyId, newIds);
+               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
+           }
+        }
+        await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
+        {
+          const keyboard = [
+            [{ text: t(lang, 'BTN_ADD_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_VIEW_SUBADMINS') }],
+            [{ text: t(lang, 'BTN_REMOVE_SUBADMIN') }],
+            [{ text: t(lang, 'BTN_BACK') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MANAGE_ADMINS') + ':', reply_markup: { keyboard, resize_keyboard: true } });
+        }
         break;
 
       case 'awaiting_del_ann_confirm':
@@ -1799,9 +1925,13 @@ class TelegramBotService {
     ];
     
     if (isCentralAdmin) {
+      const { t } = require('./src/localization');
       keyboard.push([
         { text: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings' },
-        { text: lang === 'ar' ? '👥 المشرفين' : '👥 Administrators' }
+        { text: t(lang, 'BTN_MANAGE_ADMINS') }
+      ]);
+      keyboard.push([
+        { text: t(lang, 'BTN_MONITORING') }
       ]);
     }
     

@@ -1,0 +1,79 @@
+﻿
+LineNumber Line                                                                                                        
+---------- ----                                                                                                        
+        64         if (faculty) facultyName = faculty.name_en || faculty.name_ar;                                      
+       301         ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً لإجراء بعض التحديثات.')                
+       393       (m.title_ar && m.title_ar.toLowerCase() === text.toLowerCase())                                       
+       410       let unknownMsg = user.language === 'ar' ? (faculty.unknown_msg_ar || t('ar', 'UNKNOWN_MSG_FALLBACK'...
+       430       const reply = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en;   
+       439                 const btn = { text: user.language === 'ar' ? b.text_ar : b.text_en };                       
+       466       const caption = user.language === 'ar' ? clickedMenu.reply_content_ar : clickedMenu.reply_content_en; 
+       478     const caption = lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en;                          
+       508         AND (LOWER(title_en) LIKE $2 OR LOWER(title_ar) LIKE $2 OR LOWER(file_name) LIKE $2)                
+       522       const title = lang === 'ar' ? row.title_ar : row.title_en;                                            
+       606       const lang = data === 'lang_ar' ? 'ar' : 'en';                                                        
+       637         ? (faculty.welcome_ar || t(lang, 'LANGUAGE_UPDATED'))                                               
+       723         await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });               
+       739         await this.sendFilePage(chatId, menuId, 0, lang, lang === 'ar' ? menu.reply_content_ar : menu.rep...
+       745         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });                  
+       762           row.push({ text: `${folders[i].id} - ${lang === 'ar' ? folders[i].title_ar : folders[i].title_e...
+       764             row.push({ text: `${folders[i+1].id} - ${lang === 'ar' ? folders[i+1].title_ar : folders[i+1]...
+       819       'awaiting_edit_submenu_ar',                                                                           
+       820       'awaiting_edit_text_ar',                                                                              
+       821       'awaiting_edit_file_cap_ar',                                                                          
+       822       'awaiting_welcome_ar',                                                                                
+       823       'awaiting_disabled_msg_ar',                                                                           
+       824       'awaiting_empty_msg_ar',                                                                              
+       825       'awaiting_unknown_msg_ar',                                                                            
+       826       'awaiting_no_file_msg_ar',                                                                            
+       889         const topMenuRes = await pool.query('SELECT title_ar, title_en, click_count FROM menus WHERE facu...
+       893            topButtonStr = `${lang === 'ar' ? tm.title_ar : tm.title_en} (${tm.click_count})`;               
+       972         await dbHelper.setAdminState(chatId, { action: 'awaiting_welcome_ar' });                            
+       975         await dbHelper.setAdminState(chatId, { action: 'awaiting_disabled_msg_ar' });                       
+       978         await dbHelper.setAdminState(chatId, { action: 'awaiting_empty_msg_ar' });                          
+       981         await dbHelper.setAdminState(chatId, { action: 'awaiting_unknown_msg_ar' });                        
+       984         await dbHelper.setAdminState(chatId, { action: 'awaiting_no_file_msg_ar' });                        
+      1009           await dbHelper.updateFaculty(facultyData.id, facultyData.name_en, facultyData.name_ar, facultyD...
+      1138           await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inl...
+      1177       case 'awaiting_rename_title_ar':                                                                      
+      1180         await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu....
+      1186       case 'awaiting_edit_submenu_ar':                                                                      
+      1189         await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu...
+      1195       case 'awaiting_edit_text_ar':                                                                         
+      1198         await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, t...
+      1236           state.action = 'awaiting_edit_file_cap_ar';                                                       
+      1249                 await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', s...
+      1272       case 'awaiting_edit_file_cap_ar':                                                                     
+      1274         let cAr = m3.reply_content_ar;                                                                      
+      1281         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr,...
+      1290         await dbHelper.updateMenu(state.menuId, targetMenuId, m4.title_en, m4.title_ar, m4.reply_type, m4...
+      1296       case 'awaiting_newmenu_title_ar':                                                                     
+      1316           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId: newMenuId });     
+      1325       case 'awaiting_welcome_ar':                                                                           
+      1328         await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token,...
+      1334       case 'awaiting_disabled_msg_ar':                                                                      
+      1337         await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token,...
+      1343       case 'awaiting_empty_msg_ar':                                                                         
+      1346         await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token,...
+      1352       case 'awaiting_unknown_msg_ar':                                                                       
+      1355         await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token,...
+      1361       case 'awaiting_no_file_msg_ar':                                                                       
+      1364         await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token,...
+      1373           await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, me...
+      1396         currentBtns.push({ text_ar: bTitleAr, text_en: bTitleEn, url: bUrl });                              
+      1398         await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menu...
+      1501         title_ar: state.titleAr,                                                                            
+      1503         content_ar: state.contentAr,                                                                        
+      1556           const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;             
+      1557           const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;       
+      1629       await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.cont...
+      1650       const title = lang === 'ar' ? ann.title_ar : ann.title_en;                                            
+      1716           [{ text: "🇺🇸 English", callback_data: "lang_en" }, { text: "🇸🇦 العربية", callback_data: "la...
+      1737       promptText = lang === 'ar' ? (faculty.welcome_ar || 'مرحباً بك') : (faculty.welcome_en || 'Welcome'); 
+      1740       const customPrompt = lang === 'ar' ? pMenu.reply_content_ar : pMenu.reply_content_en;                 
+      1741       promptText = customPrompt ? customPrompt : (lang === 'ar' ? pMenu.title_ar : pMenu.title_en);         
+      1749                 const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };                                
+      1782           let title = lang === 'ar' ? item.title_ar : item.title_en;                                        
+      2125                   const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };                              
+
+

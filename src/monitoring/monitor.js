@@ -13,15 +13,16 @@ class Monitor {
       if (!botService || !botService.facultyId) return;
 
       const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id) return;
+      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
       
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
       if (adminIds.length === 0) return;
+      const primaryAdminId = adminIds[0];
 
       // Identify user from update
       const msg = update.message || update.callback_query?.message;
       const from = update.message?.from || update.callback_query?.from;
-      if (!from) return;
+      if (!from || from.is_bot) return;
 
       const telegramId = from.id.toString();
       
@@ -31,22 +32,17 @@ class Monitor {
       const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || 'Unknown';
       const username = from.username ? `@${from.username}` : 'N/A';
       const lang = from.language_code || 'N/A';
-      const premium = from.is_premium ? 'Yes' : 'No';
-      let updateType = update.message ? 'Message' : (update.callback_query ? 'Callback Query' : 'Other');
       
       let text = update.message?.text || update.callback_query?.data || '';
       let command = text.startsWith('/') ? text.split(' ')[0] : 'None';
 
-      const notifyText = `📡 <b>Live Monitoring: Update</b>\n<b>Name:</b> ${name}\n<b>Username:</b> ${username}\n<b>ID:</b> <code>${telegramId}</code>\n<b>Language:</b> ${lang}\n<b>Premium:</b> ${premium}\n<b>Type:</b> ${updateType}\n<b>Text/Data:</b> ${text}\n<b>Command:</b> ${command}`;
+      const notifyText = `💬 User Activity\nName: ${name}\nUsername: ${username}\nTelegram ID: ${telegramId}\nLanguage: ${lang}\nMessage: ${text}\nCommand: ${command}\nTime: ${new Date().toISOString()}`;
 
-      // Dispatch non-blocking
-      for (const adminId of adminIds) {
-        botService.apiCall('sendMessage', {
-          chat_id: adminId,
-          text: notifyText,
-          parse_mode: 'HTML'
-        }).catch(() => {});
-      }
+      console.log(`[Monitor] Sending activity alert to ${primaryAdminId}`);
+      botService.apiCall('sendMessage', {
+        chat_id: primaryAdminId,
+        text: notifyText
+      }).catch(() => {});
     } catch (e) {
       // Silently ignore all errors
     }
@@ -60,33 +56,24 @@ class Monitor {
       if (!botService || !botService.facultyId) return;
 
       const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id) return;
+      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
       
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
       if (adminIds.length === 0) return;
-
-      // Get total users
-      const totalUsersRes = await dbHelper.pool.query(
-        'SELECT COUNT(*) as count FROM bot_users WHERE faculty_id = $1', 
-        [botService.facultyId]
-      );
-      const totalUsers = totalUsersRes.rows[0].count;
+      const primaryAdminId = adminIds[0];
 
       const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
       const username = user.username ? `@${user.username}` : 'N/A';
       const telegramId = user.id ? user.id.toString() : 'Unknown';
       const lang = user.language_code || 'N/A';
-      const premium = user.is_premium ? 'Yes' : 'No';
 
-      const notifyText = `🆕 <b>New User Registration</b>\n<b>Name:</b> ${name}\n<b>Username:</b> ${username}\n<b>ID:</b> <code>${telegramId}</code>\n<b>Language:</b> ${lang}\n<b>Premium:</b> ${premium}\n<b>Total Users:</b> ${totalUsers}`;
+      const notifyText = `🟢 New User\nName: ${name}\nUsername: ${username}\nTelegram ID: ${telegramId}\nLanguage: ${lang}\nFaculty: ${faculty.name_en || faculty.slug || 'Unknown'}\nTime: ${new Date().toISOString()}`;
 
-      for (const adminId of adminIds) {
-        botService.apiCall('sendMessage', {
-          chat_id: adminId,
-          text: notifyText,
-          parse_mode: 'HTML'
-        }).catch(() => {});
-      }
+      console.log(`[Monitor] Sending new user alert to ${primaryAdminId}`);
+      botService.apiCall('sendMessage', {
+        chat_id: primaryAdminId,
+        text: notifyText
+      }).catch(() => {});
     } catch (e) {}
   }
 
@@ -106,13 +93,12 @@ class Monitor {
       this.blockedCache.add(cacheKey);
 
       const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id) return;
+      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
       
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
       if (adminIds.length === 0) return;
+      const primaryAdminId = adminIds[0];
 
-      // Try to fetch full name from DB if they had it? The DB 'bot_users' doesn't have full name natively. 
-      // But we will fetch what we can, or just use what is passed.
       const username = user.username ? `@${user.username}` : 'N/A';
       let name = [user.first_name, user.last_name].filter(Boolean).join(' ');
       if (!name) {
@@ -125,15 +111,13 @@ class Monitor {
           }
       }
 
-      const notifyText = `🚫 <b>Bot Blocked by User</b>\n<b>Username:</b> ${username}\n<b>ID:</b> <code>${chatId}</code>\n<b>User full name:</b> ${name}\n<b>Time:</b> ${new Date().toISOString()}`;
+      const notifyText = `🚫 Bot Blocked\nName: ${name}\nUsername: ${username}\nTelegram ID: ${chatId}\nTime: ${new Date().toISOString()}`;
 
-      for (const adminId of adminIds) {
-        botService.apiCall('sendMessage', {
-          chat_id: adminId,
-          text: notifyText,
-          parse_mode: 'HTML'
-        }).catch(() => {});
-      }
+      console.log(`[Monitor] Sending bot blocked alert to ${primaryAdminId}`);
+      botService.apiCall('sendMessage', {
+        chat_id: primaryAdminId,
+        text: notifyText
+      }).catch(() => {});
     } catch (e) {}
   }
 
@@ -145,23 +129,22 @@ class Monitor {
       if (!botService || !botService.facultyId) return;
 
       const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id) return;
+      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
       
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
       if (adminIds.length === 0) return;
+      const primaryAdminId = adminIds[0];
 
       const errorCode = error.error_code || 'Unknown';
       const description = error.description || 'No description';
 
       const notifyText = `⚠️ <b>Telegram API Error</b>\n<b>Code:</b> ${errorCode}\n<b>Description:</b> ${description}\n<b>Time:</b> ${new Date().toISOString()}`;
 
-      for (const adminId of adminIds) {
-        botService.apiCall('sendMessage', {
-          chat_id: adminId,
-          text: notifyText,
-          parse_mode: 'HTML'
-        }).catch(() => {});
-      }
+      botService.apiCall('sendMessage', {
+        chat_id: primaryAdminId,
+        text: notifyText,
+        parse_mode: 'HTML'
+      }).catch(() => {});
     } catch (e) {}
   }
 }
