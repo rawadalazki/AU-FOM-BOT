@@ -1589,32 +1589,6 @@ class TelegramBotService {
         await this.sendAdminHome(chatId, lang);
         break;
 
-      case 'awaiting_inline_btn':
-        const menuBtn = await dbHelper.getMenuById(state.menuId);
-        if (text === '/clear') {
-          await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, null);
-          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã™â€¦Ã˜Â³Ã˜Â­ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â´Ã™ÂÃ˜Â§Ã™ÂÃ˜Â©.' : 'Inline buttons cleared.' });
-        await this.sendAdminHome(chatId, lang);
-          break;
-        }
-
-        let bTitleAr = '';
-        let bUrl = '';
-        
-        if (text.includes('-')) {
-          const btnParts = text.split('-');
-          bTitleAr = btnParts[0].trim();
-          bUrl = btnParts.slice(1).join('-').trim();
-        } else {
-          bTitleAr = text.trim();
-          bUrl = text.trim();
-        }
-        
-        // No validation needed here, it will be mapped correctly at render time
-        
-        const bTitleEn = await this.translateArToEn(bTitleAr);
-        const currentBtns = menuBtn.inline_buttons ? JSON.parse(menuBtn.inline_buttons) : [];
 case 'awaiting_inline_btn':
         const menuBtn = await dbHelper.getMenuById(state.menuId);
         if (text === '/clear') {
