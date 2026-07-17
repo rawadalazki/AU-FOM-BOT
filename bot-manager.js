@@ -1705,11 +1705,10 @@ class TelegramBotService {
 
     await this.apiCall('sendMessage', { 
       chat_id: chatId, 
-      text: t(lang, 'MSG_ADMIN_1'), 
+      text: t(lang, 'MSG_ADMIN_73'), 
       reply_markup: { keyboard, resize_keyboard: true } 
     });
   }
-      text: t(lang, 'MSG_ADMIN_73'), 
   async uploadFileToTelegram(filePath, fileName, mimeType) {
     return new Promise(async (resolve, reject) => {
       try {
