@@ -1259,7 +1259,14 @@ class TelegramBotService {
         break;
       }
       case 'awaiting_announcement_file': {
-        let doc = null;
+        if (text === t(lang, 'MSG_ADMIN_2') || text === '❌ إلغاء العملية') {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30') });
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+        }
+        
+        let doc = this.extractTelegramAttachment(message);
         if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35')) {
           if (!doc) {
             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_37') });
@@ -1285,7 +1292,14 @@ class TelegramBotService {
         break;
       }
       case 'awaiting_announcement_pin': {
+        if (text === t(lang, 'MSG_ADMIN_2') || text === '❌ إلغاء العملية') {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30') });
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+        }
         state.isPinned = text === t(lang, 'MSG_ADMIN_38');
+        await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
         break;
       }
 
@@ -1688,20 +1702,19 @@ class TelegramBotService {
             { text: t(lang, 'BTN_NEW_ANNOUNCEMENT') },
             { text: t(lang, 'BTN_MANAGE_ANNOUNCEMENTS') }
         ]);
-        keyboard.push([{ text: t(lang, 'BTN_STATISTICS') }]);
-    }
-
-    if (role === 'OWNER' || role === 'DEPUTY_ADMIN') {
-      keyboard.push([
-        { text: t(lang, 'BTN_MANAGE_SUBADMINS') },
-        { text: t(lang, 'BTN_MONITORING') }
-      ]);
+        keyboard.push([
+            { text: t(lang, 'BTN_STATISTICS') },
+            { text: t(lang, 'BTN_MONITORING') }
+        ]);
     }
 
     if (role === 'OWNER') {
       keyboard.push([
-        { text: t(lang, 'BTN_SETTINGS') },
+        { text: t(lang, 'BTN_MANAGE_SUBADMINS') },
         { text: t(lang, 'BTN_MANAGE_DEPUTIES') }
+      ]);
+      keyboard.push([
+        { text: t(lang, 'BTN_SETTINGS') }
       ]);
     }
 
