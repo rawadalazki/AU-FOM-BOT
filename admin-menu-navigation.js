@@ -1,5 +1,5 @@
 const dbHelper = require('./database');
-const { t } = require('./localization');
+const { t } = require('./src/localization');
 
 class AdminMenuNavigation {
   
