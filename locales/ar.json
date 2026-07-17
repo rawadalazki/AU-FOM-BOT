@@ -1,8 +1,8 @@
-﻿{
+{
   "BTN_BACK": "🔙 عودة",
   "BTN_HOME": "🏠 الرئيسية",
   "BTN_CANCEL": "❌ إلغاء",
-  "BTN_SETTINGS": "⚙️ الإعدادات",
+  "BTN_SETTINGS": "⚙️ الإعدادات الأساسية",
   "YES": "نعم",
   "NO": "لا",
   "CHOOSE_LANGUAGE": "الرجاء اختيار لغتك:",
@@ -50,7 +50,7 @@
   "BTN_MANAGE_FOLDERS": "📁 إدارة المجلدات",
   "BTN_NEW_ANNOUNCEMENT": "📢 إرسال إعلان جديد",
   "BTN_MANAGE_ANNOUNCEMENTS": "📋 إدارة الإعلانات",
-  "BTN_STATISTICS": "📊 الإحصائيات",
+  "BTN_STATISTICS": "📊 إحصائيات البوت",
   "BTN_MANAGE_DEPUTIES": "👥 إدارة نواب المشرفين",
   "BTN_MANAGE_SUBADMINS": "👥 إدارة المشرفين المساعدين",
   "BTN_LIVE_ACTIVITY": "🟢 نشاط مباشر",

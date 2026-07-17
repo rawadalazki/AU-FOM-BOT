@@ -1,8 +1,8 @@
-﻿{
+{
   "BTN_BACK": "🔙 Back",
   "BTN_HOME": "🏠 Home",
   "BTN_CANCEL": "❌ Cancel",
-  "BTN_SETTINGS": "⚙️ Settings",
+  "BTN_SETTINGS": "⚙️ Core Settings",
   "YES": "Yes",
   "NO": "No",
   "CHOOSE_LANGUAGE": "Please select your language:",
@@ -50,7 +50,7 @@
   "BTN_MANAGE_FOLDERS": "📁 Manage Folders",
   "BTN_NEW_ANNOUNCEMENT": "📢 Broadcast Announcement",
   "BTN_MANAGE_ANNOUNCEMENTS": "📋 Manage Announcements",
-  "BTN_STATISTICS": "📊 Statistics",
+  "BTN_STATISTICS": "📊 Bot Statistics",
   "BTN_MANAGE_DEPUTIES": "👥 Manage Deputy Admins",
   "BTN_MANAGE_SUBADMINS": "👥 Manage Sub-Admins",
   "BTN_LIVE_ACTIVITY": "🟢 Live Activity",
