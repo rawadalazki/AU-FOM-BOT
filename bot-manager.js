@@ -1840,11 +1840,13 @@ class TelegramBotService {
        const avgLatencyMs = sent > 0 ? Math.round((now - startTime) / sent) : 0;
        const reach = (totalUsers - blocked) > 0 ? ((sent / (totalUsers - blocked)) * 100).toFixed(1) : 0;
        
-       const txt = t(lang, 'MSG_ADMIN_1');
+       const txt = lang === 'ar' ? 
+          `📡 *جاري الإرسال...*\n\nالرسائل المرسلة: ${sent} / ${totalUsers}\nالمستخدمين الذين قاموا بالحظر: ${blocked}\nفشل: ${failed}\nالوقت المنقضي: ${Math.round((now - startTime) / 1000)} ثانية\n\n_معدل الاستجابة: ${avgLatencyMs}ms/msg | الوصول الفعلي: ${reach}%_` :
+          `📡 *Broadcasting...*\n\nSent: ${sent} / ${totalUsers}\nBlocked By Users: ${blocked}\nFailed: ${failed}\nElapsed Time: ${Math.round((now - startTime) / 1000)}s\n\n_Avg Latency: ${avgLatencyMs}ms/msg | Real Reach: ${reach}%_`;
           
        if (statusMsgId && adminChatId) {
           await this.apiCall('editMessageText', { chat_id: adminChatId, message_id: statusMsgId, text: txt, parse_mode: 'Markdown' });
-       const txt = lang === 'ar' ? 
+       } else if (adminChatId) {
           const m = await this.apiCall('sendMessage', { chat_id: adminChatId, text: txt, parse_mode: 'Markdown' });
           if (m.result) statusMsgId = m.result.message_id;
        }
