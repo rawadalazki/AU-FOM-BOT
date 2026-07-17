@@ -704,8 +704,8 @@ class TelegramBotService {
       const fRes = await dbHelper.runQuery('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
       const fileMenuId = fRes.rows.length > 0 ? fRes.rows[0].menu_id : null;
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_file_confirm', fileId, menuId: fileMenuId });
-      const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
+      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('edit_ann_')) {
@@ -719,8 +719,8 @@ class TelegramBotService {
     else if (data.startsWith('del_ann_')) {
       const annId = parseInt(data.replace('del_ann_', ''), 10);
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
-      const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
+      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('unpin_ann_')) {
@@ -748,15 +748,15 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_btn_confirm', menuId });
-        const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
+        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       } else if (action === 'open') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, menuId, lang);
       } else if (action === 'delcontent') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_content_confirm', menuId });
-        const confirmKb = { keyboard: [[{ text: '✅ نعم، حذف' }], [{ text: '❌ إلغاء' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟', reply_markup: confirmKb });
+        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       } else if (action === 'previewfiles') {
         const menu = await dbHelper.getMenuById(menuId);
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض الملفات:' : '👁️ Previewing files:' });
@@ -814,13 +814,15 @@ class TelegramBotService {
   getAdminActionFromText(text) {
     if (!text) return null;
     const t = text.trim();
-    if (t === '📚 إدارة القوائم والملفات' || t === '📚 Manage Menus & Files') return 'manage_menus';
+    if (t === '📂 إدارة القوائم والملفات' || t === '📂 Manage Menus & Files') return 'manage_menus';
+    if (t === '📁 إدارة المجلدات' || t === '📁 Manage Folders') return 'manage_folders';
     if (t === '📢 إرسال إعلان جديد' || t === '📢 Broadcast Announcement') return 'new_announcement';
-    if (t === '📣 إدارة الإعلانات' || t === '📣 Manage Announcements') return 'manage_announcements';
-    if (t === '📊 الإحصائيات' || t === '📊 Bot Statistics') return 'statistics';
-    if (t === '⚙️ إعدادات البوت الأساسية' || t === '⚙️ Core Settings') return 'core_settings';
-    if (t === '👤 إضافة مشرف فرعي' || t === '👤 Add Sub-Admin') return 'add_subadmin';
-    if (t === '❌ إغلاق' || t === '❌ Close') return 'close';
+    if (t === '📢 إدارة الإعلانات' || t === '📢 Manage Announcements') return 'manage_announcements';
+    if (t === '📊 الإحصائيات' || t === '📊 Statistics') return 'statistics';
+    if (t === '⚙️ الإعدادات' || t === '⚙️ Settings') return 'core_settings';
+    if (t === '👥 المستخدمين' || t === '👥 Users') return 'add_subadmin';
+    if (t === '🔙 رجوع' || t === '🔙 Back') return 'back';
+    if (t === '❌ إلغاء' || t === '❌ Cancel' || t === '❌ إغلاق' || t === '❌ Close') return 'close';
 
     // Settings Keyboard
     if (t === '📝 الترحيب' || t === '📝 Welcome Msg') return 'cfg_welcome';
@@ -842,7 +844,7 @@ class TelegramBotService {
     const actionId = this.getAdminActionFromText(text);
 
     // Global admin intercepts for navigation
-    if (text === '❌ إغلاق' || text === '❌ Close') {
+    if (actionId === 'close' || text === '❌ إلغاء' || text === '❌ Cancel' || text === '❌ إغلاق' || text === '❌ Close') {
       await dbHelper.deleteAdminState(chatId);
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة الإدارة.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
@@ -859,11 +861,20 @@ class TelegramBotService {
       return;
     }
 
-    if (text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) {
+    if (actionId === 'cancel' || text === '/cancel' || text.includes('إلغاء العملية') || text.includes('إلغاء الأمر') || text.includes('Cancel Operation')) {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
       await this.sendAdminHome(chatId, lang);
       return;
+    }
+
+    if (actionId === 'back' || text === '🔙 رجوع' || text === '🔙 Back') {
+      // In case they press Back while in a state that doesn't natively handle it
+      if (state.action !== 'managing_menus' && state.action !== 'managing_config') {
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+      }
     }
 
     const premiumTextStates = [
@@ -1157,7 +1168,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_ann_confirm':
-        if (text === '✅ نعم، حذف') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري حذف الإعلان لدى جميع الطلاب...' : '⏳ Deleting for all users...' });
           
           // Background process
@@ -1179,7 +1190,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_btn_confirm':
-        if (text === '✅ نعم، حذف') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           const menu = await dbHelper.getMenuById(state.menuId);
           await dbHelper.deleteMenu(state.menuId);
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الزر بنجاح' : '✅ Button Deleted', reply_markup: { remove_keyboard: true } });
@@ -1194,7 +1205,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_content_confirm':
-        if (text === '✅ نعم، حذف') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
           await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [state.menuId]);
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تفريغ محتوى الزر' : '✅ Content Cleared', reply_markup: { remove_keyboard: true } });
@@ -1207,7 +1218,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_file_confirm':
-        if (text === '✅ نعم، حذف') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [state.fileId]);
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الملف' : '✅ File deleted', reply_markup: { remove_keyboard: true } });
           if (state.menuId) {
@@ -1778,18 +1789,18 @@ class TelegramBotService {
 
     const keyboard = [
       [{ text: lang === 'ar' ? '📂 إدارة القوائم والملفات' : '📂 Manage Menus & Files' }],
-      [{ text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' }, { text: lang === 'ar' ? '📋 إدارة الإعلانات' : '📋 Manage Announcements' }],
-      [{ text: lang === 'ar' ? '📊 إحصائيات البوت' : '📊 Bot Statistics' }]
+      [{ text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' }, { text: lang === 'ar' ? '📢 إدارة الإعلانات' : '📢 Manage Announcements' }],
+      [{ text: lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics' }]
     ];
     
     if (isCentralAdmin) {
       keyboard.push([
-        { text: lang === 'ar' ? '⚙️ إعدادات البوت الأساسية' : '⚙️ Core Settings' },
-        { text: lang === 'ar' ? '➕ إضافة مشرف فرعي' : '➕ Add Sub-Admin' }
+        { text: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings' },
+        { text: lang === 'ar' ? '👥 المستخدمين' : '👥 Users' }
       ]);
     }
     
-    keyboard.push([{ text: lang === 'ar' ? '❌ إغلاق' : '❌ Close' }]);
+    keyboard.push([{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]);
 
     await this.apiCall('sendMessage', { 
       chat_id: chatId, 
