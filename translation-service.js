@@ -100,7 +100,8 @@ class TranslationService {
     let processedText = text;
 
     const addPlaceholder = (match) => {
-      const token = `{{{${crypto.randomBytes(8).toString('hex')}}}}`;
+      const id = placeholderMap.size;
+      const token = `[[TG_EMOJI_${id}]]`;
       placeholderMap.set(token, match);
       return token;
     };
@@ -117,8 +118,11 @@ class TranslationService {
     processedText = processedText.replace(/\{"cmd":"[^"]+"\}/g, addPlaceholder);
 
     // 3. Google Translate API Call
-    console.log(`[Translation] Request: ${sourceLang} -> ${targetLang} | ${text}`);
-    console.log('[Translation] Google Translate API Call');
+    console.log(`\n[Translation Debug] Source Lang: ${sourceLang} | Target Lang: ${targetLang}`);
+    console.log(`[Translation Debug] 1. Original Text:\n${text}`);
+    console.log(`[Translation Debug] 2. Text with Placeholders sent to Google:\n${processedText}`);
+    console.log(`[Translation Debug] Token Map:`, Object.fromEntries(placeholderMap));
+    
     try {
       const response = await translateApi(processedText, {
         from: sourceLang,
@@ -128,22 +132,29 @@ class TranslationService {
       let translatedText = response.text;
 
       if (translatedText) {
-        console.log(`[Translation] Response: ${translatedText}`);
+        console.log(`[Translation Debug] 3. Raw translated response from Google:\n${translatedText}`);
+        
         // Restore placeholders and verify integrity
         let isValid = true;
+        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
         for (const [token, original] of placeholderMap.entries()) {
           if (!translatedText.includes(token)) {
-            console.error(`[Translation] Token missing or corrupted: ${token}`);
+            console.error(`[Translation Debug] ❌ Token missing or corrupted after translation: ${token}`);
+            console.error(`[Translation Debug] Expected Token: ${token}, Original content: ${original}`);
             isValid = false;
-            break;
+            // Don't break, keep trying others to see full extent of corruption
           }
-          translatedText = translatedText.replace(token, original);
+          translatedText = translatedText.replace(new RegExp(escapeRegExp(token), 'g'), original);
         }
 
         if (!isValid) {
-          console.warn('[Translation] Fallback to original text due to corrupted placeholders');
+          console.warn('[Translation Debug] ⚠️ Fallback to original text due to corrupted placeholders');
           return text;
         }
+        
+        console.log(`[Translation Debug] 4. Final Restored Text:\n${translatedText}\n`);
+
         
         translatedText = this.sanitizeTranslatedText(translatedText);
 
