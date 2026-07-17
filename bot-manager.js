@@ -2457,7 +2457,7 @@ class TelegramBotService {
                     btn.url = 'https://t.me/' + link.substring(1);
                   } else if (link.startsWith('http') || link.startsWith('tg://')) {
                     btn.url = link;
-                  const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };
+                  } else {
                     btn.callback_data = 'btn_cmd_' + link;
                   }
                   kbButtons.push([btn]);
@@ -2467,13 +2467,13 @@ class TelegramBotService {
           }
         }
         if (isAdminPreview) {
-          kbButtons.push([{ text: t(lang, 'MSG_ADMIN_1'), callback_data: `del_file_${file.id}` }]);
+          kbButtons.push([{ text: t(lang, 'MSG_ADMIN_82'), callback_data: `del_file_${file.id}` }]);
         }
         if (kbButtons.length > 0) {
           replyMarkup = { inline_keyboard: kbButtons };
         }
         await this.sendTelegramFile(chatId, file, fileCaption, replyMarkup);
-          kbButtons.push([{ text: t(lang, 'MSG_ADMIN_82'), callback_data: `del_file_${file.id}` }]);
+      } catch (e) {
         this.logError('Error sending file', e, { chat_id: chatId });
         hasError = true;
       }
