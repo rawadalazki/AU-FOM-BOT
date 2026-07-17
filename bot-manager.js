@@ -762,7 +762,7 @@ class TelegramBotService {
 
       if (action === 'rename') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_rename_title_ar', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€žÃ™â€žÃ˜Â²Ã˜Â± (Ã˜Â¨Ã˜Â§Ã™â€žÃ™â€žÃ˜ÂºÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å Ã˜Â©):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (بالعربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_btn_confirm', menuId });
         const confirmKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' : 'Ã¢Å“â€¦ Yes, Delete' }], [{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
@@ -784,7 +784,7 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€ :' : 'Send the new file now:', reply_markup: cancelKb });
       } else if (action === 'edittext') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ (Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å ):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
       } else if (action === 'inline') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
         const m = lang === 'ar' ? "Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â´Ã™ÂÃ˜Â§Ã™ÂÃ˜Â© Ã˜Â¨Ã˜ÂªÃ™â€ Ã˜Â³Ã™Å Ã™â€š:\nTitle - URL\nTitle2 - URL2" : "Send inline buttons as:\nTitle - URL";
@@ -877,7 +877,7 @@ class TelegramBotService {
     // Global admin intercepts for navigation
     if (actionId === 'close' || text === 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' || text === 'Ã¢ÂÅ’ Cancel' || text === 'Ã¢ÂÅ’ Ã˜Â¥Ã˜ÂºÃ™â€žÃ˜Â§Ã™â€š' || text === 'Ã¢ÂÅ’ Close') {
       await dbHelper.deleteAdminState(chatId);
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã˜ÂºÃ™â€žÃ˜Â§Ã™â€š Ã™â€žÃ™Ë†Ã˜Â­Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã˜Â©.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       if (userObj) {
         await dbHelper.updateBotUserMenu(userObj.id, null);
@@ -1079,19 +1079,19 @@ class TelegramBotService {
         return this.handleAdminStateMessage(chatId, { text: lang === 'ar' ? 'Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª' : 'Settings' }, lang, { action: 'managing_admin' });
       } else if (actionId === 'cfg_welcome') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_welcome_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø£Ø±Ø³Ù„ Ø±Ø³Ø§Ù„Ø© Ø§Ù„ØªØ±Ø­ÙŠØ¨ Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© (Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ):' : 'Send new welcome message (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الترحيب الجديدة (بالعربي):' : 'Send new welcome message (Arabic):', reply_markup: cancelKb });
       } else if (actionId === 'cfg_maintenance') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_disabled_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø£Ø±Ø³Ù„ Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø¥ÙŠÙ‚Ø§Ù  Ù„Ù„ØµÙŠØ§Ù†Ø© (Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ):' : 'Send maintenance message (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الإيقاف للصيانة (بالعربي):' : 'Send maintenance message (Arabic):', reply_markup: cancelKb });
       } else if (actionId === 'cfg_empty_btn') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_empty_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø£Ø±Ø³Ù„ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø§Ù„ØªÙŠ ØªØ¸Ù‡Ø± Ø¹Ù†Ø¯ Ø§Ù„Ø¶ØºØ· Ø¹Ù„Ù‰ Ø²Ø± Ù„Ø§ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ù†Øµ Ù…Ø®ØµØµ (Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ):' : 'Send new empty button message (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عند الضغط على زر لا يحتوي على نص مخصص (بالعربي):' : 'Send new empty button message (Arabic):', reply_markup: cancelKb });
       } else if (actionId === 'cfg_unknown_text') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_unknown_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø£Ø±Ø³Ù„ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø§Ù„ØªÙŠ ØªØ¸Ù‡Ø± Ø¹Ù†Ø¯Ù…Ø§ ÙŠØ±Ø³Ù„ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ù†ØµØ§Ù‹ Ù„Ø§ ÙŠÙÙ‡Ù…Ù‡ Ø§Ù„Ø¨ÙˆØª (Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ):' : 'Send message for unknown user input (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يرسل المستخدم نصاً لا يفهمه البوت (بالعربي):' : 'Send message for unknown user input (Arabic):', reply_markup: cancelKb });
       } else if (actionId === 'cfg_no_file') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_no_file_msg_ar' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø£Ø±Ø³Ù„ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø§Ù„ØªÙŠ ØªØ¸Ù‡Ø± Ø¹Ù†Ø¯Ù…Ø§ ÙŠØ­Ø§ÙˆÙ„ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ÙØªØ­ Ø²Ø± Ù…Ù„Ù ÙˆÙ„ÙƒÙ† Ø§Ù„Ù…Ù„Ù Ù…Ø­Ø°ÙˆÙ (Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ):' : 'Send message when a file is missing (Arabic):', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الرسالة التي تظهر عندما يحاول المستخدم فتح زر ملف ولكن الملف محذوف (بالعربي):' : 'Send message when a file is missing (Arabic):', reply_markup: cancelKb });
       }
       return;
     }
@@ -1174,7 +1174,7 @@ class TelegramBotService {
           return;
         }
         if (!/^\d+/.test(text)) {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'معرف غار صالح. يجب أن يحتوي على ȣرقام فقط.' : 'Invalid ID. Must contain only digits.' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'معرف غير صالح. يجب أن يحتوي على أرقام فقط.' : 'Invalid ID. Must contain only digits.' });
           return;
         }
         
@@ -1224,7 +1224,7 @@ class TelegramBotService {
         if (text !== '/skip' && text !== '/skip (Ã˜ÂªÃ˜Â®Ã˜Â·Ã™Å  Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€  Ã™â€¦Ã™â€žÃ™Â)') {
           doc = this.extractTelegramAttachment(message);
           if (!doc) {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â¹Ã˜Â°Ã˜Â±Ã˜Â§Ã™â€¹Ã˜Å’ Ã™â€žÃ™â€¦ Ã˜Â£Ã˜ÂªÃ™â€¦Ã™Æ’Ã™â€  Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â¹Ã˜Â±Ã™Â Ã˜Â¹Ã™â€žÃ™â€° Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â. Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¬Ã˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã™Æ’Ã™â‚¬ Document Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· /skip.' : 'File not recognized. Send as Document or /skip.' });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لم أتمكن من التعرف على الملف. الرجاء الإرسال كـ Document أو أرسل /skip.' : 'File not recognized. Send as Document or /skip.' });
             return;
           }
         }
@@ -1447,7 +1447,7 @@ class TelegramBotService {
             await this.apiCall('sendMessage', { chat_id: chatId, text: `Ã¢ÂÅ’ Error: ${e.message}` });
           }
         } else {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¬Ã˜Â§Ã˜Â¡ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã™â€¦Ã™â€žÃ™Â.' : 'Please send a document.' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف.' : 'Please send a document.' });
         }
         break;
 
@@ -1455,7 +1455,7 @@ class TelegramBotService {
         if (text === '/skip' || text === 'Ã¢Å“â€¦ Done' || text === 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â±Ã˜Â­ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€žÃ™â€žÃ™â€¦Ã™â€žÃ™Â (Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å ) Ã˜Â£Ã™Ë† /skip Ã™â€žÃ™â€žÃ˜Â§Ã˜Â­Ã˜ÂªÃ™ÂÃ˜Â§Ã˜Â¸ Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â§Ã™â€žÃ™Å :' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
         } else {
           const doc2 = this.extractTelegramAttachment(message);
           if (doc2) {
@@ -1484,7 +1484,7 @@ class TelegramBotService {
                await this.apiCall('sendMessage', { chat_id: chatId, text: `Ã¢ÂÅ’ Error: ${e.message}` });
             }
           } else {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¬Ã˜Â§Ã˜Â¡ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã™â€¦Ã™â€žÃ™Â (Document) Ã˜Â£Ã™Ë† Ã˜Â§Ã™â€žÃ˜Â¶Ã˜ÂºÃ˜Â· Ã˜Â¹Ã™â€žÃ™â€° "Ã˜ÂªÃ™â€¦".' : 'Please send a document or press "Done".' });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف (Document) أو الضغط على "تم".' : 'Please send a document or press "Done".' });
           }
         }
         break;
@@ -1594,7 +1594,7 @@ case 'awaiting_inline_btn':
         if (text === '/clear') {
           await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, null);
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã™â€¦Ã˜Â³Ã˜Â­ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â´Ã™Â Ã˜Â§Ã™Â Ã˜Â©.' : 'Inline buttons cleared.' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم مسح الأزرار الشفافة.' : 'Inline buttons cleared.' });
         await this.sendAdminHome(chatId, lang);
           break;
         }
@@ -1626,7 +1626,7 @@ case 'awaiting_inline_btn':
       default:
         // Clear state if stuck
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã™â€ Ã™â€¡Ã˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€žÃ˜Â³Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã™Å Ã˜Â©.' : 'Admin session closed.', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إنهاء الجلسة الإدارية.' : 'Admin session closed.', reply_markup: { remove_keyboard: true } });
         break;
     }
   }
@@ -1641,7 +1641,7 @@ case 'awaiting_inline_btn':
 
     if (role === 'OWNER' || role === 'DEPUTY_ADMIN') {
         keyboard.push([
-            { text: lang === 'ar' ? '📢 بث إعلان جديد' : '📢 Broadcast Announcement' },
+            { text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' },
             { text: lang === 'ar' ? '📋 إدارة الإعلانات' : '📋 Manage Announcements' }
         ]);
         keyboard.push([{ text: lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics' }]);
@@ -1658,7 +1658,7 @@ case 'awaiting_inline_btn':
       ]);
     }
 
-    keyboard.push([{ text: lang === 'ar' ? '❌ إغلاق' : '❌ Cancel' }]);
+    keyboard.push([{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]);
 
     await this.apiCall('sendMessage', { 
       chat_id: chatId, 
@@ -2351,7 +2351,7 @@ case 'awaiting_inline_btn':
       if (owner) {
         await this.apiCall('sendMessage', {
           chat_id: owner.chat_id,
-          text: âš ï¸ Error: A file could not be delivered.\n\nFile Name: {fileName || 'Unknown'}\nError: {errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.
+          text: `âš ï¸ Error: A file could not be delivered.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`
         });
       }
     } catch (adminErr) {

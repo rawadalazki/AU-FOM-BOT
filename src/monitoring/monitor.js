@@ -1,4 +1,4 @@
-const dbHelper = require('../../database');
+﻿const dbHelper = require('../../database');
 
 class Monitor {
   constructor() {}
@@ -22,11 +22,11 @@ class Monitor {
       if (!faculty.monitoring_enabled) return;
       console.log('[Monitor] Monitoring Enabled');
 
-      if (!faculty.admin_chat_id) return;
-      const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
-      if (adminIds.length === 0) return;
-      
-      const primaryAdminId = adminIds[0];
+      const admins = await dbHelper.getAdminsByFaculty(facultyId);
+      const owner = admins.find(a => a.role === 'OWNER');
+      if (!owner) return;
+      const primaryAdminId = owner.chat_id;
+      const adminIds = admins.map(a => a.chat_id);
 
       // Extract user info
       let from = null;
