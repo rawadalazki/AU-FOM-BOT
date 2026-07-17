@@ -980,7 +980,7 @@ module.exports = {
   pool,
   initStatus,
   runQuery,
-  pool.query,
+  safeInitQuery,
   initDb,
   addAnnouncementMessage,
   getAnnouncementMessages,
@@ -993,9 +993,6 @@ module.exports = {
   toggleMenuStatus,
   toggleFacultyForwarding,
   updateTranslationField,
-  pool,
-  runQuery,
-  initDb,
   getFaculties,
   getFacultyById,
   getFacultyBySlug,
@@ -1046,7 +1043,6 @@ module.exports = {
   deleteAllSessions,
   cleanupExpiredSessions,
   logAdminAction,
-  assignDeputyOwner,
-  deleteAdminState
+  assignDeputyOwner
 };
 
