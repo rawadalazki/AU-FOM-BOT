@@ -305,13 +305,18 @@ class AdminMenuNavigation {
       
       if (targetRow !== null || text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId, targetRow });
+        const dbHelper = require('./database');
+        const canAddFolder = await dbHelper.hasPermission(chatId, botCtx.facultyId, 'MANAGE_FOLDERS');
+        const keyboard = [];
+        if (canAddFolder) {
+            keyboard.push([{ text: lang === 'ar' ? '📁 زر قائمة (مجلد)' : '📁 Menu Button (Folder)' }]);
+        }
+        keyboard.push([{ text: lang === 'ar' ? '📄 زر ملفات' : '📄 File Button' }]);
+        keyboard.push([{ text: lang === 'ar' ? '📝 زر نصي' : '📝 Text Button' }]);
+        keyboard.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
+
         await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ما نوع الزر الجديد؟' : 'What type of button?', reply_markup: {
-          keyboard: [
-            [{ text: lang === 'ar' ? '📁 زر قائمة (مجلد)' : '📁 Menu Button (Folder)' }],
-            [{ text: lang === 'ar' ? '📄 زر ملفات' : '📄 File Button' }],
-            [{ text: lang === 'ar' ? '📝 زر نصي' : '📝 Text Button' }],
-            [{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]
-          ], resize_keyboard: true
+          keyboard, resize_keyboard: true
         }});
         return true;
       }
@@ -324,7 +329,14 @@ class AdminMenuNavigation {
         return true;
       }
       let type = null;
-      if (text.includes('قائمة') || text.includes('Folder')) type = 'submenu';
+      if (text.includes('قائمة') || text.includes('Folder')) {
+          const dbHelper = require('./database');
+          if (!(await dbHelper.hasPermission(chatId, botCtx.facultyId, 'MANAGE_FOLDERS'))) {
+              await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ليس لديك صلاحية لإضافة مجلد.' : 'No permission to add folder.' });
+              return true;
+          }
+          type = 'submenu';
+      }
       else if (text.includes('ملفات') || text.includes('File')) type = 'file';
       else if (text.includes('نصي') || text.includes('Text')) type = 'text';
 

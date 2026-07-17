@@ -242,6 +242,38 @@ async function initDb() {
     `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
   );
 
+  // Phase: Telegram Bot Roles
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id SERIAL PRIMARY KEY,
+      faculty_id INTEGER NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
+      chat_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'SUB_ADMIN',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(faculty_id, chat_id)
+    )
+  `);
+
+  // Automatic Migration from faculties.admin_chat_id
+  try {
+    const { rows: facultiesToMigrate } = await pool.query('SELECT id, admin_chat_id FROM faculties WHERE admin_chat_id IS NOT NULL AND admin_chat_id != $1', ['']);
+    for (const f of facultiesToMigrate) {
+      if (f.admin_chat_id) {
+        const adminIds = f.admin_chat_id.split(',').map(s => s.trim()).filter(s => s);
+        for (let i = 0; i < adminIds.length; i++) {
+          const role = i === 0 ? 'OWNER' : 'SUB_ADMIN';
+          await pool.query(`
+            INSERT INTO admins (faculty_id, chat_id, role)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (faculty_id, chat_id) DO NOTHING
+          `, [f.id, adminIds[i], role]);
+        }
+      }
+    }
+  } catch (e) {
+    logger.error(`[DB] Error during admins table migration: ${e.message}`);
+  }
+
   // Handle column migrations (PostgreSQL native approach)
   const alterQueries = [
     `ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_deputy_owner BOOLEAN NOT NULL DEFAULT FALSE;`,
@@ -718,6 +750,50 @@ async function getAllAdmins() {
   return rows;
 }
 
+// ==========================================
+// TELEGRAM BOT ADMIN ROLE HELPERS
+// ==========================================
+
+async function getAdminRole(facultyId, chatId) {
+  const { rows } = await pool.query('SELECT role FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
+  if (rows.length > 0) return rows[0].role;
+  return null;
+}
+
+async function setAdminRole(facultyId, chatId, role) {
+  await pool.query(`
+    INSERT INTO admins (faculty_id, chat_id, role) 
+    VALUES ($1, $2, $3) 
+    ON CONFLICT (faculty_id, chat_id) DO UPDATE SET role = $3
+  `, [facultyId, chatId, role]);
+}
+
+async function removeAdmin(facultyId, chatId) {
+  await pool.query('DELETE FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
+}
+
+async function getAdminsByFaculty(facultyId) {
+  const { rows } = await pool.query('SELECT chat_id, role, created_at FROM admins WHERE faculty_id = $1 ORDER BY created_at ASC', [facultyId]);
+  return rows;
+}
+
+async function hasPermission(chatId, facultyId, permission) {
+  const role = await getAdminRole(facultyId, chatId);
+  if (!role) return false;
+
+  if (role === 'OWNER') return true;
+
+  if (role === 'DEPUTY_ADMIN') {
+    return ['MANAGE_FILES', 'MANAGE_FOLDERS', 'ANNOUNCEMENTS', 'MONITORING'].includes(permission);
+  }
+
+  if (role === 'SUB_ADMIN') {
+    return ['MANAGE_FILES', 'MANAGE_FOLDERS'].includes(permission);
+  }
+
+  return false;
+}
+
 async function createSession(adminId, sessionHash, expiresAt) {
   await pool.query('INSERT INTO admin_sessions (admin_id, session_hash, expires_at) VALUES ($1, $2, $3)', [adminId, sessionHash, expiresAt]);
 }
@@ -876,6 +952,14 @@ module.exports = {
   deleteAdmin,
   updateLastLogin,
   getAllAdmins,
+  
+  // Telegram Bot Admins
+  getAdminRole,
+  setAdminRole,
+  removeAdmin,
+  getAdminsByFaculty,
+  hasPermission,
+
   createSession,
   getSessionByHash,
   deleteSession,
