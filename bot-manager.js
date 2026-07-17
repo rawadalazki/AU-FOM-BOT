@@ -857,7 +857,7 @@ class TelegramBotService {
     
     if (match('BTN_BACK')) return 'back';
     if (match('BTN_CLOSE')) return 'close';
-    if (match('BTN_CANCEL') || match('BTN_CANCEL_OP') || trimmedText === '/cancel') return 'cancel';
+    if (match('BTN_CANCEL') || trimmedText === '/cancel') return 'cancel';
 
     // Settings Keyboard
     if (match('BTN_CFG_WELCOME')) return 'cfg_welcome';
@@ -947,7 +947,14 @@ class TelegramBotService {
       }
 
       // Let admin-menu-navigation handle back if we are managing menus
-      if (state.action !== 'managing_menus' && state.action !== 'managing_config') {
+      if (state.action && state.action.startsWith('managing_menus')) {
+          // fall through to local handlers
+      } else if (state.action && state.action.startsWith('managing_config')) {
+          // config has no separate back handler, go to admin_home
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+      } else {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
           await this.sendAdminHome(chatId, lang);
           return;
@@ -1701,7 +1708,7 @@ class TelegramBotService {
       ]);
     }
 
-    keyboard.push([{ text: t(lang, 'BTN_CANCEL') }]);
+    keyboard.push([{ text: t(lang, 'BTN_CLOSE') }]);
 
     await this.apiCall('sendMessage', { 
       chat_id: chatId, 
