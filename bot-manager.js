@@ -1290,7 +1290,7 @@ class TelegramBotService {
         break;
       }
 
-      case 'awaiting_edit_ann_text':
+      case 'awaiting_edit_ann_text': {
         const editLines = text.split('\n');
         const eTitleAr = editLines[0].trim();
         const eContentAr = editLines.slice(1).join('\n').trim() || ' ';
@@ -1298,9 +1298,8 @@ class TelegramBotService {
         const eContentEn = '';
         
         await dbHelper.updateAnnouncementContent(state.annId, eTitleAr, eTitleEn, eContentAr, eContentEn);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_41') });
+        
         (async () => {
           const msgs = await dbHelper.getAnnouncementMessages(state.annId);
           const updatedAnn = await dbHelper.getAnnouncementById(state.annId);
@@ -1315,48 +1314,45 @@ class TelegramBotService {
                }
                const msgTitle = uLang === 'ar' ? updatedAnn.title_ar : updatedAnn.title_en;
                const msgContent = uLang === 'ar' ? updatedAnn.content_ar : updatedAnn.content_en;
-               const msgTitle = uLang === 'ar' ? updatedAnn.title_ar : updatedAnn.title_en;
-               const msgContent = uLang === 'ar' ? updatedAnn.content_ar : updatedAnn.content_en;
+               const txt = `📢 *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? '📌 (Pinned)' : ''}`;
                await this.apiCall('editMessageText', { chat_id: msg.chat_id, message_id: msg.message_id, text: txt, parse_mode: 'Markdown' });
             } catch(e) {}
           }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        })();
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_42') });
+        })();
+        
         await dbHelper.deleteAdminState(chatId);
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-      case 'awaiting_del_sub_confirm':
+      case 'awaiting_del_sub_confirm': {
         const delRole = await dbHelper.getAdminRole(this.facultyId, state.subId);
         const nextDelState = delRole === 'SUB_ADMIN' ? 'admin_manage_admins_menu' : 'admin_manage_deputies_menu';
         
-        if (text === t(lang, 'BTN_YES_ICON')) {
+        if (text === t(lang, 'BTN_YES_ICON') || text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
            if (!delRole) {
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
            } else if (delRole === 'OWNER') {
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_43') });
            } else {
+               await dbHelper.deleteAdmin(state.subId);
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_44') });
-               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
            }
         }
         await dbHelper.setAdminState(chatId, { action: nextDelState });
-        {
-          const keyboard = [
-            [{ text: t(lang, 'BTN_ADD') }],
-            [{ text: t(lang, 'BTN_VIEW') }],
-            [{ text: t(lang, 'BTN_ADD') }],
-            [{ text: t(lang, 'BTN_VIEW') }],
-            [{ text: t(lang, 'BTN_REMOVE') }],
-            [{ text: t(lang, 'MSG_ADMIN_29') }]
-        }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_45'), reply_markup: { keyboard, resize_keyboard: true } });
+        const keyboard = [
+          [{ text: t(lang, 'BTN_ADD') }],
+          [{ text: t(lang, 'BTN_VIEW') }],
+          [{ text: t(lang, 'BTN_REMOVE') }],
+          [{ text: t(lang, 'MSG_ADMIN_29') }]
+        ];
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_45'), reply_markup: { keyboard, resize_keyboard: true } });
+        break;
+      }
 
-      case 'awaiting_del_ann_confirm':
+      case 'awaiting_del_ann_confirm': {
         if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-          
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_46') });
           (async () => {
             const msgs = await dbHelper.getAnnouncementMessages(state.annId);
@@ -1366,38 +1362,43 @@ class TelegramBotService {
               } catch(e) {}
             }
             await dbHelper.deleteAnnouncement(state.annId);
-            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-          })();
             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_47') });
+          })();
+        } else {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
         }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-      case 'awaiting_del_btn_confirm':
+      case 'awaiting_del_btn_confirm': {
         if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           const menu = await dbHelper.getMenuById(state.menuId);
           await dbHelper.deleteMenu(state.menuId);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
-          if (menu) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_48'), reply_markup: { remove_keyboard: true } });
-            await this.sendAdminHome(chatId, lang);
+          if (menu && menu.parent_id !== null) {
+            const AdminMenuNavigation = require('./admin-menu-navigation');
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menu.parent_id, viewingMenuDetailsId: null });
+            await AdminMenuNavigation.sendAdminReplyMenus(this, chatId, menu.parent_id, lang);
           } else {
             await dbHelper.deleteAdminState(chatId);
             await this.sendAdminHome(chatId, lang);
           }
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
         }
         break;
+      }
 
-      case 'awaiting_del_content_confirm':
+      case 'awaiting_del_content_confirm': {
         if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
           await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [state.menuId]);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
-          const mContent = await dbHelper.getMenuById(state.menuId);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_49'), reply_markup: { remove_keyboard: true } });
-            await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
+        }
+        await dbHelper.setAdminState(chatId, { action: 'admin_home' });
             await this.sendAdminHome(chatId, lang);
           }
         }
@@ -1460,12 +1461,12 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_54') });
         break;
 
-      case 'awaiting_replace_file_doc':
+      case 'awaiting_replace_file_doc': {
         if (text === '/cancel') {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-          await this.sendAdminHome(chatId, lang);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_55') });
+          await this.sendAdminHome(chatId, lang);
+          return;
         }
         const docReplace = this.extractTelegramAttachment(message);
         if (docReplace) {
@@ -1476,27 +1477,28 @@ class TelegramBotService {
             state.action = 'awaiting_edit_file_doc';
             await dbHelper.setAdminState(chatId, state);
             
-            const doneBtn = t(lang, 'MSG_ADMIN_1');
-            await this.apiCall('sendMessage', { 
             const doneBtn = t(lang, 'MSG_ADMIN_56');
-              text: t(lang, 'MSG_ADMIN_1'),
-              reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
+            await this.apiCall('sendMessage', { 
+              chat_id: chatId, 
               text: t(lang, 'MSG_ADMIN_57'),
+              reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
+            });
           } catch (e) {
             await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
           }
         } else {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        }
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_58') });
+        }
+        break;
+      }
 
-      case 'awaiting_edit_file_doc':
+      case 'awaiting_edit_file_doc': {
         if (text === '/skip' || text === '✅ Done' || text === '✅ تم' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-        } else {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_59'), reply_markup: cancelKb });
+        } else {
+          const doc2 = this.extractTelegramAttachment(message);
           if (doc2) {
             try {
               await dbHelper.addMenuFile(state.menuId, doc2.file_id, doc2.file_name, doc2.mime_type, doc2.file_size);
@@ -1507,26 +1509,23 @@ class TelegramBotService {
                 const m2 = await dbHelper.getMenuById(state.menuId);
                 await dbHelper.updateMenu(state.menuId, m2.parent_id, m2.title_en, m2.title_ar, 'file', state.captionEn, state.captionAr, doc2.file_name, doc2.file_id, doc2.mime_type, doc2.file_size, m2.sort_order, m2.row_index);
               }
-
-              const files = await dbHelper.getMenuFiles(state.menuId);
-              const doneBtn = t(lang, 'MSG_ADMIN_1');
-              const msg = t(lang, 'MSG_ADMIN_1');
               const doneBtn = t(lang, 'MSG_ADMIN_56');
-              const msg = lang === 'ar' 
+              await this.apiCall('sendMessage', { 
                 chat_id: chatId, 
-                text: msg,
+                text: t(lang, 'MSG_ADMIN_57'),
                 reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
               });
             } catch (e) {
                await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
             }
           } else {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_60') });
           }
         }
         break;
-            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_60') });
-      case 'awaiting_edit_file_cap_ar':
+      }
+
+      case 'awaiting_edit_file_cap_ar': {
         const m3 = await dbHelper.getMenuById(state.menuId);
         let cAr = m3.reply_content_ar;
         let cEn = m3.reply_content_en;
@@ -1537,10 +1536,11 @@ class TelegramBotService {
         
         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order, m3.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: null });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_61'), reply_markup: { remove_keyboard: true } });
         const adminNavF = require('./admin-menu-navigation');
         await adminNavF.sendAdminReplyMenus(this, chatId, m3.parent_id, lang);
         break;
+      }
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_61'), reply_markup: { remove_keyboard: true } });
       case 'awaiting_move_dest':
         const m4 = await dbHelper.getMenuById(state.menuId);
@@ -1551,7 +1551,7 @@ class TelegramBotService {
         await this.sendAdminHome(chatId, lang);
         break;
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_62') });
+      case 'awaiting_newmenu_title_ar': {
         const nTitleEn = await this.translateArToEn(text);
         const lastOrderRes = await dbHelper.runQuery('SELECT MAX(sort_order) as max_order FROM menus WHERE parent_id IS NOT DISTINCT FROM $1 AND faculty_id = $2', [state.currentMenuId, this.facultyId]);
         const nextOrder = (lastOrderRes.rows[0].max_order || 0) + 1;
@@ -1567,75 +1567,81 @@ class TelegramBotService {
         if (state.newType === 'submenu') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'submenu', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: newMenuId, viewingMenuDetailsId: null });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_62') });
           const adminNav = require('./admin-menu-navigation');
           await adminNav.sendAdminReplyMenus(this, chatId, newMenuId, lang);
         } else if (state.newType === 'text') {
+          const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'text', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_63') });
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
         } else if (state.newType === 'file') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'file', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId: newMenuId });
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_64'), reply_markup: cancelKb });
         }
         break;
+      }
 
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_65'), reply_markup: cancelKb });
+      case 'awaiting_cfg_welcome_ar': {
         const fac2 = await dbHelper.getFacultyById(this.facultyId);
         const welEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token, fac2.admin_chat_id, welEn, text, fac2.bot_enabled, fac2.disabled_message_en, fac2.disabled_message_ar, fac2.telegram_api_server, fac2.empty_msg_en, fac2.empty_msg_ar, fac2.unknown_msg_en, fac2.unknown_msg_ar, fac2.no_file_msg_en, fac2.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_65') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
+      case 'awaiting_cfg_maintenance_ar': {
         const fac1 = await dbHelper.getFacultyById(this.facultyId);
         const disEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, disEn, text, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
+      case 'awaiting_cfg_empty_btn_ar': {
         const fac3 = await dbHelper.getFacultyById(this.facultyId);
         const empEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token, fac3.admin_chat_id, fac3.welcome_en, fac3.welcome_ar, fac3.bot_enabled, fac3.disabled_message_en, fac3.disabled_message_ar, fac3.telegram_api_server, empEn, text, fac3.unknown_msg_en, fac3.unknown_msg_ar, fac3.no_file_msg_en, fac3.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_67') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_67') });
+      case 'awaiting_cfg_unknown_text_ar': {
         const fac4 = await dbHelper.getFacultyById(this.facultyId);
         const unkEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token, fac4.admin_chat_id, fac4.welcome_en, fac4.welcome_ar, fac4.bot_enabled, fac4.disabled_message_en, fac4.disabled_message_ar, fac4.telegram_api_server, fac4.empty_msg_en, fac4.empty_msg_ar, unkEn, text, fac4.no_file_msg_en, fac4.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_68') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_68') });
+      case 'awaiting_cfg_no_file_ar': {
         const fac5 = await dbHelper.getFacultyById(this.facultyId);
         const nofEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token, fac5.admin_chat_id, fac5.welcome_en, fac5.welcome_ar, fac5.bot_enabled, fac5.disabled_message_en, fac5.disabled_message_ar, fac5.telegram_api_server, fac5.empty_msg_en, fac5.empty_msg_ar, fac5.unknown_msg_en, fac5.unknown_msg_ar, nofEn, text);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_69') });
         await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_69') });
+      case 'awaiting_inline_btn_ar': {
         const menuBtn = await dbHelper.getMenuById(state.menuId);
         if (text === '/clear') {
           await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, null);
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        await this.sendAdminHome(chatId, lang);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_70') });
+          await this.sendAdminHome(chatId, lang);
           break;
         }
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_70') });
+        
         let bTitleAr = '';
         let bUrl = '';
         
@@ -1656,18 +1662,19 @@ class TelegramBotService {
         
         await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, JSON.stringify(currentBtns));
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_71') });
         await this.sendAdminHome(chatId, lang);
         break;
-
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_71') });
+      }
+      
+      default:
         // Clear state if stuck
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_72'), reply_markup: { remove_keyboard: true } });
         break;
     }
   }
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_72'), reply_markup: { remove_keyboard: true } });
+
   async sendAdminHome(chatId, lang) {
     const role = await dbHelper.getAdminRole(this.facultyId, chatId);
     if (!role) return;
