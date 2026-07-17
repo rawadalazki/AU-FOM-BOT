@@ -88,6 +88,18 @@ class Monitor {
 
       console.log('[Monitor] Alert Sent');
 
+      if (update.message) {
+        try {
+          await botService.apiCall('forwardMessage', {
+            chat_id: primaryAdminId,
+            from_chat_id: update.message.chat.id,
+            message_id: update.message.message_id
+          });
+        } catch (fErr) {
+          console.log('[Monitor] Forward failed');
+        }
+      }
+
     } catch (e) {
       // Ignore silently as this is non-intrusive monitoring
     }
