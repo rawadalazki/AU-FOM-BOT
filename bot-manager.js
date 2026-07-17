@@ -723,7 +723,7 @@ class TelegramBotService {
     else if (data.startsWith('del_ann_')) {
       const annId = parseInt(data.replace('del_ann_', ''), 10);
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
-      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
@@ -752,7 +752,7 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (باللغة العربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_btn_confirm', menuId });
-        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد من تنفيذ عملية الحذف؟' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       } else if (action === 'open') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
@@ -824,7 +824,7 @@ class TelegramBotService {
     if (t === '📢 إدارة الإعلانات' || t === '📢 Manage Announcements') return 'manage_announcements';
     if (t === '📊 الإحصائيات' || t === '📊 Statistics') return 'statistics';
     if (t === '⚙️ الإعدادات' || t === '⚙️ Settings') return 'core_settings';
-    if (t === '👥 المستخدمين' || t === '👥 Users') return 'add_subadmin';
+    if (t === '👥 المشرفين' || t === '👥 Administrators') return 'add_subadmin';
     if (t === '🔙 رجوع' || t === '🔙 Back') return 'back';
     if (t === '❌ إلغاء' || t === '❌ Cancel' || t === '❌ إغلاق' || t === '❌ Close') return 'close';
 
@@ -1022,7 +1022,8 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
       } else if (actionId === 'add_subadmin') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_subadmin_id' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال المعرف (ID) الخاص بالمشرف الفرعي الجديد ليتم إضافته:' : 'Please send the Telegram Chat ID of the new sub-admin:', reply_markup: { remove_keyboard: true }});
+        const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال المعرف (ID) الخاص بالمشرف الفرعي الجديد ليتم إضافته:' : 'Please send the Telegram Chat ID of the new sub-admin:', reply_markup: cancelKb });
       }
       return;
     }
@@ -1800,7 +1801,7 @@ class TelegramBotService {
     if (isCentralAdmin) {
       keyboard.push([
         { text: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings' },
-        { text: lang === 'ar' ? '👥 المستخدمين' : '👥 Users' }
+        { text: lang === 'ar' ? '👥 المشرفين' : '👥 Administrators' }
       ]);
     }
     
