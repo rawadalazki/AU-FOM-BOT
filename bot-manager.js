@@ -745,7 +745,7 @@ class TelegramBotService {
          } catch(e) {}
       }
       await dbHelper.runQuery('UPDATE announcements SET is_pinned = FALSE WHERE id = $1', [annId]);
-      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '?? ????? Ø§Ù„ØªØ«Ø¨ÙŠØª Ù„Ø¯Ù‰ Ø§Ù„Ø¬Ù…ÙŠØ¹.', show_alert: true });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: lang === 'ar' ? 'تم إلغاء تثبيت الإعلان لدى الجميع.' : 'Announcement unpinned.', show_alert: true });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
     else if (data.startsWith('admin_')) {
@@ -1033,7 +1033,7 @@ class TelegramBotService {
         let topButtonStr = (t(lang, 'MSG_ADMIN_14'));
         if (topMenuRes.rows.length > 0 && topMenuRes.rows[0].click_count > 0) {
            const tm = topMenuRes.rows[0];
-           topButtonStr = ` ()`;
+           topButtonStr = `${tm.title_ar || tm.title_en} (${tm.click_count})`;
         }
         
         let avgLatency = 0;
@@ -1041,27 +1041,25 @@ class TelegramBotService {
            const sum = global.botLatencies.reduce((a, b) => a + b, 0);
            avgLatency = (sum / global.botLatencies.length).toFixed(0);
         }
-        
-        const statsAr = `ðŸ“Š **Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ø¨ÙˆØª Ø§Ù„Ø´Ø§Ù…Ù„Ø©:**\n\n` +
-          `ðŸ‘¥ **Ø§Ù„Ù…Ø´ØªØ±ÙƒÙˆÙ†**\n` +
-          `- Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø´ØªØ±ÙƒÙŠÙ†: ${totalUsers}\n` +
-          `- Ø§Ù„Ù…Ø´ØªØ±ÙƒÙˆÙ† Ø§Ù„Ø¬Ø¯Ø¯ (Ø£Ø³Ø¨ÙˆØ¹): ${weeklySubscribers}\n` +
-          `- Ø§Ù„Ù…Ø´ØªØ±ÙƒÙˆÙ† Ø§Ù„Ø¬Ø¯Ø¯ (Ø´Ù‡Ø±): ${monthlySubscribers}\n\n` +
-          `ðŸ“ˆ **Ø§Ù„Ù†Ø´Ø§Ø·**\n` +
-          `- Ù†Ø´Ø· Ø§Ù„ÙŠÙˆÙ…: ${dailyActive}\n` +
-          `- Ù†Ø´Ø· Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹: ${weeklyActive}\n` +
-          `- Ù†Ø´Ø· Ù‡Ø°Ø§ Ø§Ù„Ø´Ù‡Ø±: ${monthlyActive}\n\n` +
-          `ðŸš€ **Ø§Ù„Ø£Ø¯Ø§Ø¡ ÙˆØ§Ù„ØªÙØ§Ø¹Ù„**\n` +
-          `- Ù†Ø³Ø¨Ø© Ø§Ù„ÙˆØµÙˆÙ„ (Ø´Ù‡Ø±ÙŠØ§Ù‹): ${reachPercentage}%\n` +
-          `- Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø·Ù„Ø¨Ø§Øª/Ø§Ù„ØªÙØ§Ø¹Ù„Ø§Øª: ${totalRequests}\n` +
-          `- Ø²Ù…Ù† Ø§Ù„Ø§Ø³ØªØ¬Ø§Ø¨Ø© (Ù…ØªÙˆØ³Ø·): ${avgLatency}ms\n\n` +
-          `ðŸ—‚ï¸ **Ø§Ù„Ù…Ø­ØªÙˆÙ‰**\n` +
-          `- Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ø²Ø±Ø§Ø± Ø§Ù„Ù…ØªØ§Ø­Ø©: ${totalButtons}\n` +
-          `- Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ù„ÙØ§Øª Ø§Ù„Ù…Ø±ÙÙˆØ¹Ø©: ${totalFiles}\n` +
-          `- Ø§Ù„Ø²Ø± Ø§Ù„Ø£ÙƒØ«Ø± Ø·Ù„Ø¨Ø§Ù‹: ${topButtonStr}\n\n` +
-          `ðŸ›‘ **Ø§Ù„Ø­Ø¸Ø±**\n` +
-          `- Ø¹Ø¯Ø¯ Ù…Ù† Ù‚Ø§Ù… Ø¨Ø­Ø¸Ø± Ø£Ùˆ Ø­Ø°Ù Ø§Ù„Ø¨ÙˆØª: ${blockedUsers}`;
-          
+        const statsAr = `📊 **إحصائيات البوت الشاملة:**\n\n` +
+          `👥 **المشتركون**\n` +
+          `- إجمالي المشتركين: ${totalUsers}\n` +
+          `- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n` +
+          `- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n` +
+          `📈 **النشاط**\n` +
+          `- نشط اليوم: ${dailyActive}\n` +
+          `- نشط هذا الأسبوع: ${weeklyActive}\n` +
+          `- نشط هذا الشهر: ${monthlyActive}\n\n` +
+          `🚀 **الأداء والتفاعل**\n` +
+          `- نسبة الوصول (شهرياً): ${reachPercentage}%\n` +
+          `- إجمالي الطلبات/التفاعلات: ${totalRequests}\n` +
+          `- زمن الاستجابة (متوسط): ${avgLatency}ms\n\n` +
+          `🗂️ **المحتوى**\n` +
+          `- عدد الأزرار المتاحة: ${totalButtons}\n` +
+          `- عدد الملفات المرفوعة: ${totalFiles}\n` +
+          `- الزر الأكثر طلباً: ${topButtonStr}\n\n` +
+          `🛑 **الحظر**\n` +
+          `- عدد من قام بحظر أو حذف البوت: ${blockedUsers}`;
         const statsEn = `ðŸ“Š **Bot Statistics:**\n\n` +
           `ðŸ‘¥ **Subscribers**\n` +
           `- Total: ${totalUsers}\n` +
@@ -1090,7 +1088,7 @@ class TelegramBotService {
           await dbHelper.setAdminState(chatId, { action: 'managing_config' });
           const fac = await dbHelper.getFacultyById(this.facultyId);
           const monStatus = fac.forward_user_messages ? t(lang, 'MSG_ADMIN_15') : t(lang, 'MSG_ADMIN_16');
-          const cfgText = (lang === 'ar' ? 'Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª\n\nØ§Ù„Ù…Ø±Ø§Ù‚Ø¨Ø©: ' : 'Settings\n\nMonitoring: ') + monStatus;
+          const cfgText = (lang === 'ar' ? 'الإعدادات\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;
           const cfgKb = [
             [{ text: t(lang, 'BTN_CFG_WELCOME') }, { text: t(lang, 'BTN_CFG_MAINTENANCE') }],
             [{ text: t(lang, 'BTN_CFG_EMPTY_BTN') }, { text: t(lang, 'BTN_CFG_UNKNOWN_TEXT') }],
@@ -1124,8 +1122,7 @@ class TelegramBotService {
 
     // --- CORE SETTINGS ---
     if (state.action === 'managing_config') {
-      if (text.includes('Ù†Ø´Ø§Ø· Ù…Ø¨Ø§Ø´Ø±') || text.includes('Live Activity')) {
-        const fac = await dbHelper.getFacultyById(this.facultyId);
+      if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {
         await dbHelper.toggleFacultyForwarding(this.facultyId, !fac.forward_user_messages);
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_17') });
         return this.handleAdminStateMessage(chatId, { text: t(lang, 'MSG_ADMIN_18') }, lang, { action: 'managing_admin' });
@@ -1212,7 +1209,7 @@ class TelegramBotService {
             [{ text: t(lang, 'BTN_ADD') }],
             [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_REMOVE') }],
-            [{ text: t(lang, 'MSG_ADMIN_29') }]
+            [{ text: t(lang, 'BTN_BACK') }]
           ];
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30'), reply_markup: { keyboard, resize_keyboard: true } });
           return;
@@ -1232,7 +1229,7 @@ class TelegramBotService {
             [{ text: t(lang, 'BTN_ADD') }],
             [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_REMOVE') }],
-            [{ text: t(lang, 'MSG_ADMIN_29') }]
+            [{ text: t(lang, 'BTN_BACK') }]
           ];
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_34').replace('${roleName}', roleName), reply_markup: { keyboard, resize_keyboard: true } });
         }
@@ -1263,8 +1260,7 @@ class TelegramBotService {
       }
       case 'awaiting_announcement_file': {
         let doc = null;
-        if (text !== '/skip' && text !== '/skip (ØªØ®Ø·ÙŠ Ø¨Ø¯ÙˆÙ† Ù…Ù„Ù)' && text !== t(lang, 'MSG_ADMIN_35')) {
-          doc = this.extractTelegramAttachment(message);
+        if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35')) {
           if (!doc) {
             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_37') });
             return;
@@ -1289,8 +1285,7 @@ class TelegramBotService {
         break;
       }
       case 'awaiting_announcement_pin': {
-        state.isPinned = text === 'Ù†Ø¹Ù… (ØªØ«Ø¨ÙŠØª)' || text === 'Yes (Pin)' || text === t(lang, 'MSG_ADMIN_38');
-        await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
+        state.isPinned = text === t(lang, 'MSG_ADMIN_38');
         break;
       }
 
@@ -1318,8 +1313,7 @@ class TelegramBotService {
                }
                const msgTitle = uLang === 'ar' ? updatedAnn.title_ar : updatedAnn.title_en;
                const msgContent = uLang === 'ar' ? updatedAnn.content_ar : updatedAnn.content_en;
-               const txt = `ðŸ“¢ *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? 'ðŸ“Œ (Pinned)' : ''}`;
-               await this.apiCall('editMessageText', { chat_id: msg.chat_id, message_id: msg.message_id, text: txt, parse_mode: 'Markdown' });
+               const txt = `📢 *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? '📌 (Pinned)' : ''}`;
             } catch(e) {}
           }
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_42') });
@@ -1336,12 +1330,12 @@ class TelegramBotService {
         
         if (text === t(lang, 'BTN_YES_ICON')) {
            if (!delRole) {
-               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-           } else if (delRole === 'OWNER') {
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_43') });
+           } else if (delRole === 'OWNER') {
+               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_44') });
            } else {
                await dbHelper.removeAdmin(this.facultyId, state.subId);
-               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_44') });
+               await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
            }
         }
         await dbHelper.setAdminState(chatId, { action: nextDelState });
@@ -1349,7 +1343,7 @@ class TelegramBotService {
           [{ text: t(lang, 'BTN_ADD') }],
           [{ text: t(lang, 'BTN_VIEW') }],
           [{ text: t(lang, 'BTN_REMOVE') }],
-          [{ text: t(lang, 'MSG_ADMIN_29') }]
+          [{ text: t(lang, 'BTN_BACK') }]
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_45'), reply_markup: { keyboard, resize_keyboard: true } });
         break;
@@ -1490,7 +1484,7 @@ class TelegramBotService {
               reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
             });
           } catch (e) {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: `âŒ Error: ${e.message}` });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
           }
         } else {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_58') });
@@ -1499,7 +1493,7 @@ class TelegramBotService {
       }
 
       case 'awaiting_edit_file_doc': {
-        if (text === '/skip' || text === 'âœ… Done' || text === 'âœ… ØªÙ…' || text === '/done') {
+        if (text === '/skip' || text === '✅ Done' || text === '✅ تم' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_59'), reply_markup: cancelKb });
@@ -1522,7 +1516,7 @@ class TelegramBotService {
                 reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
               });
             } catch (e) {
-               await this.apiCall('sendMessage', { chat_id: chatId, text: `âŒ Error: ${e.message}` });
+               await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
             }
           } else {
             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_60') });
@@ -1535,7 +1529,7 @@ class TelegramBotService {
         const m3 = await dbHelper.getMenuById(state.menuId);
         let cAr = m3.reply_content_ar;
         let cEn = m3.reply_content_en;
-        if (text !== '/skip' && text !== 'âœ… Done' && text !== 'âœ… ØªÙ…') {
+        if (text !== '/skip' && text !== '✅ Done' && text !== '✅ تم') {
           cAr = text;
           cEn = await this.translateArToEn(text);
         }
@@ -1547,7 +1541,7 @@ class TelegramBotService {
         await adminNavF.sendAdminReplyMenus(this, chatId, m3.parent_id, lang);
         break;
       }
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_61'), reply_markup: { remove_keyboard: true } });
+
       case 'awaiting_move_dest':
         const m4 = await dbHelper.getMenuById(state.menuId);
         const targetMenuId = text === 'null' ? null : parseInt(text, 10);
@@ -1697,14 +1691,17 @@ class TelegramBotService {
         keyboard.push([{ text: t(lang, 'BTN_STATISTICS') }]);
     }
 
+    if (role === 'OWNER' || role === 'DEPUTY_ADMIN') {
+      keyboard.push([
+        { text: t(lang, 'BTN_MANAGE_SUBADMINS') },
+        { text: t(lang, 'BTN_MONITORING') }
+      ]);
+    }
+
     if (role === 'OWNER') {
       keyboard.push([
         { text: t(lang, 'BTN_SETTINGS') },
         { text: t(lang, 'BTN_MANAGE_DEPUTIES') }
-      ]);
-      keyboard.push([
-        { text: t(lang, 'BTN_MANAGE_SUBADMINS') },
-        { text: t(lang, 'BTN_MONITORING') }
       ]);
     }
 
@@ -1791,11 +1788,10 @@ class TelegramBotService {
     let mimeType = null;
     let fileSize = null;
 
-    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_74') });
     
     try {
       if (doc) {
-    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_74') });
         telegramFileId = doc.file_id;
         mimeType = doc.mime_type || 'application/octet-stream';
         fileSize = doc.file_size || 0;
@@ -1826,7 +1822,7 @@ class TelegramBotService {
     } catch(e) {
       this.logError('Broadcast preparation failed', e, { chat_id: chatId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: 'âŒ Error: ' + e.message });
-      await dbHelper.deleteAdminState(chatId);
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
     }
   }
 

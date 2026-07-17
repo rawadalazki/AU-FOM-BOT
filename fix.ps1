@@ -1,50 +1,32 @@
-$path = "C:\Users\Rawad\Desktop\FOMbot\bot-manager.js"
-$content = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+$lines = Get-Content bot-manager.js -Encoding UTF8
 
-$content = $content.Replace(
-    "(faculty.disabled_message_ar || '?????? ????? ???? ?????? ?????? ???????.')",
-    "(faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً لإجراء بعض التحديثات.')"
-)
-$content = $content.Replace(
-    "'?? ??????? ?????\n\n???? ??????? ???? ???? ???????:'",
-    "'⚙️ إعدادات البوت الأساسية\n\nماذا تريد أن تعدل من الإعدادات التالية:'"
-)
-$content = $content.Replace(
-    "'?? Bot Configuration\n\nWhat would you like to edit?'",
-    "'⚙️ Bot Configuration\n\nWhat would you like to edit?'"
-)
-$content = $content.Replace(
-    "if (text.includes('?????? ??????') || text.includes('Live Activity')) {",
-    "if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {"
-)
-$content = $content.Replace(
-    "'? ?? ????? ???? ?????? ??????.'",
-    "'✅ تم تبديل حالة النشاط المباشر.'"
-)
-$content = $content.Replace(
-    "{ text: lang === 'ar' ? '???????' : 'Settings' }",
-    "{ text: lang === 'ar' ? 'إعدادات' : 'Settings' }"
-)
-$content = $content.Replace(
-    "(faculty.welcome_ar || '????? ??')",
-    "(faculty.welcome_ar || 'مرحباً بك')"
-)
-$content = $content.Replace(
-    "'?? ????'",
-    "'🔙 عودة'"
-)
-$content = $content.Replace(
-    "'?? ???? ???? ????????'",
-    "'🛠️ لوحة تحكم المشرفين'"
-)
-$content = $content.Replace(
-    "'?? ???????:'",
-    "'📋 القائمة:'"
-)
-$content = $content.Replace(
-    "'??? ??? ??? ?????'",
-    "'🗑️ حذف هذا الملف'"
-)
+$lines[747] = "      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: lang === 'ar' ? 'تم إلغاء تثبيت الإعلان لدى الجميع.' : 'Announcement unpinned.', show_alert: true });"
+$lines[1044] = "        const statsAr = ``📊 **إحصائيات البوت التفصيلية:**\n\n`` +"
+$lines[1045] = "          ``👥 **المشتركون**\n`` +"
+$lines[1046] = "          ``- إجمالي المشتركين: ${totalUsers}\n`` +"
+$lines[1047] = "          ``- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n`` +"
+$lines[1048] = "          ``- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n`` +"
+$lines[1049] = "          ``📈 **النشاط**\n`` +"
+$lines[1050] = "          ``- نشط اليوم: ${dailyActive}\n`` +"
+$lines[1051] = "          ``- نشط هذا الأسبوع: ${weeklyActive}\n`` +"
+$lines[1052] = "          ``- نشط هذا الشهر: ${monthlyActive}\n\n`` +"
+$lines[1053] = "          ``⚡ **الوصول والأداء**\n`` +"
+$lines[1054] = "          ``- نسبة الوصول (شهرياً): ${reachPercentage}%\n`` +"
+$lines[1055] = "          ``- إجمالي الطلبات/النقرات: ${totalRequests}\n`` +"
+$lines[1056] = "          ``- متوسط الاستجابة (ميلي ثانية): ${avgLatency}ms\n\n`` +"
+$lines[1057] = "          ``📁 **المحتوى**\n`` +"
+$lines[1058] = "          ``- عدد الأزرار المتاحة: ${totalButtons}\n`` +"
+$lines[1059] = "          ``- عدد الملفات المرفوعة: ${totalFiles}\n`` +"
+$lines[1060] = "          ``- الزر الأكثر طلباً: ${topButtonStr}\n\n`` +"
+$lines[1061] = "          ``🚫 **الحظر**\n`` +"
+$lines[1062] = "          ``- عدد من قام بحظر البوت: ${blockedUsers}``;"
+$lines[1063] = ""
 
-[System.IO.File]::WriteAllText($path, $content, [System.Text.Encoding]::UTF8)
-Write-Output "Done!"
+$lines[1092] = "          const cfgText = (lang === 'ar' ? 'الإعدادات\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;"
+$lines[1214] = "            [{ text: t(lang, 'BTN_BACK') }]"
+$lines[1234] = "            [{ text: t(lang, 'BTN_BACK') }]"
+$lines[1265] = "        if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35')) {"
+$lines[1291] = "        state.isPinned = text === t(lang, 'MSG_ADMIN_38');"
+$lines[1320] = "               const txt = ``📢 *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? '📌 (Pinned)' : ''}``;"
+
+$lines | Set-Content bot-manager.js -Encoding UTF8

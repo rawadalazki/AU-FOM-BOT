@@ -1,0 +1,45 @@
+STATSARBLOCK
+        const statsAr = `📊 **إحصائيات البوت الشاملة:**\n\n` +
+          `👥 **المشتركون**\n` +
+          `- إجمالي المشتركين: ${totalUsers}\n` +
+          `- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n` +
+          `- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n` +
+          `📈 **النشاط**\n` +
+          `- نشط اليوم: ${dailyActive}\n` +
+          `- نشط هذا الأسبوع: ${weeklyActive}\n` +
+          `- نشط هذا الشهر: ${monthlyActive}\n\n` +
+          `🚀 **الأداء والتفاعل**\n` +
+          `- نسبة الوصول (شهرياً): ${reachPercentage}%\n` +
+          `- إجمالي الطلبات/التفاعلات: ${totalRequests}\n` +
+          `- زمن الاستجابة (متوسط): ${avgLatency}ms\n\n` +
+          `🗂️ **المحتوى**\n` +
+          `- عدد الأزرار المتاحة: ${totalButtons}\n` +
+          `- عدد الملفات المرفوعة: ${totalFiles}\n` +
+          `- الزر الأكثر طلباً: ${topButtonStr}\n\n` +
+          `🛑 **الحظر**\n` +
+          `- عدد من قام بحظر أو حذف البوت: ${blockedUsers}`;
+END
+LINE748
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: lang === 'ar' ? 'تم إلغاء تثبيت الإعلان لدى الجميع.' : 'Announcement unpinned.', show_alert: true });
+END
+LINE1036
+           topButtonStr = `${tm.title_ar || tm.title_en} (${tm.click_count})`;
+END
+LINE1079
+          const cfgText = (lang === 'ar' ? 'الإعدادات\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;
+END
+LINE1113
+      if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {
+END
+LINE1252
+        if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35')) {
+END
+LINE1278
+        state.isPinned = text === t(lang, 'MSG_ADMIN_38');
+END
+LINE1307
+               const txt = `📢 *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? '📌 (Pinned)' : ''}`;
+END
+LINE1816
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
+END
