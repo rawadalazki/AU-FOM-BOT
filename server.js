@@ -241,6 +241,12 @@ const server = http.createServer(async (req, res) => {
       
       const update = await parseJson(req);
       
+      // Independent Monitoring Layer
+      const monitor = require('./src/monitoring/monitor');
+      monitor.onIncomingUpdate(facultyId, update).catch(err => {
+        logger.error({ reqId, facultyId, err }, `Monitor update error`);
+      });
+      
       // Handle asynchronously — always return 200 to Telegram immediately
       botManager.handleWebhookUpdate(facultyId, update, reqId).catch(err => {
         logger.error({ reqId, facultyId, err }, `Webhook update error`);

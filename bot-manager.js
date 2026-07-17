@@ -219,8 +219,6 @@ class TelegramBotService {
     try {
       console.log("UPDATE RECEIVED:");
       console.log(JSON.stringify(update, null, 2));
-      
-      monitor.onIncomingUpdate(this, update);
 
       if (update.message) {
           await this.handleMessage(update.message);
@@ -839,7 +837,7 @@ class TelegramBotService {
     if (trimmedText === t('ar', 'BTN_REMOVE_SUBADMIN') || trimmedText === t('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
     if (trimmedText === t('ar', 'BTN_ENABLE_MONITORING') || trimmedText === t('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
     if (trimmedText === t('ar', 'BTN_DISABLE_MONITORING') || trimmedText === t('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
-    if (trimmedText === '🔙 رجوع' || trimmedText === '🔙 Back') return 'back';
+    if (trimmedText === '🔙 رجوع' || trimmedText === '🔙 Back' || trimmedText === t('ar', 'BTN_BACK') || trimmedText === t('en', 'BTN_BACK')) return 'back';
     if (trimmedText === '❌ إلغاء' || trimmedText === '❌ Cancel' || trimmedText === '❌ إغلاق' || trimmedText === '❌ Close') return 'close';
 
     // Settings Keyboard
@@ -886,7 +884,7 @@ class TelegramBotService {
       return;
     }
 
-    if (actionId === 'back' || text === '🔙 رجوع' || text === '🔙 Back') {
+    if (actionId === 'back' || text === '🔙 رجوع' || text === '🔙 Back' || text === t(lang, 'BTN_BACK')) {
       // In case they press Back while in a state that doesn't natively handle it
       if (state.action !== 'managing_menus' && state.action !== 'managing_config') {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
