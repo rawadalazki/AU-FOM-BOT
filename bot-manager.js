@@ -7,6 +7,7 @@ const logger = require('./logger');
 const cache = require('./cache');
 const translationService = require('./translation-service');
 const { t } = require('./src/localization');
+const AdminRoutes = require('./src/admin-routes');
 
 function getWebhookSecret(facultyId) {
   const secret = process.env.WEBHOOK_SECRET || 'default-webhook-secret';
@@ -831,41 +832,42 @@ class TelegramBotService {
   getAdminActionFromText(text) {
     if (!text) return null;
     const trimmedText = text.trim();
-    if (trimmedText === '📂 إدارة القوائم والملفات' || trimmedText === '📂 Manage Menus & Files') return 'manage_menus';
-    if (trimmedText === '📁 إدارة المجلدات' || trimmedText === '📁 Manage Folders') return 'manage_folders';
-    if (trimmedText === '📢 إرسال إعلان جديد' || trimmedText === '📢 Broadcast Announcement') return 'new_announcement';
-    if (trimmedText === '📢 ????? ال???????' || trimmedText === '📢 Manage Announcements') return 'manage_announcements';
-    if (trimmedText === '?? ??????????' || trimmedText === '📊 Statistics') return 'statistics';
-    if (trimmedText === '⚙️ ال???????' || trimmedText === '⚙️ Settings') return 'core_settings';
     
-    if (trimmedText === t('ar', 'BTN_MANAGE_ADMINS') || trimmedText === t('en', 'BTN_MANAGE_ADMINS')) return 'manage_admins';
-    if (trimmedText === t('ar', 'BTN_MONITORING') || trimmedText === t('en', 'BTN_MONITORING')) return 'admin_monitoring';
-    if (trimmedText === t('ar', 'BTN_ADD_SUBADMIN') || trimmedText === t('en', 'BTN_ADD_SUBADMIN')) return 'add_subadmin';
-    if (trimmedText === t('ar', 'BTN_VIEW_SUBADMINS') || trimmedText === t('en', 'BTN_VIEW_SUBADMINS')) return 'view_subadmins';
-    if (trimmedText === t('ar', 'BTN_REMOVE_SUBADMIN') || trimmedText === t('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
+    // Check against English and Arabic localization keys
+    const match = (key) => trimmedText === t('ar', key) || trimmedText === t('en', key);
+
+    if (match('BTN_MANAGE_MENUS')) return 'manage_menus';
+    if (match('BTN_MANAGE_FOLDERS')) return 'manage_folders';
+    if (match('BTN_NEW_ANNOUNCEMENT')) return 'new_announcement';
+    if (match('BTN_MANAGE_ANNOUNCEMENTS')) return 'manage_announcements';
+    if (match('BTN_STATISTICS')) return 'statistics';
+    if (match('BTN_SETTINGS')) return 'core_settings';
     
-    // Generic subadmin/deputy buttons
-    if (trimmedText === '👥 ????? نواب المشرفين' || trimmedText === '👥 Manage Deputy Admins') return 'manage_deputies';
-    if (trimmedText === '?? ????? ???????? المساعدين' || trimmedText === '👥 Manage Sub-Admins') return 'manage_admins';
-    if (trimmedText === '➕ إضافة' || trimmedText === '➕ Add') return 'add_subadmin';
-    if (trimmedText === '👁️ عرض' || trimmedText === '👁️ View') return 'view_subadmins';
-    if (trimmedText === '🗑️ إزالة' || trimmedText === '🗑️ Remove') return 'remove_subadmin';
-    if (trimmedText === t('ar', 'BTN_ENABLE_MONITORING') || trimmedText === t('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
-    if (trimmedText === t('ar', 'BTN_DISABLE_MONITORING') || trimmedText === t('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
-    if (trimmedText === '🔙 رجوع' || trimmedText === '🔙 Back' || trimmedText === t('ar', 'BTN_BACK') || trimmedText === t('en', 'BTN_BACK')) return 'back';
-    if (trimmedText === '❌ إلغاء' || trimmedText === '❌ Cancel' || trimmedText === '❌ إغلاق' || trimmedText === '❌ Close') return 'close';
+    if (match('BTN_MANAGE_ADMINS')) return 'manage_admins'; // Sub-admins alias
+    if (match('BTN_MANAGE_SUBADMINS')) return 'manage_admins';
+    if (match('BTN_MANAGE_DEPUTIES')) return 'manage_deputies';
+    
+    if (match('BTN_MONITORING')) return 'admin_monitoring';
+    if (match('BTN_ENABLE_MONITORING')) return 'enable_monitoring';
+    if (match('BTN_DISABLE_MONITORING')) return 'disable_monitoring';
+    
+    if (match('BTN_ADD') || match('BTN_ADD_SUBADMIN')) return 'add_subadmin';
+    if (match('BTN_VIEW') || match('BTN_VIEW_SUBADMINS')) return 'view_subadmins';
+    if (match('BTN_REMOVE') || match('BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
+    
+    if (match('BTN_BACK')) return 'back';
+    if (match('BTN_CANCEL') || match('BTN_CLOSE') || match('BTN_CANCEL_OP')) return 'close';
 
     // Settings Keyboard
-    if (trimmedText === '📝 الترحيب' || trimmedText === '📝 Welcome Msg') return 'cfg_welcome';
-    if (trimmedText === '⏸️ رسالة الإيقاف' || trimmedText === '⏸️ Maintenance Msg') return 'cfg_maintenance';
-    if (trimmedText === '❓ رسالة الزر الفارغ' || trimmedText === '❓ Empty Button Msg') return 'cfg_empty_btn';
-    if (trimmedText === '❓ رسالة نص غير معروف' || trimmedText === '❓ Unknown Text Msg') return 'cfg_unknown_text';
-    if (trimmedText === '⚠️ رسالة لا يوجد ملف' || trimmedText === '⚠️ No File Msg') return 'cfg_no_file';
-    if (trimmedText === '🏠 الرئيسية' || trimmedText === '🏠 Home') return 'cfg_home';
-    if (trimmedText === '❌ إلغاء العملية' || trimmedText === '❌ Cancel Operation') return 'cancel';
+    if (match('BTN_CFG_WELCOME')) return 'cfg_welcome';
+    if (match('BTN_CFG_MAINTENANCE')) return 'cfg_maintenance';
+    if (match('BTN_CFG_EMPTY_BTN')) return 'cfg_empty_btn';
+    if (match('BTN_CFG_UNKNOWN_TEXT')) return 'cfg_unknown_text';
+    if (match('BTN_CFG_NO_FILE')) return 'cfg_no_file';
+    if (match('BTN_CFG_HOME')) return 'cfg_home';
 
     // Global
-    if (trimmedText === '🟢 نشاط مباشر' || trimmedText === '🟢 Live Activity') return 'live_activity'; // Though handled differently maybe
+    if (match('BTN_LIVE_ACTIVITY')) return 'live_activity';
     
     return null;
   }
@@ -874,10 +876,38 @@ class TelegramBotService {
     let text = message.text || '';
     const actionId = this.getAdminActionFromText(text);
 
+    const role = await dbHelper.getAdminRole(this.facultyId, chatId);
+    
+    // Centralized Permission Checking via AdminRoutes
+    if (actionId && AdminRoutes[actionId]) {
+      const allowedRoles = AdminRoutes[actionId].roles;
+      if (!allowedRoles.includes(role)) {
+        console.warn('[SECURITY] Denied Attempt', { 
+          chatId, 
+          username: message.from.username, 
+          role, 
+          actionId, 
+          timestamp: new Date() 
+        });
+        await this.apiCall('sendMessage', { 
+          chat_id: chatId, 
+          text: t(lang, 'ERR_NO_PERMISSION') 
+        });
+        return;
+      }
+    }
+
+    console.log('[Admin Button]:', text);
+    console.log('[Resolved Action]:', actionId);
+    console.log('[Current Role]:', role);
+    console.log('[Current State]:', state.action);
+    console.log('[Permission]:', role ? 'GRANTED' : 'DENIED');
+    console.log('[Handler Executed]:', 'handleAdminStateMessage');
+
     // Global admin intercepts for navigation
-    if (actionId === 'close' || text === '❌ إلغاء' || text === '❌ Cancel' || text === '❌ إغلاق' || text === '❌ Close') {
+    if (actionId === 'close') {
       await dbHelper.deleteAdminState(chatId);
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_PANEL_CLOSED'), reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
       if (userObj) {
         await dbHelper.updateBotUserMenu(userObj.id, null);
@@ -886,21 +916,21 @@ class TelegramBotService {
       return;
     }
 
-    if (text === '🏠 الرئيسية' || text === '🏠 Home') {
+    if (actionId === 'admin_home' || actionId === 'cfg_home') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, lang);
       return;
     }
 
-    if ((actionId === 'cancel' || text === '/cancel' || text.includes('????? العملية') || text.includes('????? الأمر') || text.includes('Cancel Operation')) && state.action !== 'awaiting_subadmin_id') {
+    if (actionId === 'cancel' && state.action !== 'awaiting_subadmin_id') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ????? الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ACTION_CANCELLED') });
       await this.sendAdminHome(chatId, lang);
       return;
     }
 
-    if (actionId === 'back' || text === '🔙 رجوع' || text === '🔙 Back' || text === t(lang, 'BTN_BACK')) {
-      // In case they press Back while in a state that doesn't natively handle it
+    if (actionId === 'back') {
+      // Let admin-menu-navigation handle back if we are managing menus
       if (state.action !== 'managing_menus' && state.action !== 'managing_config') {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
           await this.sendAdminHome(chatId, lang);
@@ -931,13 +961,14 @@ class TelegramBotService {
       if (actionId === 'manage_menus') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, null, lang);
-      } else if (actionId === 'new_announcement') {
-        await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_text' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ????? ????? ????\n\nالرجاء إرسال نص الإع??ن كام??ً (السطر الأول سيكون العنوان، والباقي هو المحتوى):' : '📢 New Announcement\n\nPlease send the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
-      } else if (actionId === 'manage_announcements') {
-        await this.sendAdminAnnouncementsList(chatId, lang);
-      } else if (actionId === 'statistics') {
-        const pool = dbHelper.pool;
+      } else if (actionId === 'new_announcement' || actionId === 'manage_announcements' || actionId === 'statistics') {
+        if (actionId === 'new_announcement') {
+          await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_text' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 إرسال إعلان جديد\n\nالرجاء إرسال نص الإعلان كاملاً (السطر الأول سيكون العنوان، والباقي هو المحتوى):' : '📢 New Announcement\n\nPlease send the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
+        } else if (actionId === 'manage_announcements') {
+          await this.sendAdminAnnouncementsList(chatId, lang);
+        } else if (actionId === 'statistics') {
+          const pool = dbHelper.pool;
         
         const usersRes = await pool.query('SELECT created_at, last_active_at, is_blocked FROM bot_users WHERE faculty_id = $1 AND platform = $2', [this.facultyId, 'telegram']);
         const allUsers = usersRes.rows;
@@ -1033,39 +1064,42 @@ class TelegramBotService {
         
         await this.apiCall('sendMessage',
  { chat_id: chatId, text: lang === 'ar' ? statsAr : statsEn, parse_mode: 'Markdown' });
-      } else if (actionId === 'core_settings') {
-        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
-        const cfgText = lang === 'ar' 
-          ? '⚙️ إعدادات البوت الأساسية\n\nماذا تريد أن تعدل من الإعدادات التالية:'
-          : '⚙️ Bot Configuration\n\nWhat would you like to edit?';
-        const fac = await dbHelper.getFacultyById(this.facultyId);
-        const monStatus = fac.forward_user_messages ? (lang === 'ar' ? 'مفعل 🟢' : 'ON 🟢') : (lang === 'ar' ? 'معطل 🔴' : 'OFF 🔴');
-        const cfgKb = [
-          [{ text: lang === 'ar' ? '📝 الترحيب' : '📝 Welcome Msg' }, { text: lang === 'ar' ? '⏸️ رسالة الإيقاف' : '⏸️ Maintenance Msg' }],
-          [{ text: lang === 'ar' ? '❓ رسالة الزر الفارغ' : '❓ Empty Button Msg' }, { text: lang === 'ar' ? '❓ رسالة نص غير معروف' : '❓ Unknown Text Msg' }],
-          [{ text: lang === 'ar' ? '⚠️ رسالة لا يوجد ملف' : '⚠️ No File Msg' }],
-          [{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]
-        ];
-        await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
-      } else if (actionId === 'manage_admins' || actionId === 'manage_deputies') {
-        const isDeputy = actionId === 'manage_deputies';
-        const roleTitle = isDeputy ? (lang === 'ar' ? 'إدارة نواب المشرفين:' : 'Manage Deputy Admins:') : (lang === 'ar' ? 'إدارة المشرفين المساعدين:' : 'Manage Sub-Admins:');
-        const keyboard = [
-          [{ text: lang === 'ar' ? '➕ إضافة' : '➕ Add' }],
-          [{ text: lang === 'ar' ? '👁️ عرض' : '👁️ View' }],
-          [{ text: lang === 'ar' ? '🗑️ إزالة' : '🗑️ Remove' }],
-          [{ text: lang === 'ar' ? 'رجوع' : 'Back' }]
-        ];
-        await this.apiCall('sendMessage', { chat_id: chatId, text: roleTitle, reply_markup: { keyboard, resize_keyboard: true } });
-        await dbHelper.setAdminState(chatId, { action: isDeputy ? 'admin_manage_deputies_menu' : 'admin_manage_admins_menu' });
-      } else if (actionId === 'admin_monitoring') {
-        const keyboard = [
-          [{ text: t(lang, 'BTN_ENABLE_MONITORING') }],
-          [{ text: t(lang, 'BTN_DISABLE_MONITORING') }],
-          [{ text: t(lang, 'BTN_BACK') }]
-        ];
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MONITORING') + ':', reply_markup: { keyboard, resize_keyboard: true } });
-        await dbHelper.setAdminState(chatId, { action: 'admin_monitoring_menu' });
+        }
+      } else if (actionId === 'core_settings' || actionId === 'manage_admins' || actionId === 'manage_deputies' || actionId === 'admin_monitoring') {
+        if (actionId === 'core_settings') {
+          await dbHelper.setAdminState(chatId, { action: 'managing_config' });
+          const cfgText = lang === 'ar' 
+            ? '⚙️ إعدادات البوت الأساسية\n\nماذا تريد أن تعدل من الإعدادات التالية:'
+            : '⚙️ Bot Configuration\n\nWhat would you like to edit?';
+          const fac = await dbHelper.getFacultyById(this.facultyId);
+          const monStatus = fac.forward_user_messages ? (lang === 'ar' ? 'مفعل 🟢' : 'ON 🟢') : (lang === 'ar' ? 'معطل 🔴' : 'OFF 🔴');
+          const cfgKb = [
+            [{ text: t(lang, 'BTN_CFG_WELCOME') }, { text: t(lang, 'BTN_CFG_MAINTENANCE') }],
+            [{ text: t(lang, 'BTN_CFG_EMPTY_BTN') }, { text: t(lang, 'BTN_CFG_UNKNOWN_TEXT') }],
+            [{ text: t(lang, 'BTN_CFG_NO_FILE') }],
+            [{ text: t(lang, 'BTN_CFG_HOME') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
+        } else if (actionId === 'manage_admins' || actionId === 'manage_deputies') {
+          const isDeputy = actionId === 'manage_deputies';
+          const roleTitle = isDeputy ? (lang === 'ar' ? 'إدارة نواب المشرفين:' : 'Manage Deputy Admins:') : (lang === 'ar' ? 'إدارة المشرفين المساعدين:' : 'Manage Sub-Admins:');
+          const keyboard = [
+            [{ text: t(lang, 'BTN_ADD') }],
+            [{ text: t(lang, 'BTN_VIEW') }],
+            [{ text: t(lang, 'BTN_REMOVE') }],
+            [{ text: t(lang, 'BTN_BACK') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: roleTitle, reply_markup: { keyboard, resize_keyboard: true } });
+          await dbHelper.setAdminState(chatId, { action: isDeputy ? 'admin_manage_deputies_menu' : 'admin_manage_admins_menu' });
+        } else if (actionId === 'admin_monitoring') {
+          const keyboard = [
+            [{ text: t(lang, 'BTN_ENABLE_MONITORING') }],
+            [{ text: t(lang, 'BTN_DISABLE_MONITORING') }],
+            [{ text: t(lang, 'BTN_BACK') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MONITORING') + ':', reply_markup: { keyboard, resize_keyboard: true } });
+          await dbHelper.setAdminState(chatId, { action: 'admin_monitoring_menu' });
+        }
       }
       return;
     }
@@ -1637,28 +1671,28 @@ case 'awaiting_inline_btn':
 
     const keyboard = [];
 
-    keyboard.push([{ text: lang === 'ar' ? '🗂️ إدارة القوائم والملفات' : '🗂️ Manage Menus & Files' }]);
+    keyboard.push([{ text: t(lang, 'BTN_MANAGE_MENUS') }]);
 
     if (role === 'OWNER' || role === 'DEPUTY_ADMIN') {
         keyboard.push([
-            { text: lang === 'ar' ? '📢 إرسال إعلان جديد' : '📢 Broadcast Announcement' },
-            { text: lang === 'ar' ? '📋 إدارة الإعلانات' : '📋 Manage Announcements' }
+            { text: t(lang, 'BTN_NEW_ANNOUNCEMENT') },
+            { text: t(lang, 'BTN_MANAGE_ANNOUNCEMENTS') }
         ]);
-        keyboard.push([{ text: lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics' }]);
+        keyboard.push([{ text: t(lang, 'BTN_STATISTICS') }]);
     }
 
     if (role === 'OWNER') {
       keyboard.push([
-        { text: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings' },
-        { text: lang === 'ar' ? '👥 إدارة نواب المشرفين' : '👥 Manage Deputy Admins' }
+        { text: t(lang, 'BTN_SETTINGS') },
+        { text: t(lang, 'BTN_MANAGE_DEPUTIES') }
       ]);
       keyboard.push([
-        { text: lang === 'ar' ? '👥 إدارة المشرفين المساعدين' : '👥 Manage Sub-Admins' },
+        { text: t(lang, 'BTN_MANAGE_SUBADMINS') },
         { text: t(lang, 'BTN_MONITORING') }
       ]);
     }
 
-    keyboard.push([{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]);
+    keyboard.push([{ text: t(lang, 'BTN_CANCEL') }]);
 
     await this.apiCall('sendMessage', { 
       chat_id: chatId, 

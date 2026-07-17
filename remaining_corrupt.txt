@@ -1,0 +1,210 @@
+﻿
+bot-manager.js:288:      const notifyText = `Ã°Å¸â€˜Â¤ <b>Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã˜Â¬Ã˜Â¯Ã™ÅÃ˜Â¯ Ã˜Â¯Ã˜Â®Ã™â€ž 
+Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª</b>\n` +
+bot-manager.js:289:                         `Ã˜Â§لاÃ˜Â³Ã™â€¦: ${message.from.first_name || 'Ã˜ÂºÃ™ÅÃ˜Â± 
+Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+bot-manager.js:290:                         `Username: ${message.from.username ? '@' + message.from.username : 'Ã˜ÂºÃ™Å
+Ã˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+bot-manager.js:306:        ? (faculty.disabled_message_ar || 'Ã˜Â¹Ã˜Â°Ã˜Â±Ã˜Â§Ã™â€¹Ã˜Å’ Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª 
+Ã™â€¦Ã˜ÂªÃ™Ë†Ã™â€šÃ™Â Ã˜ÂÃ˜Â§Ã™â€žÃ™ÅÃ˜Â§Ã™â€¹ Ã™â€žÃ˜Â¥Ã˜Â¬Ã˜Â±Ã˜Â§Ã˜Â¡ Ã˜Â¨Ã˜Â¹Ã˜Â¶ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜ÂÃ˜Â¯Ã™Å
+Ã˜Â«Ã˜Â§Ã˜Âª.') 
+bot-manager.js:323:            text: `Ã°Å¸â€Â´ **Ã™â€Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â±**\n\nÃ°Å¸â€˜Â¤ 
+Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦: ${userStr} (ID: ${message.from.id})\nÃ°Å¸â€™Â¬ Ã˜Â§Ã™â€žÃ™â€Ã˜Âµ: ${text}`,
+bot-manager.js:356:    if ((text === '/admin' || text === '🛠️ Admin Panel' || text === 'Ã°Å¸â€ºÂÃ¯Â¸Â Ã™â€žÃ™Ë†Ã˜Â
+Ã˜Â© Ã˜ÂªÃ˜ÂÃ™Æ’Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™ÅÃ™â€') && isAdmin) {
+bot-manager.js:387:      const query = text.replace(/^\/search\s+|^Ã˜Â¨Ã˜Â­Ã˜Â«\s+|^Ã˜Â§Ã˜Â¨Ã˜Â­Ã˜Â«\s+/i, '').trim();
+bot-manager.js:404:      if (text.includes('Back') || text.includes('Ã˜Â¹Ã™Ë†Ã˜Â¯Ã˜Â©')) {
+bot-manager.js:607:              text: `Ã°Å¸â€Â´ **Ã™â€Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â± (Ã˜Â²Ã˜Â±)**\n\nÃ°Å¸â€˜Â¤ 
+Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦: ${userStr} (ID: ${callbackQuery.from.id})\nÃ°Å¸â€™Â¬ Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â±: 
+${btnText} (${data})`,
+bot-manager.js:654:        const notifyText = `Ã°Å¸â€˜Â¤ <b>Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã˜Â¬Ã˜Â¯Ã™ÅÃ˜Â¯ Ã˜Â¯Ã˜Â®Ã™â€ž 
+Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª</b>\n` +
+bot-manager.js:655:                           `Ã˜Â§لاÃ˜Â³Ã™â€¦: ${callbackQuery.from.first_name || 'Ã˜ÂºÃ™ÅÃ˜Â± 
+Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+bot-manager.js:656:                           `Username: ${callbackQuery.from.username ? '@' + 
+callbackQuery.from.username : 'Ã˜ÂºÃ™ÅÃ˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+bot-manager.js:713:      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد 
+من تنفيذ عملية الحذف؟' : 'Ã¢Å¡ÂÃ¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+bot-manager.js:721:      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'إلغاء Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™ÅÃ˜Â©' 
+: 'Cancel Operation' }]], resize_keyboard: true };
+bot-manager.js:722:      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž 
+Ã˜Â§Ã™â€žÃ™â€Ã˜Âµ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™ÅÃ˜Â¯ Ã™â€žÃ™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ Ã™Æ’Ã˜Â§Ã™â€¦لاÃ™â€¹ (Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â·Ã˜Â± 
+Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã™â€ž Ã˜Â³Ã™ÅÃ™Æ’Ã™Ë†Ã™â€ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€Ã™Ë†Ã˜Â§Ã™â€):' : 'Send the new full text:', reply_markup: 
+cancelKb });
+bot-manager.js:737:      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ 
+text: lang === 'ar' ? '⬅️ إلغاء الأمر' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
+bot-manager.js:738:      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد 
+من تنفيذ عملية الحذف؟' : 'Ã¢Å¡ÂÃ¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+bot-manager.js:751:      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'تم 
+إلغاء Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â«Ã˜Â¨Ã™ÅÃ˜Âª Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¦Ã™ÅÃ˜Â¹.', show_alert: true });
+bot-manager.js:759:      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : 'Ã¢Â¬â€¦Ã¯Â¸Â 
+Cancel Operation' }]], resize_keyboard: true };
+bot-manager.js:768:        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], 
+[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
+bot-manager.js:769:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد 
+من تنفيذ عملية الحذف؟' : 'Ã¢Å¡ÂÃ¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+bot-manager.js:776:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⚠️ هل أنت متأكد 
+من تنفيذ عملية الحذف؟' : 'Ã¢Å¡ÂÃ¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+bot-manager.js:779:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã°Å¸â€˜ÂÃ¯Â¸Â 
+Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å Ã˜Â¹Ã˜Â±Ã˜Â¶ الملفات:' : 'Ã°Å¸â€˜ÂÃ¯Â¸Â Previewing files:' });
+bot-manager.js:784:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 
+'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™ÅÃ˜Â¯ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€:' : 'Send the new file now:', 
+reply_markup: cancelKb });
+bot-manager.js:790:        const m = lang === 'ar' ? "Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± 
+Ã˜Â§Ã™â€žÃ˜Â´Ã™ÂÃ˜Â§Ã™ÂÃ˜Â© Ã˜Â¨Ã˜ÂªÃ™â€Ã˜Â³Ã™ÅÃ™â€š:\nTitle - URL\nTitle2 - URL2" : "Send inline buttons as:\nTitle 
+- URL";
+bot-manager.js:794:        const m = lang === 'ar' ? "Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· Ã˜Â¹Ã™â€žÃ™â€° Ã˜Â§Ã™â€žقائمة 
+(Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¬Ã™â€žÃ˜Â¯) Ã˜Â§Ã™â€žÃ˜ÂªÃ™Å Ã˜ÂªÃ˜Â±Ã™ÅÃ˜Â¯ Ã™â€Ã™â€šÃ™â€ž Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â¥Ã™â€žÃ™ÅÃ™â€¡Ã˜Â§ 
+من Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã™ÂÃ™â€ž:" : "Select the destination folder from below:";
+bot-manager.js:809:        kb.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]);
+bot-manager.js:837:    if (trimmedText === 'Ã°Å¸â€œÂ¢ إدارة Ã˜Â§Ã™â€žإعلانات' || trimmedText === 'Ã°Å¸â€œÂ¢ Manage 
+Announcements') return 'manage_announcements';
+bot-manager.js:838:    if (trimmedText === '📊 الإحصائيات' || trimmedText === 'Ã°Å¸â€œÅ Statistics') return 
+'statistics';
+bot-manager.js:839:    if (trimmedText === 'Ã¢Å¡â„¢Ã¯Â¸Â Ã˜Â§Ã™â€žإعدادات' || trimmedText === 'Ã¢Å¡â„¢Ã¯Â¸Â 
+Settings') return 'core_settings';
+bot-manager.js:855:    if (trimmedText === 'Ã°Å¸â€â„¢ Ã˜Â±Ã˜Â¬Ã™Ë†Ã˜Â¹' || trimmedText === 'Ã°Å¸â€â„¢ Back' || 
+trimmedText === t('ar', 'BTN_BACK') || trimmedText === t('en', 'BTN_BACK')) return 'back';
+bot-manager.js:865:    if (trimmedText === '⬅️ إلغاء الأمر' || trimmedText === 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation') 
+return 'cancel';
+bot-manager.js:868:    if (trimmedText === 'Ã°Å¸Å¸Â¢ Ã™â€Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â±' || trimmedText === 
+'Ã°Å¸Å¸Â¢ Live Activity') return 'live_activity'; // Though handled differently maybe
+bot-manager.js:895:    if ((actionId === 'cancel' || text === '/cancel' || text.includes('إلغاء 
+Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™ÅÃ˜Â©') || text.includes('إلغاء Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±') || text.includes('Cancel 
+Operation')) && state.action !== 'awaiting_subadmin_id') {
+bot-manager.js:897:      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء 
+Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â± Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â¹Ã™Ë†Ã˜Â¯Ã˜Â© Ã™â€žÃ™â€žÃ˜Â±Ã˜Â¦Ã™ÅÃ˜Â³Ã™ÅÃ˜Â©.' : 'Action cancelled. Returned 
+to home.' });
+bot-manager.js:902:    if (actionId === 'back' || text === 'Ã°Å¸â€â„¢ Ã˜Â±Ã˜Â¬Ã™Ë†Ã˜Â¹' || text === 'Ã°Å¸â€â„¢ Back' 
+|| text === t(lang, 'BTN_BACK')) {
+bot-manager.js:927:    const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel 
+Operation' }]], resize_keyboard: true };
+bot-manager.js:936:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '📢 إرسال إعلان 
+جديد\n\nÃ˜Â§Ã™â€žÃ˜Â±Ã˜Â¬Ã˜Â§Ã˜Â¡ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã™â€Ã˜Âµ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ Ã™Æ’Ã˜Â§Ã™â€¦لاÃ™â€¹ 
+(Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â·Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã™â€ž Ã˜Â³Ã™ÅÃ™Æ’Ã™Ë†Ã™â€ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€Ã™Ë†Ã˜Â§Ã™â€Ã˜Å’ 
+Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â§Ã™â€šÃ™Å Ã™â€¡Ã™Ë† Ã˜Â§Ã™â€žÃ™â€¦Ã˜ÂÃ˜ÂªÃ™Ë†Ã™â€°):' : 'Ã°Å¸â€œÂ¢ New Announcement\n\nPlease send 
+the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
+bot-manager.js:983:        let topButtonStr = (lang === 'ar' ? 'لا Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯' : 'None');
+bot-manager.js:995:        const statsAr = `Ã°Å¸â€œÅ **إحصائيات Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª 
+Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â§Ã™â€¦Ã™â€žÃ˜Â©:**\n\n` +
+bot-manager.js:996:          `Ã°Å¸â€˜Â¥ **Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€ **\n` +
+bot-manager.js:997:          `- Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å  Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Å Ã™â€ : ${totalUsers}\n` +
+bot-manager.js:998:          `- Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã˜Â¯ (Ã˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹): 
+${weeklySubscribers}\n` +
+bot-manager.js:999:          `- Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã˜Â¯ (Ã˜Â´Ã™â€¡Ã˜Â±): 
+${monthlySubscribers}\n\n` +
+bot-manager.js:1000:          `Ã°Å¸â€œË† **Ã˜Â§Ã™â€žÃ™â€ Ã˜Â´Ã˜Â§Ã˜Â·**\n` +
+bot-manager.js:1002:          `- Ã™â€ Ã˜Â´Ã˜Â· Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹: ${weeklyActive}\n` +
+bot-manager.js:1003:          `- Ã™â€ Ã˜Â´Ã˜Â· Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â±: ${monthlyActive}\n\n` +
+bot-manager.js:1004:          `Ã°Å¸Å¡â‚¬ **Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â¯Ã˜Â§Ã˜Â¡ Ã™Ë†Ã˜Â§Ã™â€žÃ˜ÂªÃ™ÂÃ˜Â§Ã˜Â¹Ã™â€ž**\n` +
+bot-manager.js:1006:          `- Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å 
+Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â¨Ã˜Â§Ã˜Âª/Ã˜Â§Ã™â€žÃ˜ÂªÃ™ÂÃ˜Â§Ã˜Â¹لاÃ˜Âª: ${totalRequests}\n` +
+bot-manager.js:1007:          `- Ã˜Â²من Ã˜Â§لاÃ˜Â³Ã˜ÂªÃ˜Â¬Ã˜Â§Ã˜Â¨Ã˜Â© (Ã™â€¦Ã˜ÂªÃ™Ë†Ã˜Â³Ã˜Â·): ${avgLatency}ms\n\n` +
+bot-manager.js:1008:          `Ã°Å¸â€”â€šÃ¯Â¸Â **Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€°**\n` +
+bot-manager.js:1010:          `- Ã˜Â¹Ã˜Â¯Ã˜Â¯ الملفات Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â±Ã™ÂÃ™Ë†Ã˜Â¹Ã˜Â©: ${totalFiles}\n` +
+bot-manager.js:1011:          `- Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â£Ã™Æ’Ã˜Â«Ã˜Â± Ã˜Â·Ã™â€žÃ˜Â¨Ã˜Â§Ã™â€¹: 
+${topButtonStr}\n\n` +
+bot-manager.js:1012:          `Ã°Å¸â€ºâ€˜ **Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â¸Ã˜Â±**\n` +
+bot-manager.js:1015:        const statsEn = `Ã°Å¸â€œÅ  **Bot Statistics:**\n\n` +
+bot-manager.js:1016:          `Ã°Å¸â€˜Â¥ **Subscribers**\n` +
+bot-manager.js:1020:          `Ã°Å¸â€œË† **Activity**\n` +
+bot-manager.js:1024:          `Ã°Å¸Å¡â‚¬ **Performance**\n` +
+bot-manager.js:1028:          `Ã°Å¸â€”â€šÃ¯Â¸Â **Content**\n` +
+bot-manager.js:1032:          `Ã°Å¸â€ºâ€˜ **Blocks**\n` +
+bot-manager.js:1039:          ? '⚙️ إعدادات البوت الأساسية\n\nÃ™â€¦Ã˜Â§Ã˜Â°Ã˜Â§ Ã˜ÂªÃ˜Â±Ã™ÅÃ˜Â¯ Ã˜Â£Ã™â€ 
+Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã™â€ž من Ã˜Â§Ã™â€žإعدادات Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â§Ã™â€žÃ™ÅÃ˜Â©:'
+bot-manager.js:1040:          : 'Ã¢Å¡â„¢Ã¯Â¸Â  Bot Configuration\n\nWhat would you like to edit?';
+bot-manager.js:1042:        const monStatus = fac.forward_user_messages ? (lang === 'ar' ? 'Ã™â€¦Ã™Â Ã˜Â¹Ã™â€ž 
+Ã°Å¸Å¸Â¢' : 'ON Ã°Å¸Å¸Â¢') : (lang === 'ar' ? 'Ã™â€¦Ã˜Â¹Ã˜Â·Ã™â€ž Ã°Å¸â€ Â´' : 'OFF Ã°Å¸â€ Â´');
+bot-manager.js:1044:          [{ text: lang === 'ar' ? 'Ã°Å¸â€œÂ  الترحيب' : 'Ã°Å¸â€œÂ  Welcome Msg' }, { text: lang 
+=== 'ar' ? 'Ã¢Â Â¸Ã¯Â¸Â  Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã™ÅÃ™â€šÃ˜Â§Ã™Â ' : 'Ã¢Â Â¸Ã¯Â¸Â  Maintenance Msg' }],
+bot-manager.js:1045:          [{ text: lang === 'ar' ? 'Ã¢Â â€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ™Â 
+Ã˜Â§Ã˜Â±Ã˜Âº' : 'Ã¢Â â€œ Empty Button Msg' }, { text: lang === 'ar' ? 'Ã¢Â â€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€Ã˜Âµ Ã˜ÂºÃ™Å
+Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜Â±Ã™Ë†Ã™Â ' : 'Ã¢Â â€œ Unknown Text Msg' }],
+bot-manager.js:1046:          [{ text: lang === 'ar' ? 'Ã¢Å¡ÂÃ¯Â¸Â  Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© لا يوجد Ã™â€¦Ã™â€žÃ™Â ' : 
+'Ã¢Å¡ÂÃ¯Â¸Â  No File Msg' }],
+bot-manager.js:1047:          [{ text: lang === 'ar' ? 'Ã°Å¸Â Â Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¦Ã™ÅÃ˜Â³Ã™ÅÃ˜Â©' : 'Ã°Å¸Â Â Home' }]
+bot-manager.js:1210:             [{ text: lang === 'ar' ? '/skip (Ã˜ÂªÃ˜Â®Ã˜Â·Ã™Å Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€ Ã™â€¦Ã™â€žÃ™Â)' : 
+'/skip' }],
+bot-manager.js:1211:             [{ text: lang === 'ar' ? 'إلغاء Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™ÅÃ˜Â©' : 'Cancel Operation' 
+}]
+bot-manager.js:1217:          text: lang === 'ar' ? 'تم Ã˜ÂÃ™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ™â€Ã˜Âµ. Ã™â€¡Ã™â€ž Ã˜ÂªÃ˜Â±Ã™ÅÃ˜Â¯ 
+Ã˜Â¥Ã˜Â±Ã™ÂÃ˜Â§Ã™â€š Ã™â€¦Ã™â€žÃ™Â Ã™â€¦Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€Ã˜Å¸ Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â 
+Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· /skip.' : 'Text saved. Send a file or press /skip.', 
+bot-manager.js:1224:        if (text !== '/skip' && text !== '/skip (Ã˜ÂªÃ˜Â®Ã˜Â·Ã™Å Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€ 
+Ã™â€¦Ã™â€žÃ™Â)') {
+bot-manager.js:1237:             [{ text: lang === 'ar' ? 'نعم (Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™ÅÃ˜Âª)' : 'Yes (Pin)' }, { text: lang 
+=== 'ar' ? 'لا (Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€ Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™ÅÃ˜Âª)' : 'No (Do not pin)' }],
+bot-manager.js:1238:             [{ text: lang === 'ar' ? 'إلغاء Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™ÅÃ˜Â©' : 'Cancel Operation' 
+}]
+bot-manager.js:1244:          text: lang === 'ar' ? 'Ã™â€¡Ã™â€ž Ã˜ÂªÃ˜Â±Ã™ÅÃ˜Â¯ Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™ÅÃ˜Âª 
+Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ Ã™ÂÃ™Å Ã™â€¦Ã˜ÂÃ˜Â§Ã˜Â¯Ã˜Â«Ã˜Â§Ã˜Âª Ã˜Â¬Ã™â€¦Ã™ÅÃ˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·لاÃ˜Â¨Ã˜Å¸' : 'Do you want 
+to pin this announcement for all users?',
+bot-manager.js:1250:        state.isPinned = text === 'نعم (Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª)' || text === 'Yes (Pin)';
+bot-manager.js:1262:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢ÂÂ³ 
+Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å Ã˜ÂªÃ˜ÂÃ˜Â¯Ã™ÅÃ˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â¬Ã™â€¦Ã™ÅÃ˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·لاÃ˜Â¨...' : 
+'Ã¢ÂÂ³ Updating for all users...' });
+bot-manager.js:1279:               const txt = `Ã°Å¸â€œÂ¢ *${msgTitle}*\n\n${msgContent}`;
+bot-manager.js:1284:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ 
+Ã˜Â§Ã™Æ’تمÃ™â€ž Ã˜ÂªÃ˜ÂÃ˜Â¯Ã™ÅÃ˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€.' : '✅ Update complete.' });
+bot-manager.js:1319:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢ÂÂ³ 
+Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å Ã˜ÂÃ˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â¬Ã™â€¦Ã™ÅÃ˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·لاÃ˜Â¨...' : 'Ã¢ÂÂ³ 
+Deleting for all users...' });
+bot-manager.js:1330:            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم Ã˜Â
+Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€ من Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¦Ã™ÅÃ˜Â¹.' : '✅ Announcement deleted from everyone.' });
+bot-manager.js:1343:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف 
+الزر Ã˜Â¨Ã™â€Ã˜Â¬Ã˜Â§Ã˜Â' : '✅ Button Deleted', reply_markup: { remove_keyboard: true } });
+bot-manager.js:1358:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم 
+Ã˜ÂªÃ™ÂÃ˜Â±Ã™ÅÃ˜Âº Ã™â€¦Ã˜ÂÃ˜ÂªÃ™Ë†Ã™â€° Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â±' : '✅ Content Cleared', reply_markup: { remove_keyboard: 
+true } });
+bot-manager.js:1382:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم 
+Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â±Ã˜Â§Ã˜Â¬Ã˜Â¹ Ã˜Â¹Ã™â€ Ã˜Â§Ã™â€žÃ˜ÂÃ˜Â°Ã™Â.' : 'Deletion cancelled.', reply_markup: { 
+remove_keyboard: true } });
+bot-manager.js:1427:          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء 
+Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±. Ã˜Â¹Ã˜Â¯Ã™â€Ã˜Â§ Ã™â€žÃ™â€žÃ˜Â±Ã˜Â¦Ã™ÅÃ˜Â³Ã™ÅÃ˜Â©.' : 'Action cancelled. Returned to home.' });
+bot-manager.js:1622:        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ Ã˜Â£Ã˜Â¶Ã™Å
+Ã™Â ' : '✅ Added' });
+bot-manager.js:1745:    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 
+'Ã°Å¸Å¡â‚¬ Ã™Åتم Ã˜ÂªÃ˜Â¬Ã™â€¡Ã™ÅÃ˜Â² Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž...' : 'Ã°Å¸Å¡â‚¬ Preparing broadcast...' });
+bot-manager.js:1802:          `Ã¢ÂÂ³ **Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å Ã˜Â¨Ã˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹لاÃ™â€...**\n\nÃ°Å¸â€˜Â¥ 
+Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å Ã˜Â§Ã™â€žÃ˜Â·لاÃ˜Â¨: ${totalUsers}\n✅ تم Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã˜Â¥Ã™â€žÃ™â€°: 
+${sent}\nÃ¢ÂÅ’ Ã™â€žÃ™â€¦ Ã™ÅÃ˜ÂµÃ™â€žÃ™â€¡Ã™â€¦ (Ã˜ÂÃ˜Â¸Ã˜Â±/Ã˜ÂÃ˜Â°Ã™Â): ${blocked}\nÃ¢Å¡ÂÃ¯Â¸Â Ã™ÂÃ˜Â´Ã™â€ž 
+(Ã˜Â£Ã˜Â®Ã˜Â±Ã™â€°): ${failed}\nÃ°Å¸â€œË† Ã™â€Ã˜Â³Ã˜Â¨Ã˜Â© Ã˜Â§Ã™â€žÃ™Ë†Ã˜ÂµÃ™Ë†Ã™â€ž: ${reach}%\nÃ¢ÂÂ±Ã¯Â¸Â 
+Ã˜Â³Ã˜Â±Ã˜Â¹Ã˜Â© Ã˜Â§لاÃ˜Â³Ã˜ÂªÃ˜Â¬Ã˜Â§Ã˜Â¨Ã˜Â© Ã˜Â§Ã™â€žÃ˜ÂÃ˜Â§Ã™â€žÃ™ÅÃ˜Â©: ${avgLatencyMs}ms\n\n${final ? '✅ 
+**Ã˜Â§Ã™Æ’تمÃ™â€ž Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â« Ã˜Â¨Ã™â€Ã˜Â¬Ã˜Â§Ã˜Â!**' : ''}` :
+bot-manager.js:1803:          `Ã¢ÂÂ³ **Broadcasting...**\n\nÃ°Å¸â€˜Â¥ Total: ${totalUsers}\n✅ Sent: ${sent}\nÃ¢ÂÅ’ 
+Blocked: ${blocked}\nÃ¢Å¡ÂÃ¯Â¸Â Failed: ${failed}\nÃ°Å¸â€œË† Reach: ${reach}%\nÃ¢ÂÂ±Ã¯Â¸Â Speed/Latency: 
+${avgLatencyMs}ms\n\n${final ? '✅ **Complete!**' : ''}`;
+bot-manager.js:1826:             const combinedTextAr = `Ã°Å¸â€œÂ£ 
+${announcement.title_ar}\n\n${announcement.content_ar}`;
+bot-manager.js:1838:             // Title Bold Entity (Offset 2 accounts for 'Ã°Å¸â€œÂ£ ')
+bot-manager.js:1958:        inlineKeyboard.push([{ text: lang === 'ar' ? '❌ إلغاء Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â«Ã˜Â¨Ã™ÅÃ˜Âª' : 
+'Ã¢ÂÅ’ Unpin', callback_data: `unpin_ann_${ann.id}` }]);
+bot-manager.js:1987:          [{ text: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ English", callback_data: "lang_en" }, { text: 
+"Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¦ Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™ÅÃ˜Â©", callback_data: "lang_ar" }]
+bot-manager.js:2023:      promptText = lang === 'ar' ? (faculty.welcome_ar || 'Ã™â€¦Ã˜Â±Ã˜ÂÃ˜Â¨Ã˜Â§Ã™â€¹ Ã˜Â¨Ã™Æ’') : 
+(faculty.welcome_en || 'Welcome');
+bot-manager.js:2086:      keyboard.push([{ text: lang === 'ar' ? 'Ã°Å¸â€ºÂÃ¯Â¸Â Ã™â€žÃ™Ë†Ã˜ÂÃ˜Â© Ã˜ÂªÃ˜ÂÃ™Æ’Ã™â€¦ 
+Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™ÅÃ™â€' : '🛠️ Admin Panel' }]);
+bot-manager.js:2139:      { command: 'start', description: 'Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â¯Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¹Ã˜Â±Ã˜Â§Ã˜Â¶ 
+Ã˜Â§Ã™â€žقائمة' },
+bot-manager.js:2140:      { command: 'changelanguage', description: 'Ã˜ÂªÃ˜ÂºÃ™ÅÃ™ÅÃ˜Â± Ã™â€žÃ˜ÂºÃ˜Â© 
+Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª' },
+bot-manager.js:2141:      { command: 'back', description: 'Ã˜Â§Ã™â€žعودة للقائمة السابقة' },
+bot-manager.js:2142:      { command: 'id', description: 'Ã˜Â§Ã™â€žÃ˜ÂÃ˜ÂµÃ™Ë†Ã™â€ž Ã˜Â¹Ã™â€žÃ™â€° Ã™â€¦Ã˜Â¹Ã˜Â±Ã™Â 
+Ã˜ÂªÃ™ÅÃ™â€žÃ™ÅÃ˜Â¬Ã˜Â±Ã˜Â§Ã™â€¦' },
+bot-manager.js:2143:      { command: 'admin', description: 'Ã™â€žÃ™Ë†Ã˜ÂÃ˜Â© Ã˜Â§Ã™â€žÃ˜ÂªÃ˜ÂÃ™Æ’Ã™â€¦ 
+Ã™â€žÃ™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™ÅÃ™â€' }
+bot-manager.js:2266:  // Ã¢â€â‚¬Ã¢â€â‚¬ Centralized file delivery helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€
+â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â
+€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢
+â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+bot-manager.js:2362:  // Legacy wrapper Ã¢â‚¬â€ kept so any remaining call sites still work
+bot-manager.js:2367:  // Ã¢â€â‚¬Ã¢â€â‚¬ Paginated file delivery Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€
+â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€
+â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â
+€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+bot-manager.js:2429:          kbButtons.push([{ text: lang === 'ar' ? 'Ã°Å¸â€”â€˜Ã¯Â¸Â Ã˜ÂÃ˜Â°Ã™Â Ã™â€¡Ã˜Â°Ã˜Â§ 
+Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â' : 'Ã°Å¸â€”â€˜Ã¯Â¸Â Delete this file', callback_data: `del_file_${file.id}` }]);
+
+

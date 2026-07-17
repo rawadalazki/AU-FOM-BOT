@@ -1,4 +1,5 @@
 const dbHelper = require('./database');
+const { t } = require('./localization');
 
 class AdminMenuNavigation {
   
@@ -33,17 +34,17 @@ class AdminMenuNavigation {
       });
 
       if (rowKb.length < maxButtonsPerRow) {
-        rowKb.push({ text: lang === 'ar' ? `➕ بجانبهم (r${ri})` : `➕ Add Here (r${ri})` });
+        rowKb.push({ text: `${t(lang, 'BTN_ADD_HERE')} (r${ri})` });
       }
       kb.push(rowKb);
     });
 
-    kb.push([{ text: lang === 'ar' ? '➕ سطر جديد' : '➕ New Row' }]);
+    kb.push([{ text: t(lang, 'BTN_NEW_ROW') }]);
 
     if (parentId !== null) {
-      kb.push([{ text: lang === 'ar' ? '🔙 رجوع' : '🔙 Back' }]);
+      kb.push([{ text: t(lang, 'BTN_BACK') }]);
     }
-    kb.push([{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]);
+    kb.push([{ text: t(lang, 'BTN_CFG_HOME') }]);
 
     await botCtx.apiCall('sendMessage', { 
       chat_id: chatId, 
@@ -68,42 +69,38 @@ class AdminMenuNavigation {
     
     // Core actions for all types
     kb.push([
-      { text: lang === 'ar' ? '✏️ إعادة التسمية' : '✏️ Rename', callback_data: `admin_rename_${menuId}` },
-      { text: lang === 'ar' ? '🗑️ حذف الزر' : '🗑️ Delete Button', callback_data: `admin_delbtn_${menuId}` }
+      { text: t(lang, 'BTN_RENAME'), callback_data: `admin_rename_${menuId}` },
+      { text: t(lang, 'BTN_DELETE_BUTTON'), callback_data: `admin_delbtn_${menuId}` }
     ]);
 
     // Type specific actions
     if (menu.reply_type === 'submenu') {
-      kb.push([{ text: lang === 'ar' ? '📂 فتح المجلد' : '📂 Open Folder', callback_data: `admin_open_${menuId}` }]);
+      kb.push([{ text: t(lang, 'BTN_OPEN_FOLDER'), callback_data: `admin_open_${menuId}` }]);
     } else if (menu.reply_type === 'file') {
-      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: `admin_delcontent_${menuId}` }]);
+      kb.push([{ text: t(lang, 'BTN_DELETE_CONTENT'), callback_data: `admin_delcontent_${menuId}` }]);
       kb.push([
-        { text: lang === 'ar' ? '👁️ معاينة الملفات' : '👁️ Preview Files', callback_data: `admin_previewfiles_${menuId}` },
-        { text: lang === 'ar' ? '➕ إضافة ملف آخر' : '➕ Add File', callback_data: `admin_addfile_${menuId}` }
+        { text: t(lang, 'BTN_PREVIEW_FILES'), callback_data: `admin_previewfiles_${menuId}` },
+        { text: t(lang, 'BTN_ADD_FILE'), callback_data: `admin_addfile_${menuId}` }
       ]);
     } else if (menu.reply_type === 'text') {
-      kb.push([{ text: lang === 'ar' ? '🗑️ حذف المحتوى' : '🗑️ Delete Content', callback_data: `admin_delcontent_${menuId}` }]);
-      kb.push([{ text: lang === 'ar' ? '📝 تعديل النص' : '📝 Edit Text', callback_data: `admin_edittext_${menuId}` }]);
+      kb.push([{ text: t(lang, 'BTN_DELETE_CONTENT'), callback_data: `admin_delcontent_${menuId}` }]);
+      kb.push([{ text: t(lang, 'BTN_EDIT_TEXT'), callback_data: `admin_edittext_${menuId}` }]);
     }
 
     // Advanced options (Inline buttons, Move, Order)
     kb.push([
-      { text: lang === 'ar' ? '🔗 أزرار شفافة' : '🔗 Inline Buttons', callback_data: `admin_inline_${menuId}` },
-      { text: lang === 'ar' ? '🔄 نقل الزر' : '🔄 Move', callback_data: `admin_move_${menuId}` }
+      { text: t(lang, 'BTN_INLINE_BUTTONS'), callback_data: `admin_inline_${menuId}` },
+      { text: t(lang, 'BTN_MOVE'), callback_data: `admin_move_${menuId}` }
     ]);
 
-    kb.push([{ text: lang === 'ar' ? '↕️ تغيير الترتيب' : '↕️ Change Order', callback_data: `admin_order_${menuId}` }]);
+    kb.push([{ text: t(lang, 'BTN_CHANGE_ORDER'), callback_data: `admin_order_${menuId}` }]);
 
     // Status Toggles
     const isActive = menu.is_active !== false; 
     const isHidden = menu.is_hidden === true;
 
-    const toggleActiveStr = isActive
-      ? (lang === 'ar' ? '🟢 إيقاف الزر' : '🟢 Disable') 
-      : (lang === 'ar' ? '🔴 تشغيل الزر' : '🔴 Enable');
-    const toggleHiddenStr = isHidden
-      ? (lang === 'ar' ? '👻 إظهار الزر' : '👻 Show Button')
-      : (lang === 'ar' ? '👁️ إخفاء الزر' : '👁️ Hide Button');
+    const toggleActiveStr = isActive ? t(lang, 'BTN_DISABLE') : t(lang, 'BTN_ENABLE');
+    const toggleHiddenStr = isHidden ? t(lang, 'BTN_SHOW_BUTTON') : t(lang, 'BTN_HIDE_BUTTON');
 
     kb.push([
       { text: toggleActiveStr, callback_data: `admin_toggleactive_${menuId}` },
@@ -152,8 +149,8 @@ class AdminMenuNavigation {
       }
     });
 
-    kb.push([{ text: '📍 سطر جديد في نهاية القائمة' }]);
-    kb.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
+    kb.push([{ text: t(lang, 'BTN_NEW_ROW_END') }]);
+    kb.push([{ text: t(lang, 'BTN_CANCEL_OP') }]);
     
     const txt = lang === 'ar' ? 'اختر السطر الذي تريد نقل الزر إليه:' : 'Choose the row to move the button to:';
     await botCtx.apiCall('sendMessage', { chat_id: chatId, text: txt, reply_markup: { keyboard: kb, resize_keyboard: true } });
@@ -243,7 +240,7 @@ class AdminMenuNavigation {
 
   static async handleNavigation(botCtx, chatId, text, state, lang) {
     console.log(`[DEBUG admin-menu-navigation start] text: "${text}", action: "${state.action}"`);
-    const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]], resize_keyboard: true };
+    const cancelKb = { keyboard: [[{ text: t(lang, 'BTN_CANCEL_OP') }]], resize_keyboard: true };
 
     if (state.action === 'managing_menus') {
       // 1. Check if they clicked a specific menu from the list
@@ -270,24 +267,22 @@ class AdminMenuNavigation {
       }
 
       // 2. Navigation Actions
-      if (text.includes('الرئيسية') || text.includes('Home')) {
+      if (text === t('ar', 'BTN_CFG_HOME') || text === t('en', 'BTN_CFG_HOME')) {
         await botCtx.sendAdminHome(chatId, lang);
         return true;
       }
 
-      if (text.includes('القائمة السابقة') || text.includes('Parent Menu') || text.includes('رجوع') || text.includes('الرجوع') || text.includes('Back') || text.includes('عودة')) {
-        const dbHelper = require('./database');
-        
+      if (text === t('ar', 'BTN_BACK') || text === t('en', 'BTN_BACK')) {
         if (state.viewingMenuDetailsId) {
           // If viewing details, go back to sibling list
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
-          await botCtx.sendAdminReplyMenus(chatId, state.currentMenuId, lang);
+          await this.sendAdminReplyMenus(botCtx, chatId, state.currentMenuId, lang);
         } else if (state.currentMenuId !== null) {
           // If viewing sibling list, go to parent
           const currentMenu = await dbHelper.getMenuById(state.currentMenuId);
           if (currentMenu && currentMenu.parent_id !== null) {
             await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: currentMenu.parent_id, viewingMenuDetailsId: null });
-            await botCtx.sendAdminReplyMenus(chatId, currentMenu.parent_id, lang);
+            await this.sendAdminReplyMenus(botCtx, chatId, currentMenu.parent_id, lang);
           } else {
             await botCtx.sendAdminHome(chatId, lang);
           }
@@ -298,22 +293,27 @@ class AdminMenuNavigation {
       }
 
       // 4. Add Actions (when viewing sibling list)
-      const rowAddMatch = text.match(/➕.*\(r(\d+)\)/i);
-      let targetRow = null;
-      if (rowAddMatch) targetRow = parseInt(rowAddMatch[1], 10);
-      else if (text.includes('سطر جديد') || text.includes('New Row')) targetRow = 'new';
+      const baseAddHereAr = t('ar', 'BTN_ADD_HERE');
+      const baseAddHereEn = t('en', 'BTN_ADD_HERE');
       
-      if (targetRow !== null || text.includes('إضافة زر جديد') || text.includes('Add New Button')) {
+      let targetRow = null;
+      if (text.startsWith(baseAddHereAr) || text.startsWith(baseAddHereEn)) {
+          const rowAddMatch = text.match(/\(r(\d+)\)/i);
+          if (rowAddMatch) targetRow = parseInt(rowAddMatch[1], 10);
+      } else if (text === t('ar', 'BTN_NEW_ROW') || text === t('en', 'BTN_NEW_ROW')) {
+          targetRow = 'new';
+      }
+      
+      if (targetRow !== null) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus_add_type', currentMenuId: state.currentMenuId, targetRow });
-        const dbHelper = require('./database');
         const canAddFolder = await dbHelper.hasPermission(chatId, botCtx.facultyId, 'MANAGE_FOLDERS');
         const keyboard = [];
         if (canAddFolder) {
-            keyboard.push([{ text: lang === 'ar' ? '📁 زر قائمة (مجلد)' : '📁 Menu Button (Folder)' }]);
+            keyboard.push([{ text: t(lang, 'BTN_MENU_FOLDER') }]);
         }
-        keyboard.push([{ text: lang === 'ar' ? '📄 زر ملفات' : '📄 File Button' }]);
-        keyboard.push([{ text: lang === 'ar' ? '📝 زر نصي' : '📝 Text Button' }]);
-        keyboard.push([{ text: lang === 'ar' ? '⬅️ إلغاء الأمر' : '⬅️ Cancel Operation' }]);
+        keyboard.push([{ text: t(lang, 'BTN_FILE_BUTTON') }]);
+        keyboard.push([{ text: t(lang, 'BTN_TEXT_BUTTON') }]);
+        keyboard.push([{ text: t(lang, 'BTN_CANCEL_OP') }]);
 
         await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ما نوع الزر الجديد؟' : 'What type of button?', reply_markup: {
           keyboard, resize_keyboard: true
@@ -323,22 +323,22 @@ class AdminMenuNavigation {
     }
 
     if (state.action === 'managing_menus_add_type') {
-      if (text.includes('إلغاء الأمر') || text.includes('Cancel Operation') || text.includes('إلغاء') || text.includes('Cancel')) {
+      if (text === t('ar', 'BTN_CANCEL_OP') || text === t('en', 'BTN_CANCEL_OP')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(botCtx, chatId, state.currentMenuId, lang);
         return true;
       }
+      
       let type = null;
-      if (text.includes('قائمة') || text.includes('Folder')) {
-          const dbHelper = require('./database');
+      if (text === t('ar', 'BTN_MENU_FOLDER') || text === t('en', 'BTN_MENU_FOLDER')) {
           if (!(await dbHelper.hasPermission(chatId, botCtx.facultyId, 'MANAGE_FOLDERS'))) {
               await botCtx.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ليس لديك صلاحية لإضافة مجلد.' : 'No permission to add folder.' });
               return true;
           }
           type = 'submenu';
       }
-      else if (text.includes('ملفات') || text.includes('File')) type = 'file';
-      else if (text.includes('نصي') || text.includes('Text')) type = 'text';
+      else if (text === t('ar', 'BTN_FILE_BUTTON') || text === t('en', 'BTN_FILE_BUTTON')) type = 'file';
+      else if (text === t('ar', 'BTN_TEXT_BUTTON') || text === t('en', 'BTN_TEXT_BUTTON')) type = 'text';
 
       if (type) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_newmenu_title_ar', currentMenuId: state.currentMenuId, newType: type, targetRow: state.targetRow });
@@ -349,7 +349,7 @@ class AdminMenuNavigation {
 
     if (state.action === 'managing_menus_move_order') {
       const targetMenuId = state.menuId || state.viewingMenuDetailsId;
-      if (text.includes('إلغاء') || text.includes('Cancel')) {
+      if (text === t('ar', 'BTN_CANCEL_OP') || text === t('en', 'BTN_CANCEL_OP')) {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.currentMenuId, viewingMenuDetailsId: targetMenuId });
         await this.sendAdminMenuDetails(botCtx, chatId, targetMenuId, lang);
         return true;
@@ -357,12 +357,12 @@ class AdminMenuNavigation {
 
       let targetRowDisplay = null;
       
-      if (text.includes('📍 السطر ')) {
+      if (text.startsWith('📍 السطر ')) {
         const match = text.match(/📍 السطر (\d+)/);
         if (match) {
           targetRowDisplay = parseInt(match[1], 10);
         }
-      } else if (text.includes('📍 سطر جديد في نهاية القائمة')) {
+      } else if (text === t('ar', 'BTN_NEW_ROW_END') || text === t('en', 'BTN_NEW_ROW_END')) {
         targetRowDisplay = 'new';
       }
 
