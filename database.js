@@ -6,8 +6,17 @@ const bcrypt = require('bcryptjs');
 // Create a connection pool using the DATABASE_URL environment variable
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000
 });
+
+// Initialization state
+let initPromise = null;
+const initStatus = {
+  coreOk: false,
+  optionalFailed: false
+};
 
 /**
  * Helper to execute a query.
@@ -19,11 +28,77 @@ async function runQuery(text, params = []) {
 /**
  * Initialize the PostgreSQL database schema.
  */
+
+/**
+ * Retry-safe query execution for Neon DB transient errors.
+ */
+async function safeInitQuery(queryText, params = [], { retries = 5, delay = 500, optional = false } = {}) {
+  let attempt = 0;
+  let currentDelay = delay;
+  while (attempt <= retries) {
+    if (attempt > 0) {
+      logger.info(`[DB INIT] Attempt ${attempt}/${retries}`);
+    }
+    try {
+      const queryObj = {
+        text: queryText,
+        values: params,
+        query_timeout: 15000
+      };
+      const res = await pool.query(queryObj);
+      logger.info(`[DB INIT] Success`);
+      return res;
+    } catch (err) {
+      const isTransient = 
+        (err.code === 'XX000' && err.message && err.message.includes('Control plane')) || 
+        err.code === 'ECONNRESET' ||
+        err.code === 'ECONNREFUSED' ||
+        err.code === 'ETIMEDOUT' ||
+        err.code === 'ENOTFOUND' ||
+        err.code === '57P03' ||
+        err.code === '53300' ||
+        (err.message && (
+          err.message.includes('ECONNRESET') ||
+          err.message.includes('ECONNREFUSED') ||
+          err.message.includes('ETIMEDOUT') ||
+          err.message.includes('ENOTFOUND')
+        ));
+      
+      if (!isTransient || attempt === retries) {
+        if (optional) {
+          logger.warn({ err }, `[DB INIT] Optional table skipped after retries.`);
+          initStatus.optionalFailed = true;
+          return null;
+        }
+        logger.error({ err }, `[DB INIT] Fatal database initialization failure after ${attempt} retries: ${queryText.substring(0, 50)}...`);
+        throw err;
+      }
+
+      attempt++;
+      const jitter = Math.floor(Math.random() * 300); // 0-300ms jitter
+      const waitTime = currentDelay + jitter;
+      logger.info(`[DB INIT] Waiting ${waitTime}ms...`);
+      await new Promise(r => setTimeout(r, waitTime));
+      currentDelay *= 2; // Exponential backoff (0.5s -> 1s -> 2s -> 4s -> 8s)
+    }
+  }
+}
+
 async function initDb() {
-  logger.info('[DB] Initializing PostgreSQL database...');
+  if (!initPromise) {
+    initPromise = _initDb();
+  }
+  return initPromise;
+}
+
+async function _initDb() {
+  logger.info('[DB INIT] Initializing PostgreSQL database...');
+
+  // Health check
+  await safeInitQuery('SELECT 1', [], { optional: false });
 
   // 1. Create faculties table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS faculties (
       id SERIAL PRIMARY KEY,
       name_en TEXT NOT NULL,
@@ -49,12 +124,12 @@ async function initDb() {
   `);
 
   try {
-    await pool.query(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS notify_new_user BOOLEAN DEFAULT false;`);
+    await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS notify_new_user BOOLEAN DEFAULT false;`);
   } catch(e) {}
 
 
   // 2. Create menus table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS menus (
       id SERIAL PRIMARY KEY,
       faculty_id INTEGER NOT NULL,
@@ -79,7 +154,7 @@ async function initDb() {
   `);
 
   // 3. Create announcements table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS announcements (
       id SERIAL PRIMARY KEY,
       faculty_id INTEGER NOT NULL,
@@ -98,7 +173,7 @@ async function initDb() {
   `);
 
   // 4. Create bot_users table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS bot_users (
       id SERIAL PRIMARY KEY,
       faculty_id INTEGER NOT NULL,
@@ -114,7 +189,7 @@ async function initDb() {
   `);
 
   // 5. Create admin_states table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admin_states (
       chat_id TEXT PRIMARY KEY,
       state JSONB,
@@ -123,7 +198,7 @@ async function initDb() {
   `);
 
   // 6. Create admin_users table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admin_users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       username TEXT UNIQUE NOT NULL,
@@ -137,20 +212,20 @@ async function initDb() {
     )
   `);
 
-  await pool.query(`
+  await safeInitQuery(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_deputy_owner 
     ON admin_users ((is_deputy_owner)) 
     WHERE is_deputy_owner = TRUE
   `);
 
-  await pool.query(`
+  await safeInitQuery(`
     CREATE UNIQUE INDEX IF NOT EXISTS one_owner 
     ON admin_users (role) 
     WHERE role = 'OWNER'
   `);
 
   // 7. Create admin_sessions table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admin_sessions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
@@ -161,7 +236,7 @@ async function initDb() {
   `);
 
   // 8. Create admin_audit_log table
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admin_audit_log (
       id SERIAL PRIMARY KEY,
       admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
@@ -174,19 +249,19 @@ async function initDb() {
   `);
 
   // Idempotent migrations for new features
-  await pool.query(`
+  await safeInitQuery(`
     ALTER TABLE menus
     ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
     ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT false;
   `);
 
-  await pool.query(`
+  await safeInitQuery(`
     ALTER TABLE faculties
     ADD COLUMN IF NOT EXISTS forward_user_messages BOOLEAN DEFAULT false;
   `);
 
   // Keep the `bot_users_log` from earlier migrations if it exists
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS bot_users_log (
       id SERIAL PRIMARY KEY,
       faculty_id INTEGER NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
@@ -199,7 +274,7 @@ async function initDb() {
   `);
 
   // Phase B: Multi-File Support
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS menu_files (
       id SERIAL PRIMARY KEY,
       menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
@@ -212,7 +287,7 @@ async function initDb() {
     )
   `);
 
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS announcement_messages (
       id SERIAL PRIMARY KEY,
       announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
@@ -223,7 +298,7 @@ async function initDb() {
   `);
 
   // Idempotent Migration: Move existing single files from menus to menu_files
-  await pool.query(`
+  await safeInitQuery(`
     INSERT INTO menu_files (menu_id, telegram_file_id, file_name, mime_type, file_size, sort_order)
     SELECT id, telegram_file_id, file_name, mime_type, file_size, 0
     FROM menus
@@ -235,15 +310,15 @@ async function initDb() {
   `);
 
   // Ensure telegram_file_id column exists just in case it was dropped (backward compatibility)
-  await pool.query(
+  await safeInitQuery(
     `ALTER TABLE menus ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
   );
-  await pool.query(
+  await safeInitQuery(
     `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
   );
 
   // Phase: Telegram Bot Roles
-  await pool.query(`
+  await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admins (
       id SERIAL PRIMARY KEY,
       faculty_id INTEGER NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
@@ -256,13 +331,13 @@ async function initDb() {
 
   // Automatic Migration from faculties.admin_chat_id
   try {
-    const { rows: facultiesToMigrate } = await pool.query('SELECT id, admin_chat_id FROM faculties WHERE admin_chat_id IS NOT NULL AND admin_chat_id != $1', ['']);
+    const { rows: facultiesToMigrate } = await safeInitQuery('SELECT id, admin_chat_id FROM faculties WHERE admin_chat_id IS NOT NULL AND admin_chat_id != $1', ['']);
     for (const f of facultiesToMigrate) {
       if (f.admin_chat_id) {
         const adminIds = f.admin_chat_id.split(',').map(s => s.trim()).filter(s => s);
         for (let i = 0; i < adminIds.length; i++) {
           const role = i === 0 ? 'OWNER' : 'SUB_ADMIN';
-          await pool.query(`
+          await safeInitQuery(`
             INSERT INTO admins (faculty_id, chat_id, role)
             VALUES ($1, $2, $3)
             ON CONFLICT (faculty_id, chat_id) DO NOTHING
@@ -304,24 +379,24 @@ async function initDb() {
   ];
 
   for (const q of alterQueries) {
-    await pool.query(q).catch(e => logger.warn(`[DB Migration] Note: ${e.message}`));
+    await safeInitQuery(q).catch(e => logger.warn(`[DB Migration] Note: ${e.message}`));
   }
 
   // Seed data if empty
   await seedData();
   await seedAdminData();
 
-  logger.info('[DB] PostgreSQL initialization complete.');
+  initStatus.coreOk = true;
 }
 
 async function seedData() {
-  const { rows } = await pool.query('SELECT COUNT(*) as count FROM faculties');
+  const { rows } = await safeInitQuery('SELECT COUNT(*) as count FROM faculties');
   if (parseInt(rows[0].count) > 0) return;
 
   logger.info('[DB] Seeding initial data...');
 
   try {
-    const { rows: facRows } = await pool.query(`
+    const { rows: facRows } = await safeInitQuery(`
       INSERT INTO faculties (name_en, name_ar, slug, telegram_token) 
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (slug) DO NOTHING
@@ -332,23 +407,23 @@ async function seedData() {
     
     const facId = facRows[0].id;
 
-    const { rows: menuRows1 } = await pool.query(`
+    const { rows: menuRows1 } = await safeInitQuery(`
       INSERT INTO menus (faculty_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar)
       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
     `, [facId, 'About Faculty', 'عن الكلية', 'text', 'The Faculty of Medicine was established to provide top-tier medical education.', 'تأسست كلية الطب البشري لتقديم تعليم طبي على أعلى مستوى.']);
 
-    const { rows: menuRows2 } = await pool.query(`
+    const { rows: menuRows2 } = await safeInitQuery(`
       INSERT INTO menus (faculty_id, title_en, title_ar, reply_type)
       VALUES ($1, $2, $3, $4) RETURNING id
     `, [facId, 'Departments', 'الأقسام', 'submenu']);
     const deptId = menuRows2[0].id;
 
-    await pool.query(`
+    await safeInitQuery(`
       INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [facId, deptId, 'Surgery', 'الجراحة', 'text', 'Surgery department handles all surgical specialties.', 'قسم الجراحة يختص بكافة التخصصات الجراحية.']);
 
-    await pool.query(`
+    await safeInitQuery(`
       INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [facId, deptId, 'Internal Medicine', 'الطب الباطني', 'text', 'Internal Medicine covers adult diseases.', 'قسم الباطنية يعنى بأمراض البالغين.']);
@@ -361,7 +436,7 @@ async function seedAdminData() {
   try {
     // 1. Promote INITIAL_ADMIN_USERNAME to OWNER if they are still SUPER_ADMIN
     if (process.env.INITIAL_ADMIN_USERNAME) {
-      const { rowCount } = await pool.query(`
+      const { rowCount } = await safeInitQuery(`
         UPDATE admin_users SET role = 'OWNER' 
         WHERE username = $1 AND role = 'SUPER_ADMIN' 
         AND NOT EXISTS (SELECT 1 FROM admin_users WHERE role = 'OWNER')
@@ -370,14 +445,14 @@ async function seedAdminData() {
     }
 
     // 2. Check if an OWNER exists
-    const { rows: ownerRows } = await pool.query("SELECT COUNT(*) as count FROM admin_users WHERE role = 'OWNER'");
+    const { rows: ownerRows } = await safeInitQuery("SELECT COUNT(*) as count FROM admin_users WHERE role = 'OWNER'");
     if (parseInt(ownerRows[0].count) > 0) return;
 
     if (process.env.INITIAL_ADMIN_USERNAME && process.env.INITIAL_ADMIN_PASSWORD) {
       logger.info('[DB] Seeding initial OWNER...');
       const salt = await bcrypt.genSalt(10);
       const hash = await bcrypt.hash(process.env.INITIAL_ADMIN_PASSWORD, salt);
-      await pool.query(`
+      await safeInitQuery(`
         INSERT INTO admin_users (username, password_hash, role) 
         VALUES ($1, $2, 'OWNER')
         ON CONFLICT DO NOTHING
@@ -398,7 +473,7 @@ async function getFaculties() {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
-  const { rows } = await pool.query('SELECT * FROM faculties ORDER BY name_en');
+  const { rows } = await safeInitQuery('SELECT * FROM faculties ORDER BY name_en');
   await cache.set(cacheKey, rows);
   return rows;
 }
@@ -408,7 +483,7 @@ async function getFacultyById(id) {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
-  const { rows } = await pool.query('SELECT * FROM faculties WHERE id = $1', [id]);
+  const { rows } = await safeInitQuery('SELECT * FROM faculties WHERE id = $1', [id]);
   if (rows[0]) await cache.set(cacheKey, rows[0]);
   return rows[0];
 }
@@ -418,13 +493,13 @@ async function getFacultyBySlug(slug) {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
-  const { rows } = await pool.query('SELECT * FROM faculties WHERE slug = $1', [slug]);
+  const { rows } = await safeInitQuery('SELECT * FROM faculties WHERE slug = $1', [slug]);
   if (rows[0]) await cache.set(cacheKey, rows[0]);
   return rows[0];
 }
 
 async function createFaculty(nameEn, nameAr, slug) {
-  const { rows } = await pool.query(`
+  const { rows } = await safeInitQuery(`
     INSERT INTO faculties (name_en, name_ar, slug) 
     VALUES ($1, $2, $3) RETURNING id
   `, [nameEn, nameAr, slug]);
@@ -434,7 +509,7 @@ async function createFaculty(nameEn, nameAr, slug) {
 }
 
 async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser) {
-  await pool.query(`
+  await safeInitQuery(`
     UPDATE faculties 
     SET name_en = $1, name_ar = $2, slug = $3, telegram_token = $4, admin_chat_id = $5,
         welcome_en = $6, welcome_ar = $7, bot_enabled = $8, disabled_message_en = $9, 
@@ -452,14 +527,14 @@ async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcome
 async function updateAdminChatId(facultyId, newAdminChatIds) {
   const fac = await getFacultyById(facultyId);
   if (!fac) return;
-  await pool.query('UPDATE faculties SET admin_chat_id = $1 WHERE id = $2', [newAdminChatIds, facultyId]);
+  await safeInitQuery('UPDATE faculties SET admin_chat_id = $1 WHERE id = $2', [newAdminChatIds, facultyId]);
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${facultyId}`);
   await cache.del(`faculty:slug:${fac.slug}`);
 }
 
 async function updateMonitoringEnabled(id, enabled) {
-  await pool.query('UPDATE faculties SET monitoring_enabled = $1 WHERE id = $2', [enabled, id]);
+  await safeInitQuery('UPDATE faculties SET monitoring_enabled = $1 WHERE id = $2', [enabled, id]);
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
 }
@@ -469,7 +544,7 @@ async function deleteFaculty(id) {
   if (fac) {
     await cache.del(`faculty:slug:${fac.slug}`);
   }
-  await pool.query('DELETE FROM faculties WHERE id = $1', [id]);
+  await safeInitQuery('DELETE FROM faculties WHERE id = $1', [id]);
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
 }
@@ -479,7 +554,7 @@ async function getMenusByFaculty(facultyId) {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
-  const { rows } = await pool.query('SELECT * FROM menus WHERE faculty_id = $1 ORDER BY sort_order ASC, id ASC', [facultyId]);
+  const { rows } = await safeInitQuery('SELECT * FROM menus WHERE faculty_id = $1 ORDER BY sort_order ASC, id ASC', [facultyId]);
   await cache.set(cacheKey, rows);
   return rows;
 }
@@ -489,13 +564,13 @@ async function getMenuById(id) {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
-  const { rows } = await pool.query('SELECT * FROM menus WHERE id = $1', [id]);
+  const { rows } = await safeInitQuery('SELECT * FROM menus WHERE id = $1', [id]);
   if (rows[0]) await cache.set(cacheKey, rows[0]);
   return rows[0];
 }
 
 async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, rowIndex) {
-  const { rows } = await pool.query(`
+  const { rows } = await safeInitQuery(`
     INSERT INTO menus (faculty_id, parent_id, title_en, title_ar, reply_type, reply_content_en, reply_content_ar, file_name, telegram_file_id, mime_type, file_size, sort_order, row_index)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
   `, [facultyId, parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, rowIndex || 0]);
@@ -507,7 +582,7 @@ async function createMenu(facultyId, parentId, titleEn, titleAr, replyType, cont
 async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder, rowIndex, inlineButtons = undefined) {
   const existing = await getMenuById(id);
   if (inlineButtons !== undefined) {
-    await pool.query(`
+    await safeInitQuery(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
           reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
@@ -515,7 +590,7 @@ async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, 
       WHERE id = $14
     `, [parentId || null, titleEn, titleAr, replyType, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, sortOrder || 0, rowIndex || 0, inlineButtons, id]);
   } else {
-    await pool.query(`
+    await safeInitQuery(`
       UPDATE menus 
       SET parent_id = $1, title_en = $2, title_ar = $3, reply_type = $4, 
           reply_content_en = $5, reply_content_ar = $6, file_name = $7, telegram_file_id = $8, 
@@ -530,64 +605,64 @@ async function updateMenu(id, parentId, titleEn, titleAr, replyType, contentEn, 
 
 async function updateMenuFileId(id, fileId) {
   const existing = await getMenuById(id);
-  await pool.query('UPDATE menus SET telegram_file_id = $1 WHERE id = $2', [fileId, id]);
+  await safeInitQuery('UPDATE menus SET telegram_file_id = $1 WHERE id = $2', [fileId, id]);
   if (existing) await cache.del(`menus:faculty:${existing.faculty_id}`);
   await cache.del(`menu:id:${id}`);
 }
 
 async function deleteMenu(id) {
   const existing = await getMenuById(id);
-  await pool.query('DELETE FROM menus WHERE id = $1', [id]);
+  await safeInitQuery('DELETE FROM menus WHERE id = $1', [id]);
   if (existing) await cache.del(`menus:faculty:${existing.faculty_id}`);
   await cache.del(`menu:id:${id}`);
 }
 
 async function getMenuFiles(menuId) {
-  const { rows } = await pool.query('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY sort_order ASC, created_at ASC', [menuId]);
+  const { rows } = await safeInitQuery('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY sort_order ASC, created_at ASC', [menuId]);
   return rows;
 }
 
 async function addMenuFile(menuId, telegramFileId, fileName, mimeType, fileSize) {
-  const { rows: countRows } = await pool.query('SELECT count(*) as count FROM menu_files WHERE menu_id = $1', [menuId]);
+  const { rows: countRows } = await safeInitQuery('SELECT count(*) as count FROM menu_files WHERE menu_id = $1', [menuId]);
   if (parseInt(countRows[0].count, 10) >= 40) {
     throw new Error('Maximum of 40 files allowed per menu button.');
   }
 
-  const { rows } = await pool.query(`
+  const { rows } = await safeInitQuery(`
     INSERT INTO menu_files (menu_id, telegram_file_id, file_name, mime_type, file_size)
     VALUES ($1, $2, $3, $4, $5) RETURNING id
   `, [menuId, telegramFileId, fileName, mimeType, fileSize]);
   
   // Update the legacy column for backward compatibility (stores the latest uploaded file)
-  await pool.query('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [telegramFileId, fileName, mimeType, fileSize, menuId]);
+  await safeInitQuery('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [telegramFileId, fileName, mimeType, fileSize, menuId]);
   
   return rows[0].id;
 }
 
 async function deleteMenuFile(fileId) {
-  const { rows: fileRows } = await pool.query('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
+  const { rows: fileRows } = await safeInitQuery('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
   if (fileRows.length === 0) return;
   const menuId = fileRows[0].menu_id;
 
-  await pool.query('DELETE FROM menu_files WHERE id = $1', [fileId]);
+  await safeInitQuery('DELETE FROM menu_files WHERE id = $1', [fileId]);
 
   // Sync backward compatible columns to the latest uploaded file or null
-  const { rows: remaining } = await pool.query('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY id DESC LIMIT 1', [menuId]);
+  const { rows: remaining } = await safeInitQuery('SELECT * FROM menu_files WHERE menu_id = $1 ORDER BY id DESC LIMIT 1', [menuId]);
   if (remaining.length > 0) {
     const f = remaining[0];
-    await pool.query('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [f.telegram_file_id, f.file_name, f.mime_type, f.file_size, menuId]);
+    await safeInitQuery('UPDATE menus SET telegram_file_id = $1, file_name = $2, mime_type = $3, file_size = $4 WHERE id = $5', [f.telegram_file_id, f.file_name, f.mime_type, f.file_size, menuId]);
   } else {
-    await pool.query('UPDATE menus SET telegram_file_id = NULL, file_name = NULL, mime_type = NULL, file_size = NULL WHERE id = $1', [menuId]);
+    await safeInitQuery('UPDATE menus SET telegram_file_id = NULL, file_name = NULL, mime_type = NULL, file_size = NULL WHERE id = $1', [menuId]);
   }
 }
 
 async function getAnnouncementsByFaculty(facultyId) {
-  const { rows } = await pool.query('SELECT * FROM announcements WHERE faculty_id = $1 ORDER BY sent_at DESC', [facultyId]);
+  const { rows } = await safeInitQuery('SELECT * FROM announcements WHERE faculty_id = $1 ORDER BY sent_at DESC', [facultyId]);
   return rows; // Unlikely to need heavy caching for announcements list since it's only occasionally fetched by users/admins
 }
 
 async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, isPinned = false) {
-  const { rows } = await pool.query(`
+  const { rows } = await safeInitQuery(`
     INSERT INTO announcements (faculty_id, title_en, title_ar, content_en, content_ar, file_name, telegram_file_id, mime_type, file_size, is_pinned)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
   `, [facultyId, titleEn, titleAr, contentEn, contentAr, fileName, telegramFileId, mimeType, fileSize, isPinned]);
@@ -596,49 +671,49 @@ async function createAnnouncement(facultyId, titleEn, titleAr, contentEn, conten
 
 async function addAnnouncementMessage(announcementId, chatId, messageId) {
   try {
-    await pool.query('INSERT INTO announcement_messages (announcement_id, chat_id, message_id) VALUES ($1, $2, $3)', [announcementId, chatId, messageId]);
+    await safeInitQuery('INSERT INTO announcement_messages (announcement_id, chat_id, message_id) VALUES ($1, $2, $3)', [announcementId, chatId, messageId]);
   } catch(e) {
     logger.warn('Failed to save announcement message ' + e.message);
   }
 }
 
 async function getAnnouncementMessages(announcementId) {
-  const { rows } = await pool.query('SELECT chat_id, message_id FROM announcement_messages WHERE announcement_id = $1', [announcementId]);
+  const { rows } = await safeInitQuery('SELECT chat_id, message_id FROM announcement_messages WHERE announcement_id = $1', [announcementId]);
   return rows;
 }
 
 async function getAnnouncementById(announcementId) {
-  const { rows } = await pool.query('SELECT * FROM announcements WHERE id = $1', [announcementId]);
+  const { rows } = await safeInitQuery('SELECT * FROM announcements WHERE id = $1', [announcementId]);
   return rows.length ? rows[0] : null;
 }
 
 async function updateAnnouncementContent(id, titleAr, titleEn, contentAr, contentEn) {
-  await pool.query(
+  await safeInitQuery(
     'UPDATE announcements SET title_ar = $1, title_en = $2, content_ar = $3, content_en = $4 WHERE id = $5',
     [titleAr, titleEn, contentAr, contentEn, id]
   );
 }
 
 async function deleteAnnouncement(id) {
-  await pool.query('DELETE FROM announcements WHERE id = $1', [id]);
+  await safeInitQuery('DELETE FROM announcements WHERE id = $1', [id]);
 }
 
 async function updateAnnouncementFileId(id, fileId) {
-  await pool.query('UPDATE announcements SET telegram_file_id = $1 WHERE id = $2', [fileId, id]);
+  await safeInitQuery('UPDATE announcements SET telegram_file_id = $1 WHERE id = $2', [fileId, id]);
 }
 
 async function getBotUser(facultyId, platform, chatId) {
   // We can cache the user state very briefly or rely on fast PG lookups.
   // DB is fast enough for single user lookups usually, but we could cache it.
-  const { rows } = await pool.query('SELECT * FROM bot_users WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3', [facultyId, platform, chatId]);
+  const { rows } = await safeInitQuery('SELECT * FROM bot_users WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3', [facultyId, platform, chatId]);
   return rows[0];
 }
 
 async function upsertBotUser(facultyId, platform, chatId, username, language) {
-  const existing = await pool.query('SELECT id FROM bot_users WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3', [facultyId, platform, chatId]);
+  const existing = await safeInitQuery('SELECT id FROM bot_users WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3', [facultyId, platform, chatId]);
   const isNew = existing.rowCount === 0;
 
-  const { rows } = await pool.query(`
+  const { rows } = await safeInitQuery(`
     INSERT INTO bot_users (faculty_id, platform, chat_id, username, language)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (faculty_id, platform, chat_id) 
@@ -653,19 +728,19 @@ async function upsertBotUser(facultyId, platform, chatId, username, language) {
 
 async function getBotUsersByFaculty(facultyId, platform = null) {
   if (platform) {
-    const { rows } = await pool.query('SELECT * FROM bot_users WHERE faculty_id = $1 AND platform = $2 ORDER BY created_at DESC', [facultyId, platform]);
+    const { rows } = await safeInitQuery('SELECT * FROM bot_users WHERE faculty_id = $1 AND platform = $2 ORDER BY created_at DESC', [facultyId, platform]);
     return rows;
   }
-  const { rows } = await pool.query('SELECT * FROM bot_users WHERE faculty_id = $1 ORDER BY created_at DESC', [facultyId]);
+  const { rows } = await safeInitQuery('SELECT * FROM bot_users WHERE faculty_id = $1 ORDER BY created_at DESC', [facultyId]);
   return rows;
 }
 
 async function updateBotUserMenu(userId, currentMenuId) {
-  await pool.query('UPDATE bot_users SET current_menu_id = $1 WHERE id = $2', [currentMenuId || null, userId]);
+  await safeInitQuery('UPDATE bot_users SET current_menu_id = $1 WHERE id = $2', [currentMenuId || null, userId]);
 }
 
 async function getAdminState(chatId) {
-  const { rows } = await pool.query('SELECT state FROM admin_states WHERE chat_id = $1', [chatId]);
+  const { rows } = await safeInitQuery('SELECT state FROM admin_states WHERE chat_id = $1', [chatId]);
   return rows[0] ? rows[0].state : null;
 }
 
@@ -689,7 +764,7 @@ async function setAdminState(chatId, state, pushToHistory = false) {
 
   state.history_stack = history;
 
-  await pool.query(`
+  await safeInitQuery(`
     INSERT INTO admin_states (chat_id, state, updated_at)
     VALUES ($1, $2, NOW())
     ON CONFLICT (chat_id) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
@@ -702,51 +777,51 @@ async function popAdminState(chatId) {
   if (history.length > 0) {
     const prevState = history.pop();
     prevState.history_stack = history;
-    await pool.query('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(prevState), chatId]);
+    await safeInitQuery('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(prevState), chatId]);
     return prevState;
   }
   const homeState = { action: 'admin_home', history_stack: [] };
-  await pool.query('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(homeState), chatId]);
+  await safeInitQuery('UPDATE admin_states SET state = $1, updated_at = NOW() WHERE chat_id = $2', [JSON.stringify(homeState), chatId]);
   return homeState;
 }
 
 async function deleteAdminState(chatId) {
-  await pool.query('DELETE FROM admin_states WHERE chat_id = $1', [chatId]);
+  await safeInitQuery('DELETE FROM admin_states WHERE chat_id = $1', [chatId]);
 }
 
 async function getAdminByUsername(username) {
-  const { rows } = await pool.query('SELECT * FROM admin_users WHERE username = $1', [username]);
+  const { rows } = await safeInitQuery('SELECT * FROM admin_users WHERE username = $1', [username]);
   return rows[0];
 }
 
 async function getAdminById(id) {
-  const { rows } = await pool.query('SELECT * FROM admin_users WHERE id = $1', [id]);
+  const { rows } = await safeInitQuery('SELECT * FROM admin_users WHERE id = $1', [id]);
   return rows[0];
 }
 
 async function createAdmin(username, passwordHash, role) {
-  const { rows } = await pool.query('INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [username, passwordHash, role]);
+  const { rows } = await safeInitQuery('INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [username, passwordHash, role]);
   return rows[0].id;
 }
 
 async function updateAdminPassword(id, passwordHash) {
-  await pool.query('UPDATE admin_users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+  await safeInitQuery('UPDATE admin_users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
 }
 
 async function toggleAdminStatus(id, active) {
-  await pool.query('UPDATE admin_users SET is_active = $1 WHERE id = $2', [active, id]);
+  await safeInitQuery('UPDATE admin_users SET is_active = $1 WHERE id = $2', [active, id]);
 }
 
 async function deleteAdmin(id) {
-  await pool.query('DELETE FROM admin_users WHERE id = $1', [id]);
+  await safeInitQuery('DELETE FROM admin_users WHERE id = $1', [id]);
 }
 
 async function updateLastLogin(id) {
-  await pool.query('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [id]);
+  await safeInitQuery('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [id]);
 }
 
 async function getAllAdmins() {
-  const { rows } = await pool.query('SELECT id, username, role, is_active, is_deputy_owner, last_login_at, created_at FROM admin_users ORDER BY created_at ASC');
+  const { rows } = await safeInitQuery('SELECT id, username, role, is_active, is_deputy_owner, last_login_at, created_at FROM admin_users ORDER BY created_at ASC');
   return rows;
 }
 
@@ -755,13 +830,13 @@ async function getAllAdmins() {
 // ==========================================
 
 async function getAdminRole(facultyId, chatId) {
-  const { rows } = await pool.query('SELECT role FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
+  const { rows } = await safeInitQuery('SELECT role FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
   if (rows.length > 0) return rows[0].role;
   return null;
 }
 
 async function setAdminRole(facultyId, chatId, role) {
-  await pool.query(`
+  await safeInitQuery(`
     INSERT INTO admins (faculty_id, chat_id, role) 
     VALUES ($1, $2, $3) 
     ON CONFLICT (faculty_id, chat_id) DO UPDATE SET role = $3
@@ -769,11 +844,11 @@ async function setAdminRole(facultyId, chatId, role) {
 }
 
 async function removeAdmin(facultyId, chatId) {
-  await pool.query('DELETE FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
+  await safeInitQuery('DELETE FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
 }
 
 async function getAdminsByFaculty(facultyId) {
-  const { rows } = await pool.query('SELECT chat_id, role, created_at FROM admins WHERE faculty_id = $1 ORDER BY created_at ASC', [facultyId]);
+  const { rows } = await safeInitQuery('SELECT chat_id, role, created_at FROM admins WHERE faculty_id = $1 ORDER BY created_at ASC', [facultyId]);
   return rows;
 }
 
@@ -795,28 +870,28 @@ async function hasPermission(chatId, facultyId, permission) {
 }
 
 async function createSession(adminId, sessionHash, expiresAt) {
-  await pool.query('INSERT INTO admin_sessions (admin_id, session_hash, expires_at) VALUES ($1, $2, $3)', [adminId, sessionHash, expiresAt]);
+  await safeInitQuery('INSERT INTO admin_sessions (admin_id, session_hash, expires_at) VALUES ($1, $2, $3)', [adminId, sessionHash, expiresAt]);
 }
 
 async function getSessionByHash(sessionHash) {
-  const { rows } = await pool.query('SELECT * FROM admin_sessions WHERE session_hash = $1 AND expires_at > NOW()', [sessionHash]);
+  const { rows } = await safeInitQuery('SELECT * FROM admin_sessions WHERE session_hash = $1 AND expires_at > NOW()', [sessionHash]);
   return rows[0];
 }
 
 async function deleteSession(sessionHash) {
-  await pool.query('DELETE FROM admin_sessions WHERE session_hash = $1', [sessionHash]);
+  await safeInitQuery('DELETE FROM admin_sessions WHERE session_hash = $1', [sessionHash]);
 }
 
 async function deleteAllSessions(adminId) {
-  await pool.query('DELETE FROM admin_sessions WHERE admin_id = $1', [adminId]);
+  await safeInitQuery('DELETE FROM admin_sessions WHERE admin_id = $1', [adminId]);
 }
 
 async function cleanupExpiredSessions() {
-  await pool.query('DELETE FROM admin_sessions WHERE expires_at < NOW()');
+  await safeInitQuery('DELETE FROM admin_sessions WHERE expires_at < NOW()');
 }
 
 async function logAdminAction(adminId, action, entity, entityId, ipAddress) {
-  await pool.query(
+  await safeInitQuery(
     'INSERT INTO admin_audit_log (admin_id, action, entity, entity_id, ip_address) VALUES ($1, $2, $3, $4, $5)', 
     [adminId, action, entity, entityId, ipAddress]
   );
@@ -851,7 +926,7 @@ async function toggleFacultyForwarding(facultyId, value) {
 
 async function updateUserActivity(facultyId, platform, chatId) {
   try {
-    await pool.query(
+    await safeInitQuery(
       'UPDATE bot_users SET last_active_at = NOW(), is_blocked = FALSE WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3',
       [facultyId, platform, chatId]
     );
@@ -862,7 +937,7 @@ async function updateUserActivity(facultyId, platform, chatId) {
 
 async function blockBotUser(facultyId, platform, chatId) {
   try {
-    await pool.query(
+    await safeInitQuery(
       'UPDATE bot_users SET is_blocked = TRUE WHERE faculty_id = $1 AND platform = $2 AND chat_id = $3',
       [facultyId, platform, chatId]
     );
@@ -873,7 +948,7 @@ async function blockBotUser(facultyId, platform, chatId) {
 
 async function incrementMenuClickCount(menuId) {
   try {
-    await pool.query('UPDATE menus SET click_count = click_count + 1 WHERE id = $1', [menuId]);
+    await safeInitQuery('UPDATE menus SET click_count = click_count + 1 WHERE id = $1', [menuId]);
   } catch (err) {
     logger.error('Error incrementing menu click count', err);
   }
@@ -902,6 +977,11 @@ async function updateTranslationField(table, id, enColumn, translatedText) {
 }
 
 module.exports = {
+  pool,
+  initStatus,
+  runQuery,
+  safeInitQuery,
+  initDb,
   addAnnouncementMessage,
   getAnnouncementMessages,
   getAnnouncementById,
@@ -969,3 +1049,4 @@ module.exports = {
   assignDeputyOwner,
   deleteAdminState
 };
+

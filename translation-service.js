@@ -1,36 +1,31 @@
-const { Pool } = require('pg');
+const dbHelper = require('./database');
 const crypto = require('crypto');
 const logger = require('./logger');
 const translateApi = require('google-translate-api-x');
 
 class TranslationService {
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
     this.memoryCache = new Map();
     this.dbInitialized = false;
-
-    this.initDb();
   }
 
   async initDb() {
-    try {
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS translations_cache (
-          id SERIAL PRIMARY KEY,
-          hash_key VARCHAR(64) UNIQUE NOT NULL,
-          text_original TEXT NOT NULL,
-          target_lang VARCHAR(10) NOT NULL,
-          text_translated TEXT NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
+    const query = `
+      CREATE TABLE IF NOT EXISTS translations_cache (
+        id SERIAL PRIMARY KEY,
+        hash_key VARCHAR(64) UNIQUE NOT NULL,
+        text_original TEXT NOT NULL,
+        target_lang VARCHAR(10) NOT NULL,
+        text_translated TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+    const res = await dbHelper.safeInitQuery(query, [], { optional: true });
+    if (res !== null) {
       this.dbInitialized = true;
       logger.info('[Translation] Translations cache table initialized.');
-    } catch (err) {
-      logger.error({ err }, '[Translation] Failed to initialize translations table.');
+    } else {
+      logger.warn('[Translation] Failed to initialize translations table, operating without cache.');
     }
   }
 
@@ -79,7 +74,7 @@ class TranslationService {
     // 2. DB cache lookup
     if (this.dbInitialized) {
       try {
-        const { rows } = await this.pool.query(
+        const { rows } = await dbHelper.runQuery(
           'SELECT text_translated FROM translations_cache WHERE hash_key = $1',
           [hashKey]
         );
@@ -187,7 +182,7 @@ class TranslationService {
 
         if (this.dbInitialized) {
           try {
-            await this.pool.query(`
+            await dbHelper.runQuery(`
               INSERT INTO translations_cache (hash_key, text_original, target_lang, text_translated)
               VALUES ($1, $2, $3, $4)
               ON CONFLICT (hash_key) DO UPDATE SET text_translated = EXCLUDED.text_translated, created_at = NOW()

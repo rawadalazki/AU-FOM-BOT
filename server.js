@@ -14,7 +14,7 @@ const rateLimiter = require('./rate-limiter');
 const backup = require('./backup');
 const auth = require('./auth');
 const bcrypt = require('bcryptjs');
-const { reportRuntimeError, recoverUnsentReports } = require('./error-reporter');
+const { reportRuntimeError, recoverUnsentReports, initReporterDB } = require('./error-reporter');
 
 process.on('uncaughtException', async (err) => {
   try {
@@ -1449,14 +1449,31 @@ async function main() {
       throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     }
 
+    // 1. Wait until initDb() finishes
     await dbHelper.initDb();
     
+    // 2. Initialize optional services
+    await initReporterDB();
+    
+    const translationService = require('./translation-service');
+    await translationService.initDb();
+    
+    // 3. Start Backup Scheduler
+    backup.startScheduler();
+    
+    // 4. Start Telegram Bot (implicit by webhooks being enabled now)
+    
+    // 5. Start HTTP server
     server.listen(PORT, '0.0.0.0', () => {
+      console.log(`[DB INIT] Core tables: ${dbHelper.initStatus.coreOk ? 'OK' : 'FAILED'}`);
+      console.log(`[DB INIT] Optional tables: ${dbHelper.initStatus.optionalFailed ? 'PARTIAL' : 'OK'}`);
+      console.log(`[DB INIT] Startup completed successfully`);
+      
       logger.info(`[Server] FOMbot server listening on port ${PORT}`);
-      backup.startScheduler();
+      console.log('Server Ready');
     });
   } catch (err) {
-    logger.error({ err }, '[Server] Failed to start server');
+    logger.error({ err }, '[Server] Fatal database initialization failure');
     process.exit(1);
   }
 }

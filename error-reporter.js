@@ -3,35 +3,36 @@ const dbHelper = require('./database');
 const os = require('os');
 
 // Ensure table exists on load
-(async function initReporterDB() {
+async function initReporterDB() {
+  const query = `
+    CREATE TABLE IF NOT EXISTS runtime_error_logs (
+      id SERIAL PRIMARY KEY,
+      severity VARCHAR(20) DEFAULT 'ERROR',
+      faculty_id INTEGER,
+      bot_id VARCHAR(50),
+      user_telegram_id VARCHAR(50),
+      operation VARCHAR(100),
+      error_signature VARCHAR(255),
+      error_message TEXT,
+      stack_trace TEXT,
+      full_context JSONB,
+      first_occurrence TIMESTAMP DEFAULT NOW(),
+      last_occurrence TIMESTAMP DEFAULT NOW(),
+      occurrence_count INTEGER DEFAULT 1,
+      resolved BOOLEAN DEFAULT FALSE,
+      resolved_by VARCHAR(100),
+      resolved_at TIMESTAMP,
+      notes TEXT,
+      notification_sent BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `;
   try {
-    await dbHelper.runQuery(`
-      CREATE TABLE IF NOT EXISTS runtime_error_logs (
-        id SERIAL PRIMARY KEY,
-        severity VARCHAR(20) DEFAULT 'ERROR',
-        faculty_id INTEGER,
-        bot_id VARCHAR(50),
-        user_telegram_id VARCHAR(50),
-        operation VARCHAR(100),
-        error_signature VARCHAR(255),
-        error_message TEXT,
-        stack_trace TEXT,
-        full_context JSONB,
-        first_occurrence TIMESTAMP DEFAULT NOW(),
-        last_occurrence TIMESTAMP DEFAULT NOW(),
-        occurrence_count INTEGER DEFAULT 1,
-        resolved BOOLEAN DEFAULT FALSE,
-        resolved_by VARCHAR(100),
-        resolved_at TIMESTAMP,
-        notes TEXT,
-        notification_sent BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `);
+    await dbHelper.safeInitQuery(query, [], { optional: true });
   } catch (e) {
     console.error('Failed to initialize runtime_error_logs table', e);
   }
-})();
+}
 
 // In-memory tracker for active timeouts to send notifications after 60s
 const activeTimers = new Map();
@@ -308,4 +309,4 @@ async function flushPendingNotifications() {
   }
 }
 
-module.exports = { reportRuntimeError, recoverUnsentReports, flushPendingNotifications, logUserOperation, getUserHistory };
+module.exports = { reportRuntimeError, recoverUnsentReports, flushPendingNotifications, logUserOperation, getUserHistory, initReporterDB };
