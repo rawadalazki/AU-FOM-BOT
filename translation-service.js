@@ -251,6 +251,122 @@ class TranslationService {
     }
     return updated;
   }
+
+  /**
+   * Process Premium Telegram Emojis using Entity-based translation.
+   * Never translates the emoji itself. Replaces `<tg-emoji>` with safe tokens,
+   * translates the textual content, and restores entities based on UTF-16 offsets.
+   */
+  async processPremiumEntities(text, targetLang = null) {
+    if (!text) return { text: '', entities: [] };
+
+    const emojiRegex = /<tg-emoji\s+emoji-id="([^"]+)">([\s\S]*?)<\/tg-emoji>/gi;
+    let match;
+    const emojiMap = new Map();
+    let tokenizedText = text;
+
+    // 1. Extraction & Tokenization
+    while ((match = emojiRegex.exec(text)) !== null) {
+      const fullTag = match[0];
+      const custom_emoji_id = match[1];
+      const emojiUnicode = match[2];
+      const tokenId = emojiMap.size;
+      const token = `{{{${tokenId}}}}`;
+      
+      emojiMap.set(token, { emojiUnicode, custom_emoji_id });
+      tokenizedText = tokenizedText.replace(fullTag, token);
+    }
+
+    // 2. Translation
+    let finalPlainText = tokenizedText;
+    if (targetLang) {
+      try {
+        finalPlainText = await this.translate(tokenizedText, targetLang);
+      } catch (e) {
+        logger.error({ err: e }, '[Translation] Process Premium Entities translate failed');
+        finalPlainText = tokenizedText;
+      }
+    }
+
+    // 3. Restoration & Offset Calculation
+    const entities = [];
+    let isValid = true;
+    
+    // We must find each token, replace it with the unicode emoji, and track the offset.
+    // To handle multiple occurrences or out-of-order translation, we process token by token.
+    // Using a regex to find all {{{N}}} and replace them sequentially.
+    const tokenRegex = /\{\{\{(\d+)\}\}\}/g;
+    let matchToken;
+    let offsetAdjustment = 0;
+    
+    let restoredText = finalPlainText;
+
+    while ((matchToken = tokenRegex.exec(finalPlainText)) !== null) {
+      const token = matchToken[0];
+      const emojiData = emojiMap.get(token);
+      
+      if (!emojiData) {
+         // Corrupted token that doesn't exist in our map
+         isValid = false;
+         continue;
+      }
+
+      // Calculate current offset in the restored text
+      // We must find the index of the token in the *current* restored text
+      const tokenIndex = restoredText.indexOf(token);
+      if (tokenIndex === -1) {
+         isValid = false;
+         continue;
+      }
+
+      // Record entity using UTF-16 string indices
+      entities.push({
+        type: 'custom_emoji',
+        offset: tokenIndex,
+        length: emojiData.emojiUnicode.length,
+        custom_emoji_id: emojiData.custom_emoji_id
+      });
+
+      // Replace exactly one instance of the token with the unicode emoji
+      restoredText = restoredText.substring(0, tokenIndex) + 
+                     emojiData.emojiUnicode + 
+                     restoredText.substring(tokenIndex + token.length);
+    }
+    
+    // Verify all tokens were restored
+    if (entities.length !== emojiMap.size) {
+       console.warn('[Translation] Entity mismatch after restoration. Expected:', emojiMap.size, 'Got:', entities.length);
+       isValid = false;
+    }
+
+    // 4. Entity Offset Validation
+    if (isValid && entities.length > 0) {
+      entities.sort((a, b) => a.offset - b.offset);
+      
+      for (let i = 0; i < entities.length; i++) {
+        const ent = entities[i];
+        if (ent.offset < 0 || ent.length <= 0) isValid = false;
+        if (i > 0) {
+           const prev = entities[i - 1];
+           if (prev.offset + prev.length > ent.offset) {
+             console.error('[Translation] Entity overlap detected');
+             isValid = false;
+           }
+        }
+      }
+    }
+
+    // 5. Fallback Strategy
+    if (!isValid) {
+      console.error('[Translation] Entity restoration failed, falling back to plain text without premium emojis.');
+      // Remove any leftover tokens
+      let fallbackText = finalPlainText.replace(/\{\{\{\d+\}\}\}/g, '');
+      return { text: fallbackText, entities: [] };
+    }
+
+    return { text: restoredText, entities };
+  }
+
 }
 
 module.exports = new TranslationService();

@@ -1617,24 +1617,59 @@ class TelegramBotService {
     for (const user of users) {
       try {
         await this.withRetry(async () => {
+          // Fallback to ensuring regular DB translation exists
           if (user.language === 'en') {
             await translationService.ensureTranslated(announcement, 'announcements', 'id', { title_ar: 'title_en', content_ar: 'content_en' });
           }
-          const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
-          const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
-          // Clean format without 'translated'
-          const txt = `📢 *${title}*\n\n${content}`;
+
+          let finalTxt = '';
+          let finalEntities = null;
+
+          if (announcement.content_ar.includes('<tg-emoji') || announcement.title_ar.includes('<tg-emoji')) {
+             // Entities mode
+             const combinedTextAr = `📣 ${announcement.title_ar}\n\n${announcement.content_ar}`;
+             if (user.language === 'ar') {
+                if (!announcement.parsed_ar) announcement.parsed_ar = await translationService.processPremiumEntities(combinedTextAr, null);
+                finalTxt = announcement.parsed_ar.text;
+                // Deep clone to safely add title entity
+                finalEntities = JSON.parse(JSON.stringify(announcement.parsed_ar.entities));
+             } else {
+                if (!announcement.parsed_en) announcement.parsed_en = await translationService.processPremiumEntities(combinedTextAr, 'en');
+                finalTxt = announcement.parsed_en.text;
+                finalEntities = JSON.parse(JSON.stringify(announcement.parsed_en.entities));
+             }
+
+             // Title Bold Entity (Offset 2 accounts for '📣 ')
+             const titleLength = user.language === 'ar' ? announcement.title_ar.length : (announcement.title_en ? announcement.title_en.length : announcement.title_ar.length); 
+             // Note: Google Translate might change title length, calculating exact length of first line:
+             const firstLineLen = finalTxt.split('\n')[0].length;
+             finalEntities.push({
+               type: 'bold',
+               offset: 2,
+               length: firstLineLen > 2 ? firstLineLen - 2 : 0
+             });
+             
+             finalEntities.sort((a, b) => a.offset - b.offset);
+
+          } else {
+             // Standard Markdown mode
+             const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
+             const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
+             finalTxt = `📢 *${title}*\n\n${content}`;
+          }
           
           let res;
           if (announcement.telegram_file_id) {
+            const apiOpts = finalEntities ? { caption_entities: finalEntities } : { parse_mode: 'Markdown' };
             res = await this.sendTelegramFile(
               user.chat_id,
               { telegram_file_id: announcement.telegram_file_id, file_name: announcement.file_name, mime_type: announcement.mime_type || null },
-              txt,
-              { parse_mode: 'Markdown' }
+              finalTxt,
+              apiOpts
             );
           } else {
-            res = await this.apiCall('sendMessage', { chat_id: user.chat_id, text: txt, parse_mode: 'Markdown' });
+            const apiOpts = finalEntities ? { entities: finalEntities } : { parse_mode: 'Markdown' };
+            res = await this.apiCall('sendMessage', { chat_id: user.chat_id, text: finalTxt, ...apiOpts });
           }
           
           if (res && res.ok && res.result && res.result.message_id) {
