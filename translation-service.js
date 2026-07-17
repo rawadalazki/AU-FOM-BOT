@@ -97,25 +97,49 @@ class TranslationService {
 
     // Protect HTML/Markdown logic
     const placeholderMap = new Map();
-    let processedText = text;
+    const tokenRegexes = [
+      /<tg-emoji[^>]*>[\s\S]*?<\/tg-emoji>/gi,
+      /<[^>]+>/gi,
+      /https?:\/\/[^\s]+/gi,
+      /@[a-zA-Z0-9_]+/gi,
+      /\/[a-zA-Z0-9_]+/gi,
+      /```[\s\S]*?```/gi,
+      /`[^`]+`/gi,
+      /(\*\*|__|~~|\|\|)[^\n]+?\1/gi,
+      /(\*|_)[^\n]+?\1/gi,
+      /\{"cmd":"[^"]+"\}/gi
+    ];
 
-    const addPlaceholder = (match) => {
-      const id = placeholderMap.size;
-      const token = `[[TG_EMOJI_${id}]]`;
-      placeholderMap.set(token, match);
-      return token;
-    };
+    let parts = [text];
+    
+    for (const regex of tokenRegexes) {
+      const nextParts = [];
+      for (const part of parts) {
+        if (typeof part === 'string') {
+          let lastIndex = 0;
+          part.replace(regex, (match, ...args) => {
+            const offset = args[args.length - 2];
+            if (offset > lastIndex) {
+              nextParts.push(part.substring(lastIndex, offset));
+            }
+            const id = placeholderMap.size;
+            const tokenStr = `{{{${id}}}}`;
+            placeholderMap.set(tokenStr, match);
+            nextParts.push({ token: tokenStr, original: match });
+            lastIndex = offset + match.length;
+            return match;
+          });
+          if (lastIndex < part.length) {
+            nextParts.push(part.substring(lastIndex));
+          }
+        } else {
+          nextParts.push(part);
+        }
+      }
+      parts = nextParts;
+    }
 
-    processedText = processedText.replace(/<tg-emoji[^>]*>[\s\S]*?<\/tg-emoji>/gi, addPlaceholder);
-    processedText = processedText.replace(/<[^>]+>/g, addPlaceholder);
-    processedText = processedText.replace(/https?:\/\/[^\s]+/g, addPlaceholder);
-    processedText = processedText.replace(/@[a-zA-Z0-9_]+/g, addPlaceholder);
-    processedText = processedText.replace(/\/[a-zA-Z0-9_]+/g, addPlaceholder);
-    processedText = processedText.replace(/```[\s\S]*?```/g, addPlaceholder);
-    processedText = processedText.replace(/`[^`]+`/g, addPlaceholder);
-    processedText = processedText.replace(/(\*\*|__|~~|\|\|)[^\n]+?\1/g, addPlaceholder);
-    processedText = processedText.replace(/(\*|_)[^\n]+?\1/g, addPlaceholder);
-    processedText = processedText.replace(/\{"cmd":"[^"]+"\}/g, addPlaceholder);
+    let processedText = parts.map(p => typeof p === 'string' ? p : p.token).join('');
 
     // 3. Google Translate API Call
     console.log(`\n[Translation Debug] Source Lang: ${sourceLang} | Target Lang: ${targetLang}`);

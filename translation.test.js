@@ -18,9 +18,7 @@ Module.prototype.require = function(name) {
     return async (text, options) => {
       // Mock translation: just convert to uppercase for test verification, but KEEP tokens intact
       let translated = text.toUpperCase();
-      translated = translated.replace(/\[\[TG_EMOJI_\d+\]\]/g, match => match); // deterministic tokens stay uppercase if mocked engine doesn't change it, wait they shouldn't be altered
-      // Note: we can just leave them as they are, but since we uppercased the whole string,
-      // [[TG_EMOJI_0]] remains [[TG_EMOJI_0]] because it's already uppercase.
+      // Tokens like {{{0}}} stay uppercase when mocked, we don't change them
       return { text: translated };
     };
   }
