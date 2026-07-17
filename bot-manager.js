@@ -1156,6 +1156,7 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_new_admin_id', targetRole });
         const cancelKb = { keyboard: [[{ text: t(lang, 'BTN_CANCEL') }]], resize_keyboard: true };
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_26').replace('${roleName}', roleName), reply_markup: cancelKb });
+        return;
       } else if (actionId === 'view_subadmins' || actionId === 'view_deputies') {
         const admins = await dbHelper.getAdminsByFaculty(this.facultyId);
         const targets = admins.filter(a => a.role === targetRole);
