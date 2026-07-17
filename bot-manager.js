@@ -1399,67 +1399,66 @@ class TelegramBotService {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
         }
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-            await this.sendAdminHome(chatId, lang);
-          }
-        }
+        await this.sendAdminHome(chatId, lang);
         break;
+      }
 
-      case 'awaiting_del_file_confirm':
+      case 'awaiting_del_file_confirm': {
         if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [state.fileId]);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
-          if (state.menuId) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_50'), reply_markup: { remove_keyboard: true } });
-            if (mFile) {
-              await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-              await this.sendAdminHome(chatId, lang);
-            }
+          if (state.menuId) {
+            const AdminMenuNavigation = require('./admin-menu-navigation');
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.menuId, viewingMenuDetailsId: null });
+            await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
           } else { 
             await dbHelper.deleteAdminState(chatId); 
             await this.sendAdminHome(chatId, lang); 
           }
         } else {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED'), reply_markup: { remove_keyboard: true } });
           if (state.menuId) {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_51'), reply_markup: { remove_keyboard: true } });
-            if (mFile) {
-              await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-              await this.sendAdminHome(chatId, lang);
-            }
+            const AdminMenuNavigation = require('./admin-menu-navigation');
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: state.menuId, viewingMenuDetailsId: null });
+            await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
           } else {
             await dbHelper.deleteAdminState(chatId);
             await this.sendAdminHome(chatId, lang);
           }
         }
         break;
+      }
 
-      case 'awaiting_rename_title_ar':
+      case 'awaiting_rename_title_ar': {
         const rTitleEn = await this.translateArToEn(text);
         const rMenu = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu.reply_content_en, rMenu.reply_content_ar, rMenu.file_name, rMenu.telegram_file_id, rMenu.mime_type, rMenu.file_size, rMenu.sort_order, rMenu.row_index);
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        await this.sendAdminHome(chatId, lang);
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_52') });
+        await this.sendAdminHome(chatId, lang);
+        break;
+      }
 
-      case 'awaiting_edit_submenu_ar':
+      case 'awaiting_edit_submenu_ar': {
         const rSubEn = await this.translateArToEn(text);
         const rMenu2 = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu2.reply_type, rSubEn, text, rMenu2.file_name, rMenu2.telegram_file_id, rMenu2.mime_type, rMenu2.file_size, rMenu2.sort_order, rMenu2.row_index);
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        await this.sendAdminHome(chatId, lang);
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_53') });
+        await this.sendAdminHome(chatId, lang);
+        break;
+      }
 
-      case 'awaiting_edit_text_ar':
+      case 'awaiting_edit_text_ar': {
         const textEn = await this.translateArToEn(text);
         const m1 = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order, m1.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m1.parent_id, viewingMenuDetailsId: null });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        const adminNavT = require('./admin-menu-navigation');
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_54') });
+        const adminNavT = require('./admin-menu-navigation');
+        await adminNavT.sendAdminReplyMenus(this, chatId, m1.parent_id, lang);
         break;
+      }
 
       case 'awaiting_replace_file_doc': {
         if (text === '/cancel') {
@@ -2067,11 +2066,11 @@ class TelegramBotService {
       const customPrompt = lang === 'ar' ? pMenu.reply_content_ar : pMenu.reply_content_en;
       promptText = customPrompt ? customPrompt : (lang === 'ar' ? pMenu.title_ar : pMenu.title_en);
 
-      promptText = lang === 'ar' ? (faculty.welcome_ar || 'مرحباً بك') : (faculty.welcome_en || 'Welcome');
+      if (pMenu.inline_buttons) {
         try {
           const btns = JSON.parse(pMenu.inline_buttons);
-      const customPrompt = lang === 'ar' ? pMenu.reply_content_ar : pMenu.reply_content_en;
-      promptText = customPrompt ? customPrompt : (lang === 'ar' ? pMenu.title_ar : pMenu.title_en);
+          if (btns && btns.length > 0) {
+            inlineKeyboardMarkup = {
               inline_keyboard: btns.map(b => {
                 const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };
                 const link = (b.url || '').trim();
@@ -2079,7 +2078,7 @@ class TelegramBotService {
                   btn.url = 'https://t.me/' + link.substring(1);
                 } else if (link.startsWith('http') || link.startsWith('tg://')) {
                   btn.url = link;
-                const btn = { text: lang === 'ar' ? b.text_ar : b.text_en };
+                } else {
                   btn.callback_data = 'btn_cmd_' + link;
                 }
                 return [btn];
