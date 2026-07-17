@@ -1110,11 +1110,11 @@ class TelegramBotService {
         for (const secId of secondaryIds) {
            const secUserRes = await dbHelper.pool.query('SELECT * FROM bot_users WHERE chat_id = $1 AND faculty_id = $2', [secId, this.facultyId]);
            const secUser = secUserRes.rows[0];
-           msgText += \`ID: <code>\${secId}</code>\\n\`;
+           msgText += `ID: <code>${secId}</code>\n`;
            if (secUser) {
-              msgText += \`Name: \${secUser.username || 'Unknown'}\\nLanguage: \${secUser.language || 'N/A'}\\nRegistered: \${secUser.created_at ? new Date(secUser.created_at).toLocaleString() : 'Unknown'}\\n\\n\`;
+              msgText += `Name: ${secUser.username || 'Unknown'}\nLanguage: ${secUser.language || 'N/A'}\nRegistered: ${secUser.created_at ? new Date(secUser.created_at).toLocaleString() : 'Unknown'}\n\n`;
            } else {
-              msgText += \`Name: Unknown\\n\\n\`;
+              msgText += `Name: Unknown\n\n`;
            }
         }
         await this.apiCall('sendMessage', { chat_id: chatId, text: msgText, parse_mode: 'HTML' });
@@ -1127,7 +1127,7 @@ class TelegramBotService {
            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_NO_SECONDARY_ADMINS') });
            return;
         }
-        const inlineKeyboard = secondaryIds.map(id => ([{ text: \`ID: \${id}\`, callback_data: \`del_sub_\${id}\` }]));
+        const inlineKeyboard = secondaryIds.map(id => ([{ text: `ID: ${id}`, callback_data: `del_sub_${id}` }]));
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_CHOOSE_ADMIN_TO_REMOVE'), reply_markup: { inline_keyboard: inlineKeyboard } });
         return;
       }
