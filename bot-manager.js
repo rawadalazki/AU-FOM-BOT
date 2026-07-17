@@ -354,7 +354,7 @@ class TelegramBotService {
       return;
     }
 
-    if ((text === '/admin' || text === '??? Admin Panel' || text === '🛠️ لوحة تحكم المشرفين') && isAdmin) {
+    if ((text === '/admin' || text === t('en', 'MSG_ADMIN_81') || text === t('ar', 'MSG_ADMIN_81') || text === t(user.language, 'MSG_ADMIN_81') || text === 'MSG_ADMIN_81') && isAdmin) {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, user.language);
       return;
@@ -379,7 +379,7 @@ class TelegramBotService {
       return;
     }
 
-    if (text === '/back') {
+    if (text === '/back' || text === t('en', 'BTN_BACK') || text === t('ar', 'BTN_BACK') || text === t(user.language, 'BTN_BACK') || text === 'BTN_BACK') {
       await this.handleBackNavigation(chatId, user);
       return;
     }
@@ -402,11 +402,7 @@ class TelegramBotService {
     if (clickedMenu) {
       await this.processMenuClick(chatId, user, clickedMenu, menus);
     } else {
-      if (text.includes('Back') || text.includes('رجوع')) {
-        await this.handleBackNavigation(chatId, user);
-        return;
-      }
-      if (text === t(user.language, 'BTN_HOME') || text === '🏠 الرئيسية' || text === '🏠 Home') {
+      if (text === t(user.language, 'BTN_HOME') || text === t('ar', 'BTN_HOME') || text === t('en', 'BTN_HOME') || text === 'BTN_HOME') {
         await dbHelper.updateBotUserMenu(user.id, null);
         await this.sendMenu(chatId, null, user.language);
         return;
@@ -2131,7 +2127,7 @@ class TelegramBotService {
     }
 
     if (isAdmin && parentId === null) {
-      keyboard.push([{ text: t(lang, 'MSG_ADMIN_1') }]);
+      keyboard.push([{ text: t(lang, 'MSG_ADMIN_81') }]);
     }
 
     const replyMarkup = keyboard.length > 0 ? { keyboard, resize_keyboard: true } : { remove_keyboard: true };
