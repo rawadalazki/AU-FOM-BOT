@@ -1,4 +1,4 @@
-﻿const https = require('node:https');
+const https = require('node:https');
 const crypto = require('node:crypto');
 const monitor = require('./src/monitoring/monitor');
 const FormData = require('form-data');
@@ -1085,11 +1085,11 @@ class TelegramBotService {
       } else if (actionId === 'core_settings' || actionId === 'manage_admins' || actionId === 'manage_deputies' || actionId === 'admin_monitoring') {
         if (actionId === 'core_settings') {
           await dbHelper.setAdminState(chatId, { action: 'managing_config' });
-          const cfgText = lang === 'ar' 
           const fac = await dbHelper.getFacultyById(this.facultyId);
-          const monStatus = fac.forward_user_messages ? (t(lang, 'MSG_ADMIN_1')) : (t(lang, 'MSG_ADMIN_1'));
+          const monStatus = fac.forward_user_messages ? t(lang, 'MSG_ADMIN_15') : t(lang, 'MSG_ADMIN_16');
+          const cfgText = (lang === 'ar' ? 'إعدادات\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;
           const cfgKb = [
-          const monStatus = fac.forward_user_messages ? (t(lang, 'MSG_ADMIN_15')) : (t(lang, 'MSG_ADMIN_16'));
+            [{ text: t(lang, 'BTN_CFG_WELCOME') }, { text: t(lang, 'BTN_CFG_MAINTENANCE') }],
             [{ text: t(lang, 'BTN_CFG_EMPTY_BTN') }, { text: t(lang, 'BTN_CFG_UNKNOWN_TEXT') }],
             [{ text: t(lang, 'BTN_CFG_NO_FILE') }],
             [{ text: t(lang, 'BTN_CFG_HOME') }]
@@ -1097,9 +1097,9 @@ class TelegramBotService {
           await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
         } else if (actionId === 'manage_admins' || actionId === 'manage_deputies') {
           const isDeputy = actionId === 'manage_deputies';
-          const roleTitle = isDeputy ? (t(lang, 'MSG_ADMIN_1')) : (t(lang, 'MSG_ADMIN_1'));
+          const roleTitle = isDeputy ? t(lang, 'MSG_ADMIN_11') : t(lang, 'MSG_ADMIN_12');
           const keyboard = [
-          const roleTitle = isDeputy ? (t(lang, 'MSG_ADMIN_11')) : (t(lang, 'MSG_ADMIN_12'));
+            [{ text: t(lang, 'BTN_ADD') }],
             [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_REMOVE') }],
             [{ text: t(lang, 'BTN_BACK') }]
