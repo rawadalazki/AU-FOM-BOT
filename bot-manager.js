@@ -1,5 +1,6 @@
 const https = require('node:https');
 const crypto = require('node:crypto');
+const monitor = require('./src/monitoring/monitor');
 const FormData = require('form-data');
 const dbHelper = require('./database');
 const logger = require('./logger');
@@ -218,6 +219,8 @@ class TelegramBotService {
     try {
       console.log("UPDATE RECEIVED:");
       console.log(JSON.stringify(update, null, 2));
+      
+      monitor.onIncomingUpdate(this, update);
 
       if (update.message) {
           await this.handleMessage(update.message);
@@ -276,6 +279,7 @@ class TelegramBotService {
         null
       );
       isNewUserRegistration = true;
+      monitor.onNewUser(this, message.from);
     } else {
       console.log(`[LANG] Existing user: id=${user.id}, language=${user.language}`);
       await dbHelper.updateUserActivity(this.facultyId, 'telegram', chatId);
@@ -1991,9 +1995,11 @@ class TelegramBotService {
     try {
       const res = await this._rawApiCall(method, payload);
       if (!res.ok) {
+        monitor.onTelegramError(this, res);
         if (res.error_code === 403 && payload && payload.chat_id) {
           const dbHelper = require('./database');
           await dbHelper.blockBotUser(this.facultyId, 'telegram', payload.chat_id.toString());
+          monitor.onUserBlocked(this, { chat_id: payload.chat_id });
         }
         const desc = (res.description || '').toLowerCase();
         const shouldRetry = res.error_code === 429 || [500, 502, 503, 504].includes(res.error_code);
