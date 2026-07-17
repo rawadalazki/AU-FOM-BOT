@@ -1,4 +1,4 @@
-﻿const dbHelper = require('./database');
+const dbHelper = require('./database');
 const { t } = require('./src/localization');
 
 class AdminMenuNavigation {
@@ -9,7 +9,7 @@ class AdminMenuNavigation {
     let txt = t(lang, 'MSG_ADMIN_83');
     if (parentId !== null) {
       const pMenu = menus.find(m => m.id === parentId);
-      txt = t(lang, 'MSG_ADMIN_84');
+      txt = t(lang, 'MSG_ADMIN_84').replace('${pMenu.title_ar}', lang === 'ar' ? pMenu.title_ar : pMenu.title_en);
     }
 
     const rowsMap = new Map();
@@ -62,6 +62,8 @@ class AdminMenuNavigation {
                     (t(lang, 'MSG_ADMIN_87'));
 
     let txt = lang === 'ar' 
+      ? `<b>تفاصيل القائمة:</b>\n\nالعنوان: ${menu.title_ar}\nالنوع: ${typeStr}\nمعرف القائمة: <code>${menu.id}</code>`
+      : `<b>Menu Details:</b>\n\nTitle: ${menu.title_en}\nType: ${typeStr}\nMenu ID: <code>${menu.id}</code>`;
 
     const kb = [];
     
@@ -142,7 +144,7 @@ class AdminMenuNavigation {
         if (rowItemsExcludingMoving.length < 3) {
           const buttonNames = rowItemsExcludingMoving.map(m => lang === 'ar' ? m.title_ar : m.title_en).join('، ');
           kb.push([{ text: `📍 السطر ${rowDisplayCount} (${buttonNames})` }]);
-          const buttonNames = rowItemsExcludingMoving.map(m => lang === 'ar' ? m.title_ar : m.title_en).join('، ');
+        }
         rowDisplayCount++;
       }
     });
@@ -150,9 +152,9 @@ class AdminMenuNavigation {
     kb.push([{ text: t(lang, 'BTN_NEW_ROW_END') }]);
     kb.push([{ text: t(lang, 'BTN_CANCEL_OP') }]);
     
-    const txt = t(lang, 'MSG_ADMIN_1');
-    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: txt, reply_markup: { keyboard: kb, resize_keyboard: true } });
     const txt = t(lang, 'MSG_ADMIN_88');
+    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: txt, reply_markup: { keyboard: kb, resize_keyboard: true } });
+  }
 
   static async moveMenuOrderPosition(botCtx, chatId, menuId, targetRowDisplay, lang) {
     const menu = await dbHelper.getMenuById(menuId);
@@ -191,9 +193,9 @@ class AdminMenuNavigation {
     }
 
     if (targetRowIndex === -1) {
-      await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-      return;
       await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_89') });
+      return;
+    }
 
     // Change the moving menu's row_index
     menu.row_index = targetRowIndex;
@@ -232,9 +234,9 @@ class AdminMenuNavigation {
       }
     }
     
-    await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: { remove_keyboard: true } });
-    await this.sendAdminMenuDetails(botCtx, chatId, menuId, lang);
     await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_90'), reply_markup: { remove_keyboard: true } });
+    await this.sendAdminMenuDetails(botCtx, chatId, menuId, lang);
+  }
 
   static async handleNavigation(botCtx, chatId, text, state, lang) {
     console.log(`[DEBUG admin-menu-navigation start] text: "${text}", action: "${state.action}"`);
@@ -313,9 +315,9 @@ class AdminMenuNavigation {
         keyboard.push([{ text: t(lang, 'BTN_TEXT_BUTTON') }]);
         keyboard.push([{ text: t(lang, 'BTN_CANCEL_OP') }]);
 
-        await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: {
-          keyboard, resize_keyboard: true
         await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_91'), reply_markup: {
+          keyboard, resize_keyboard: true
+        } });
         return true;
       }
     }
@@ -330,9 +332,9 @@ class AdminMenuNavigation {
       let type = null;
       if (text === t('ar', 'BTN_MENU_FOLDER') || text === t('en', 'BTN_MENU_FOLDER')) {
           if (!(await dbHelper.hasPermission(chatId, botCtx.facultyId, 'MANAGE_FOLDERS'))) {
-              await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-              return true;
               await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_92') });
+              return true;
+          }
           type = 'submenu';
       }
       else if (text === t('ar', 'BTN_FILE_BUTTON') || text === t('en', 'BTN_FILE_BUTTON')) type = 'file';
@@ -340,9 +342,9 @@ class AdminMenuNavigation {
 
       if (type) {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_newmenu_title_ar', currentMenuId: state.currentMenuId, newType: type, targetRow: state.targetRow });
-        await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      }
         await botCtx.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_93'), reply_markup: cancelKb });
+      }
+      return true;
     }
 
     if (state.action === 'managing_menus_move_order') {

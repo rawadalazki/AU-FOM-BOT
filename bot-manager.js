@@ -1962,41 +1962,40 @@ class TelegramBotService {
       await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, menu.sort_order, menu.row_index);
 
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_76') });
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
       this.logError('Edit file failed', e, { chat_id: chatId });
       await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
     }
-      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_76') });
+  }
 
   async sendAdminAnnouncementsList(chatId, lang) {
     const anns = await dbHelper.getAnnouncementsByFaculty(this.facultyId);
     if (!anns || anns.length === 0) {
-      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_77') });
       return;
     }
     
     // Show the last 5 announcements
     const recentAnns = anns.slice(0, 5);
-      await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_77') });
+    for (const ann of recentAnns) {
       const title = lang === 'ar' ? ann.title_ar : ann.title_en;
       const date = new Date(ann.sent_at).toLocaleString('en-US', { timeZone: 'Asia/Damascus' });
       const txt = `📢 *${title}*\n📅 ${date}\n${ann.is_pinned ? '📌 (Pinned)' : ''}`;
       
       const inlineKeyboard = [
-        [{ text: t(lang, 'MSG_ADMIN_1'), callback_data: `edit_ann_${ann.id}` }],
-      const title = lang === 'ar' ? ann.title_ar : ann.title_en;
+        [{ text: t(lang, 'MSG_ADMIN_78'), callback_data: `edit_ann_${ann.id}` }],
+        [{ text: t(lang, 'MSG_ADMIN_79'), callback_data: `del_ann_${ann.id}` }]
       ];
       
       if (ann.is_pinned) {
-        inlineKeyboard.push([{ text: t(lang, 'MSG_ADMIN_1'), callback_data: `unpin_ann_${ann.id}` }]);
-        [{ text: t(lang, 'MSG_ADMIN_78'), callback_data: `edit_ann_${ann.id}` }],
-        [{ text: t(lang, 'MSG_ADMIN_79'), callback_data: `del_ann_${ann.id}` }]
+        inlineKeyboard.push([{ text: t(lang, 'MSG_ADMIN_80'), callback_data: `unpin_ann_${ann.id}` }]);
+      }
+      
       await this.apiCall('sendMessage', { 
         chat_id: chatId, 
         text: txt, 
-        inlineKeyboard.push([{ text: t(lang, 'MSG_ADMIN_80'), callback_data: `unpin_ann_${ann.id}` }]);
         reply_markup: { inline_keyboard: inlineKeyboard }
       });
     }
