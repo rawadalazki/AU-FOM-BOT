@@ -2112,7 +2112,7 @@ class TelegramBotService {
         });
         keyboard.push(row);
       }
-          let title = lang === 'ar' ? item.title_ar : item.title_en;
+    });
 
     if (parentId !== null) {
       const backRow = [{ text: t(lang, 'BTN_BACK') }];
@@ -2130,7 +2130,7 @@ class TelegramBotService {
     const replyMarkup = keyboard.length > 0 ? { keyboard, resize_keyboard: true } : { remove_keyboard: true };
 
     let res;
-      keyboard.push([{ text: t(lang, 'MSG_ADMIN_81') }]);
+    if (inlineKeyboardMarkup) {
       await this.apiCall('sendMessage', {
         chat_id: chatId,
         text: promptText,
