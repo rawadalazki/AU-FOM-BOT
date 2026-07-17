@@ -285,9 +285,9 @@ class TelegramBotService {
 
     if (isNewUserRegistration && faculty.notify_new_user) {
       const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
-      const notifyText = `Ã°Å¸â€˜Â¤ <b>Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã˜Â¯Ã˜Â®Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª</b>\n` +
-                         `Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã™â€¦: ${message.from.first_name || 'Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
-                         `Username: ${message.from.username ? '@' + message.from.username : 'Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+      const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
+                         `ا??سم: ${message.from.first_name || 'غير متوفر'}\n` +
+                         `Username: ${message.from.username ? '@' + message.from.username : 'غير متوفر'}\n` +
                          `ID: <code>${chatId}</code>`;
       
       for (const adminId of adminIds) {
@@ -303,7 +303,7 @@ class TelegramBotService {
     const isAdmin = !!adminRole;
     if (faculty.bot_enabled === 0 && !isAdmin) {
       const disabledMsg = user.language === 'ar' 
-        ? (faculty.disabled_message_ar || 'Ã˜Â¹Ã˜Â°Ã˜Â±Ã˜Â§Ã™â€¹Ã˜Å’ Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã™â€¦Ã˜ÂªÃ™Ë†Ã™â€šÃ™Â Ã˜Â­Ã˜Â§Ã™â€žÃ™Å Ã˜Â§Ã™â€¹ Ã™â€žÃ˜Â¥Ã˜Â¬Ã˜Â±Ã˜Â§Ã˜Â¡ Ã˜Â¨Ã˜Â¹Ã˜Â¶ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â«Ã˜Â§Ã˜Âª.') 
+        ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً لإجراء بعض التحديثات.') 
         : (faculty.disabled_message_en || 'Sorry, the bot is temporarily offline for maintenance.');
       
       const res = await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg, parse_mode: 'Markdown' });
@@ -320,7 +320,7 @@ class TelegramBotService {
           const userStr = message.from.username ? `@${message.from.username}` : message.from.first_name;
           await this.apiCall('sendMessage', { 
             chat_id: adminId, 
-            text: `Ã°Å¸â€Â´ **Ã™â€ Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â±**\n\nÃ°Å¸â€˜Â¤ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦: ${userStr} (ID: ${message.from.id})\nÃ°Å¸â€™Â¬ Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ: ${text}`,
+            text: `🔴 **نشاط مباشر**\n\n👤 المستخدم: ${userStr} (ID: ${message.from.id})\n💬 النص: ${text}`,
             parse_mode: 'Markdown'
           });
         }
@@ -353,7 +353,7 @@ class TelegramBotService {
       return;
     }
 
-    if ((text === '/admin' || text === 'Ã°Å¸â€ºÂ Ã¯Â¸Â Admin Panel' || text === 'Ã°Å¸â€ºÂ Ã¯Â¸Â Ã™â€žÃ™Ë†Ã˜Â­Ã˜Â© Ã˜ÂªÃ˜Â­Ã™Æ’Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™Å Ã™â€ ') && isAdmin) {
+    if ((text === '/admin' || text === '??? Admin Panel' || text === '🛠️ لوحة تحكم المشرفين') && isAdmin) {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, user.language);
       return;
@@ -383,8 +383,8 @@ class TelegramBotService {
       return;
     }
 
-    if (text.startsWith('/search ') || text.startsWith('Ã˜Â¨Ã˜Â­Ã˜Â« ') || text.startsWith('Ã˜Â§Ã˜Â¨Ã˜Â­Ã˜Â« ')) {
-      const query = text.replace(/^\/search\s+|^Ã˜Â¨Ã˜Â­Ã˜Â«\s+|^Ã˜Â§Ã˜Â¨Ã˜Â­Ã˜Â«\s+/i, '').trim();
+    if (text.startsWith('/search ') || text.startsWith('بحث ') || text.startsWith('ابحث ')) {
+      const query = text.replace(/^\/search\s+|^بحث\s+|^ابحث\s+/i, '').trim();
       await this.searchFiles(chatId, query, user.language);
       return;
     }
@@ -401,11 +401,11 @@ class TelegramBotService {
     if (clickedMenu) {
       await this.processMenuClick(chatId, user, clickedMenu, menus);
     } else {
-      if (text.includes('Back') || text.includes('Ã˜Â¹Ã™Ë†Ã˜Â¯Ã˜Â©')) {
+      if (text.includes('Back') || text.includes('رجوع')) {
         await this.handleBackNavigation(chatId, user);
         return;
       }
-      if (text === t(user.language, 'BTN_HOME') || text === 'Ã°Å¸ÂÂ  Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©' || text === 'Ã°Å¸ÂÂ  Home') {
+      if (text === t(user.language, 'BTN_HOME') || text === '🏠 الرئيسية' || text === '🏠 Home') {
         await dbHelper.updateBotUserMenu(user.id, null);
         await this.sendMenu(chatId, null, user.language);
         return;
@@ -420,7 +420,7 @@ class TelegramBotService {
 
   async processMenuClick(chatId, user, clickedMenu, allMenus) {
     if (clickedMenu.is_active === false) {
-      const msg = user.language === 'ar' ? 'Ã¢â€ºâ€ Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜Â·Ã™â€ž Ã˜Â­Ã˜Â§Ã™â€žÃ™Å Ã˜Â§Ã™â€¹.' : 'Ã¢â€ºâ€ This button is currently disabled.';
+      const msg = user.language === 'ar' ? '⛔ هذا الزر معطل حالياً.' : '⛔ This button is currently disabled.';
       await this.apiCall('sendMessage', { chat_id: chatId, text: msg });
       return;
     }
@@ -466,7 +466,7 @@ class TelegramBotService {
 
       await this.apiCall('sendMessage', { 
         chat_id: chatId, 
-        text: reply || (user.language === 'ar' ? 'Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€°' : 'No content'),
+        text: reply || (user.language === 'ar' ? 'لا يوجد محتوى' : 'No content'),
         reply_markup: keyboard,
         parse_mode: 'HTML'
       });
@@ -538,7 +538,7 @@ class TelegramBotService {
     }
     for (const row of rows) {
       const title = lang === 'ar' ? row.title_ar : row.title_en;
-      resultText += `Ã°Å¸â€œâ€ž ${title}\nÃ°Å¸â€â€” https://t.me/${botUsername}?start=file_${row.id}\n\n`;
+      resultText += `📄 ${title}\n🔗 https://t.me/${botUsername}?start=file_${row.id}\n\n`;
     }
 
     await this.apiCall('sendMessage', { chat_id: chatId, text: resultText, disable_web_page_preview: true });
@@ -604,7 +604,7 @@ class TelegramBotService {
             const userStr = callbackQuery.from.username ? `@${callbackQuery.from.username}` : callbackQuery.from.first_name;
             await this.apiCall('sendMessage', { 
               chat_id: adminId, 
-              text: `Ã°Å¸â€Â´ **Ã™â€ Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â± (Ã˜Â²Ã˜Â±)**\n\nÃ°Å¸â€˜Â¤ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦: ${userStr} (ID: ${callbackQuery.from.id})\nÃ°Å¸â€™Â¬ Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â±: ${btnText} (${data})`,
+              text: `🔴 **نشاط مباشر (زر)**\n\n👤 المستخدم: ${userStr} (ID: ${callbackQuery.from.id})\n🔘 الزر: ${btnText} (${data})`,
               parse_mode: 'Markdown'
             });
           }
@@ -651,9 +651,9 @@ class TelegramBotService {
       }
       if (isNewUserRegistration && faculty && faculty.notify_new_user) {
         const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
-        const notifyText = `Ã°Å¸â€˜Â¤ <b>Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã˜Â¯Ã˜Â®Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª</b>\n` +
-                           `Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã™â€¦: ${callbackQuery.from.first_name || 'Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
-                           `Username: ${callbackQuery.from.username ? '@' + callbackQuery.from.username : 'Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜ÂªÃ™Ë†Ã™ÂÃ˜Â±'}\n` +
+        const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
+                           `ا??سم: ${callbackQuery.from.first_name || 'غير متوفر'}\n` +
+                           `Username: ${callbackQuery.from.username ? '@' + callbackQuery.from.username : 'غير متوفر'}\n` +
                            `ID: <code>${chatId}</code>`;
         for (const adminId of adminIds) {
           await this.apiCall('sendMessage', {
@@ -700,7 +700,7 @@ class TelegramBotService {
     }
     else if (data.startsWith('fe_')) {
       // File exit: close pagination
-      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Ã¢Å“â€¦' });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '✅' });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
     else if (data.startsWith('del_file_')) {
@@ -709,8 +709,8 @@ class TelegramBotService {
       const fRes = await dbHelper.runQuery('SELECT menu_id FROM menu_files WHERE id = $1', [fileId]);
       const fileMenuId = fRes.rows.length > 0 ? fRes.rows[0].menu_id : null;
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_file_confirm', fileId, menuId: fileMenuId });
-      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' : 'Ã¢Å“â€¦ Yes, Delete' }], [{ text: lang === 'ar' ? 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' : 'Ã¢ÂÅ’ Cancel' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å¡Â Ã¯Â¸Â Ã™â€¡Ã™â€ž Ã˜Â£Ã™â€ Ã˜Âª Ã™â€¦Ã˜ÂªÃ˜Â£Ã™Æ’Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜ÂªÃ™â€ Ã™ÂÃ™Å Ã˜Â° Ã˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™ÂÃ˜Å¸' : 'Ã¢Å¡Â Ã¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ?? ??? ????? ?? ????? ????? ??????' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('edit_ann_')) {
@@ -718,8 +718,8 @@ class TelegramBotService {
       const annId = parseInt(data.replace('edit_ann_', ''), 10);
       // using global lang
       await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_ann_text', annId });
-      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â©' : 'Cancel Operation' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€žÃ™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™Æ’Ã˜Â§Ã™â€¦Ã™â€žÃ˜Â§Ã™â€¹ (Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â·Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã™â€ž Ã˜Â³Ã™Å Ã™Æ’Ã™Ë†Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€ Ã™Ë†Ã˜Â§Ã™â€ ):' : 'Send the new full text:', reply_markup: cancelKb });
+      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '????? العملية' : 'Cancel Operation' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد للإع??ن كام??ً (السطر الأول سيكون العنوان):' : 'Send the new full text:', reply_markup: cancelKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('del_sub_')) {
@@ -734,8 +734,8 @@ class TelegramBotService {
       if (!(await dbHelper.hasPermission(chatId, this.facultyId, 'ANNOUNCEMENTS'))) return this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Unauthorized', show_alert: true });
       const annId = parseInt(data.replace('del_ann_', ''), 10);
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_ann_confirm', annId });
-      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' : 'Ã¢Å“â€¦ Yes, Delete' }], [{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å¡Â Ã¯Â¸Â Ã™â€¡Ã™â€ž Ã˜Â£Ã™â€ Ã˜Âª Ã™â€¦Ã˜ÂªÃ˜Â£Ã™Æ’Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜ÂªÃ™â€ Ã™ÂÃ™Å Ã˜Â° Ã˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™ÂÃ˜Å¸' : 'Ã¢Å¡Â Ã¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+      const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، احذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء العملية' : '❌ Cancel Operation' }]], resize_keyboard: true };
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ?? ??? ????? ?? ????? ????? ??????' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
     }
     else if (data.startsWith('unpin_ann_')) {
@@ -748,7 +748,7 @@ class TelegramBotService {
          } catch(e) {}
       }
       await dbHelper.runQuery('UPDATE announcements SET is_pinned = FALSE WHERE id = $1', [annId]);
-      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¦Ã™Å Ã˜Â¹.', show_alert: true });
+      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: '?? ????? التثبيت لدى الجميع.', show_alert: true });
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
     }
     else if (data.startsWith('admin_')) {
@@ -756,7 +756,7 @@ class TelegramBotService {
       // using global lang
       const action = data.split('_')[1];
       const menuId = parseInt(data.split('_')[2], 10);
-      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
+      const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '❌ إلغاء العملية' : '❌ Cancel Operation' }]], resize_keyboard: true };
 
       await this.apiCall('deleteMessage', { chat_id: chatId, message_id: callbackQuery.message.message_id }).catch(() => {});
 
@@ -765,33 +765,33 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الاسم الجديد للزر (بالعربية):' : 'Send the new name in Arabic:', reply_markup: cancelKb });
       } else if (action === 'delbtn') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_btn_confirm', menuId });
-        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' : 'Ã¢Å“â€¦ Yes, Delete' }], [{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å¡Â Ã¯Â¸Â Ã™â€¡Ã™â€ž Ã˜Â£Ã™â€ Ã˜Âª Ã™â€¦Ã˜ÂªÃ˜Â£Ã™Æ’Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜ÂªÃ™â€ Ã™ÂÃ™Å Ã˜Â° Ã˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™ÂÃ˜Å¸' : 'Ã¢Å¡Â Ã¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، احذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء العملية' : '❌ Cancel Operation' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ?? ??? ????? ?? ????? ????? ??????' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       } else if (action === 'open') {
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: menuId, viewingMenuDetailsId: null });
         await this.sendAdminReplyMenus(chatId, menuId, lang);
       } else if (action === 'delcontent') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_del_content_confirm', menuId });
-        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' : 'Ã¢Å“â€¦ Yes, Delete' }], [{ text: lang === 'ar' ? 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' : 'Ã¢ÂÅ’ Cancel' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å¡Â Ã¯Â¸Â Ã™â€¡Ã™â€ž Ã˜Â£Ã™â€ Ã˜Âª Ã™â€¦Ã˜ÂªÃ˜Â£Ã™Æ’Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜ÂªÃ™â€ Ã™ÂÃ™Å Ã˜Â° Ã˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™ÂÃ˜Å¸' : 'Ã¢Å¡Â Ã¯Â¸Â Are you sure you want to delete this?', reply_markup: confirmKb });
+        const confirmKb = { keyboard: [[{ text: lang === 'ar' ? '✅ نعم، حذف' : '✅ Yes, Delete' }], [{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ?? ??? ????? ?? ????? ????? ??????' : '⚠️ Are you sure you want to delete this?', reply_markup: confirmKb });
       } else if (action === 'previewfiles') {
         const menu = await dbHelper.getMenuById(menuId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã°Å¸â€˜ÂÃ¯Â¸Â Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜Â¹Ã˜Â±Ã˜Â¶ Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™ÂÃ˜Â§Ã˜Âª:' : 'Ã°Å¸â€˜ÂÃ¯Â¸Â Previewing files:' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '👁️ جاري عرض ???????:' : '👁️ Previewing files:' });
         await this.sendFilePage(chatId, menuId, 0, lang, lang === 'ar' ? menu.reply_content_ar : menu.reply_content_en, true);
         await this.sendAdminMenuDetails(chatId, menuId, lang); // send details again at bottom
       } else if (action === 'addfile') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€ :' : 'Send the new file now:', reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الملف الجديد الآن:' : 'Send the new file now:', reply_markup: cancelKb });
       } else if (action === 'edittext') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل النص الجديد (بالعربي):' : 'Send the new text (Arabic):', reply_markup: cancelKb });
       } else if (action === 'inline') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
-        const m = lang === 'ar' ? "Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â´Ã™ÂÃ˜Â§Ã™ÂÃ˜Â© Ã˜Â¨Ã˜ÂªÃ™â€ Ã˜Â³Ã™Å Ã™â€š:\nTitle - URL\nTitle2 - URL2" : "Send inline buttons as:\nTitle - URL";
+        const m = lang === 'ar' ? "أرسل الأزرار الشفافة بتنسيق:\nTitle - URL\nTitle2 - URL2" : "Send inline buttons as:\nTitle - URL";
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: cancelKb });
       } else if (action === 'move') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_move_dest', menuId });
-        const m = lang === 'ar' ? "Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· Ã˜Â¹Ã™â€žÃ™â€° Ã˜Â§Ã™â€žÃ™â€šÃ˜Â§Ã˜Â¦Ã™â€¦Ã˜Â© (Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¬Ã™â€žÃ˜Â¯) Ã˜Â§Ã™â€žÃ˜ÂªÃ™Å  Ã˜ÂªÃ˜Â±Ã™Å Ã˜Â¯ Ã™â€ Ã™â€šÃ™â€ž Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â¥Ã™â€žÃ™Å Ã™â€¡Ã˜Â§ Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã™ÂÃ™â€ž:" : "Select the destination folder from below:";
+        const m = lang === 'ar' ? "اضغط على ال????? (المجلد) التي تريد نقل الزر إليها ?? الأسفل:" : "Select the destination folder from below:";
         
         const allMenus = await dbHelper.getMenusByFaculty(this.facultyId);
         const folders = allMenus.filter(f => f.reply_type === 'submenu' && f.id !== menuId);
@@ -806,7 +806,7 @@ class TelegramBotService {
           }
           kb.push(row);
         }
-        kb.push([{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]);
+        kb.push([{ text: lang === 'ar' ? '❌ إلغاء العملية' : '❌ Cancel Operation' }]);
         
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: { keyboard: kb, resize_keyboard: true } });
       } else if (action === 'order') {
@@ -831,12 +831,12 @@ class TelegramBotService {
   getAdminActionFromText(text) {
     if (!text) return null;
     const trimmedText = text.trim();
-    if (trimmedText === 'Ã°Å¸â€œâ€š Ã˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã˜Â© Ã˜Â§Ã™â€žÃ™â€šÃ™Ë†Ã˜Â§Ã˜Â¦Ã™â€¦ Ã™Ë†Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™ÂÃ˜Â§Ã˜Âª' || trimmedText === 'Ã°Å¸â€œâ€š Manage Menus & Files') return 'manage_menus';
-    if (trimmedText === 'Ã°Å¸â€œÂ Ã˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã˜Â© Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¬Ã™â€žÃ˜Â¯Ã˜Â§Ã˜Âª' || trimmedText === 'Ã°Å¸â€œÂ Manage Folders') return 'manage_folders';
-    if (trimmedText === 'Ã°Å¸â€œÂ¢ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯' || trimmedText === 'Ã°Å¸â€œÂ¢ Broadcast Announcement') return 'new_announcement';
-    if (trimmedText === 'Ã°Å¸â€œÂ¢ Ã˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€ Ã˜Â§Ã˜Âª' || trimmedText === 'Ã°Å¸â€œÂ¢ Manage Announcements') return 'manage_announcements';
-    if (trimmedText === 'Ã°Å¸â€œÅ  Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â­Ã˜ÂµÃ˜Â§Ã˜Â¦Ã™Å Ã˜Â§Ã˜Âª' || trimmedText === 'Ã°Å¸â€œÅ  Statistics') return 'statistics';
-    if (trimmedText === 'Ã¢Å¡â„¢Ã¯Â¸Â Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã˜Â§Ã˜Âª' || trimmedText === 'Ã¢Å¡â„¢Ã¯Â¸Â Settings') return 'core_settings';
+    if (trimmedText === '📂 إدارة القوائم والملفات' || trimmedText === '📂 Manage Menus & Files') return 'manage_menus';
+    if (trimmedText === '📁 إدارة المجلدات' || trimmedText === '📁 Manage Folders') return 'manage_folders';
+    if (trimmedText === '📢 إرسال إعلان جديد' || trimmedText === '📢 Broadcast Announcement') return 'new_announcement';
+    if (trimmedText === '📢 ????? ال???????' || trimmedText === '📢 Manage Announcements') return 'manage_announcements';
+    if (trimmedText === '?? ??????????' || trimmedText === '📊 Statistics') return 'statistics';
+    if (trimmedText === '⚙️ ال???????' || trimmedText === '⚙️ Settings') return 'core_settings';
     
     if (trimmedText === t('ar', 'BTN_MANAGE_ADMINS') || trimmedText === t('en', 'BTN_MANAGE_ADMINS')) return 'manage_admins';
     if (trimmedText === t('ar', 'BTN_MONITORING') || trimmedText === t('en', 'BTN_MONITORING')) return 'admin_monitoring';
@@ -845,27 +845,27 @@ class TelegramBotService {
     if (trimmedText === t('ar', 'BTN_REMOVE_SUBADMIN') || trimmedText === t('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
     
     // Generic subadmin/deputy buttons
-    if (trimmedText === 'ðŸ‘¥ Ø¥Ø¯Ø§Ø±Ø© Ù†ÙˆØ§Ø¨ Ø§Ù„Ù…Ø´Ø±ÙÙŠÙ†' || trimmedText === 'ðŸ‘¥ Manage Deputy Admins') return 'manage_deputies';
-    if (trimmedText === 'ðŸ‘¥ Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø´Ø±ÙÙŠÙ† Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ÙŠÙ†' || trimmedText === 'ðŸ‘¥ Manage Sub-Admins') return 'manage_admins';
-    if (trimmedText === 'âž• Ø¥Ø¶Ø§ÙØ©' || trimmedText === 'âž• Add') return 'add_subadmin';
-    if (trimmedText === 'ðŸ‘ï¸ Ø¹Ø±Ø¶' || trimmedText === 'ðŸ‘ï¸ View') return 'view_subadmins';
-    if (trimmedText === 'ðŸ—‘ï¸ Ø¥Ø²Ø§Ù„Ø©' || trimmedText === 'ðŸ—‘ï¸ Remove') return 'remove_subadmin';
+    if (trimmedText === '👥 ????? نواب المشرفين' || trimmedText === '👥 Manage Deputy Admins') return 'manage_deputies';
+    if (trimmedText === '?? ????? ???????? المساعدين' || trimmedText === '👥 Manage Sub-Admins') return 'manage_admins';
+    if (trimmedText === '➕ إضافة' || trimmedText === '➕ Add') return 'add_subadmin';
+    if (trimmedText === '👁️ عرض' || trimmedText === '👁️ View') return 'view_subadmins';
+    if (trimmedText === '🗑️ إزالة' || trimmedText === '🗑️ Remove') return 'remove_subadmin';
     if (trimmedText === t('ar', 'BTN_ENABLE_MONITORING') || trimmedText === t('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
     if (trimmedText === t('ar', 'BTN_DISABLE_MONITORING') || trimmedText === t('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
-    if (trimmedText === 'Ã°Å¸â€â„¢ Ã˜Â±Ã˜Â¬Ã™Ë†Ã˜Â¹' || trimmedText === 'Ã°Å¸â€â„¢ Back' || trimmedText === t('ar', 'BTN_BACK') || trimmedText === t('en', 'BTN_BACK')) return 'back';
-    if (trimmedText === 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' || trimmedText === 'Ã¢ÂÅ’ Cancel' || trimmedText === 'Ã¢ÂÅ’ Ã˜Â¥Ã˜ÂºÃ™â€žÃ˜Â§Ã™â€š' || trimmedText === 'Ã¢ÂÅ’ Close') return 'close';
+    if (trimmedText === '🔙 رجوع' || trimmedText === '🔙 Back' || trimmedText === t('ar', 'BTN_BACK') || trimmedText === t('en', 'BTN_BACK')) return 'back';
+    if (trimmedText === '❌ إلغاء' || trimmedText === '❌ Cancel' || trimmedText === '❌ إغلاق' || trimmedText === '❌ Close') return 'close';
 
     // Settings Keyboard
-    if (trimmedText === 'Ã°Å¸â€œÂ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â±Ã˜Â­Ã™Å Ã˜Â¨' || trimmedText === 'Ã°Å¸â€œÂ Welcome Msg') return 'cfg_welcome';
-    if (trimmedText === 'Ã¢ÂÂ¸Ã¯Â¸Â Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã™Å Ã™â€šÃ˜Â§Ã™Â' || trimmedText === 'Ã¢ÂÂ¸Ã¯Â¸Â Maintenance Msg') return 'cfg_maintenance';
-    if (trimmedText === 'Ã¢Ââ€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ™ÂÃ˜Â§Ã˜Â±Ã˜Âº' || trimmedText === 'Ã¢Ââ€œ Empty Button Msg') return 'cfg_empty_btn';
-    if (trimmedText === 'Ã¢Ââ€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€ Ã˜Âµ Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜Â±Ã™Ë†Ã™Â' || trimmedText === 'Ã¢Ââ€œ Unknown Text Msg') return 'cfg_unknown_text';
-    if (trimmedText === 'Ã¢Å¡Â Ã¯Â¸Â Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã™â€žÃ™Â' || trimmedText === 'Ã¢Å¡Â Ã¯Â¸Â No File Msg') return 'cfg_no_file';
-    if (trimmedText === 'Ã°Å¸ÂÂ  Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©' || trimmedText === 'Ã°Å¸ÂÂ  Home') return 'cfg_home';
-    if (trimmedText === 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' || trimmedText === 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation') return 'cancel';
+    if (trimmedText === '📝 الترحيب' || trimmedText === '📝 Welcome Msg') return 'cfg_welcome';
+    if (trimmedText === '⏸️ رسالة الإيقاف' || trimmedText === '⏸️ Maintenance Msg') return 'cfg_maintenance';
+    if (trimmedText === '❓ رسالة الزر الفارغ' || trimmedText === '❓ Empty Button Msg') return 'cfg_empty_btn';
+    if (trimmedText === '❓ رسالة نص غير معروف' || trimmedText === '❓ Unknown Text Msg') return 'cfg_unknown_text';
+    if (trimmedText === '⚠️ رسالة لا يوجد ملف' || trimmedText === '⚠️ No File Msg') return 'cfg_no_file';
+    if (trimmedText === '🏠 الرئيسية' || trimmedText === '🏠 Home') return 'cfg_home';
+    if (trimmedText === '❌ إلغاء العملية' || trimmedText === '❌ Cancel Operation') return 'cancel';
 
     // Global
-    if (trimmedText === 'Ã°Å¸Å¸Â¢ Ã™â€ Ã˜Â´Ã˜Â§Ã˜Â· Ã™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â±' || trimmedText === 'Ã°Å¸Å¸Â¢ Live Activity') return 'live_activity'; // Though handled differently maybe
+    if (trimmedText === '🟢 نشاط مباشر' || trimmedText === '🟢 Live Activity') return 'live_activity'; // Though handled differently maybe
     
     return null;
   }
@@ -875,7 +875,7 @@ class TelegramBotService {
     const actionId = this.getAdminActionFromText(text);
 
     // Global admin intercepts for navigation
-    if (actionId === 'close' || text === 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' || text === 'Ã¢ÂÅ’ Cancel' || text === 'Ã¢ÂÅ’ Ã˜Â¥Ã˜ÂºÃ™â€žÃ˜Â§Ã™â€š' || text === 'Ã¢ÂÅ’ Close') {
+    if (actionId === 'close' || text === '❌ إلغاء' || text === '❌ Cancel' || text === '❌ إغلاق' || text === '❌ Close') {
       await dbHelper.deleteAdminState(chatId);
       await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إغلاق لوحة المشرف.' : 'Admin panel closed.', reply_markup: { remove_keyboard: true } });
       const userObj = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
@@ -886,20 +886,20 @@ class TelegramBotService {
       return;
     }
 
-    if (text === 'Ã°Å¸ÂÂ  Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©' || text === 'Ã°Å¸ÂÂ  Home') {
+    if (text === '🏠 الرئيسية' || text === '🏠 Home') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, lang);
       return;
     }
 
-    if ((actionId === 'cancel' || text === '/cancel' || text.includes('Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â©') || text.includes('Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±') || text.includes('Cancel Operation')) && state.action !== 'awaiting_subadmin_id') {
+    if ((actionId === 'cancel' || text === '/cancel' || text.includes('????? العملية') || text.includes('????? الأمر') || text.includes('Cancel Operation')) && state.action !== 'awaiting_subadmin_id') {
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â± Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â¹Ã™Ë†Ã˜Â¯Ã˜Â© Ã™â€žÃ™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©.' : 'Action cancelled. Returned to home.' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ????? الأمر والعودة للرئيسية.' : 'Action cancelled. Returned to home.' });
       await this.sendAdminHome(chatId, lang);
       return;
     }
 
-    if (actionId === 'back' || text === 'Ã°Å¸â€â„¢ Ã˜Â±Ã˜Â¬Ã™Ë†Ã˜Â¹' || text === 'Ã°Å¸â€â„¢ Back' || text === t(lang, 'BTN_BACK')) {
+    if (actionId === 'back' || text === '🔙 رجوع' || text === '🔙 Back' || text === t(lang, 'BTN_BACK')) {
       // In case they press Back while in a state that doesn't natively handle it
       if (state.action !== 'managing_menus' && state.action !== 'managing_config') {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
@@ -924,7 +924,7 @@ class TelegramBotService {
       text = this.parsePremiumEmojis(message) || text;
     }
 
-    const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'Ã¢Â¬â€¦Ã¯Â¸Â Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±' : 'Ã¢Â¬â€¦Ã¯Â¸Â Cancel Operation' }]], resize_keyboard: true };
+    const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '❌ إلغاء العملية' : '❌ Cancel Operation' }]], resize_keyboard: true };
 
     // --- HOME MENU ---
     if (state.action === 'admin_home') {
@@ -933,7 +933,7 @@ class TelegramBotService {
         await this.sendAdminReplyMenus(chatId, null, lang);
       } else if (actionId === 'new_announcement') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_announcement_text' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã°Å¸â€œÂ¢ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯\n\nÃ˜Â§Ã™â€žÃ˜Â±Ã˜Â¬Ã˜Â§Ã˜Â¡ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã™â€ Ã˜Âµ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™Æ’Ã˜Â§Ã™â€¦Ã™â€žÃ˜Â§Ã™â€¹ (Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â·Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã™â€ž Ã˜Â³Ã™Å Ã™Æ’Ã™Ë†Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€ Ã™Ë†Ã˜Â§Ã™â€ Ã˜Å’ Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â§Ã™â€šÃ™Å  Ã™â€¡Ã™Ë† Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€°):' : 'Ã°Å¸â€œÂ¢ New Announcement\n\nPlease send the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ????? ????? ????\n\nالرجاء إرسال نص الإع??ن كام??ً (السطر الأول سيكون العنوان، والباقي هو المحتوى):' : '📢 New Announcement\n\nPlease send the full text (first line will be title, the rest is content):', reply_markup: { remove_keyboard: true }});
       } else if (actionId === 'manage_announcements') {
         await this.sendAdminAnnouncementsList(chatId, lang);
       } else if (actionId === 'statistics') {
@@ -969,7 +969,6 @@ class TelegramBotService {
         const totalUsers = allUsers.length;
         const nonBlocked = totalUsers - blockedUsers;
         const reachPercentage = nonBlocked > 0 ? ((monthlyActive / nonBlocked) * 100).toFixed(1) : 0;
-        
         const logRes = await pool.query('SELECT COUNT(*) as cnt FROM bot_users_log WHERE faculty_id = $1', [this.facultyId]);
         const totalRequests = logRes.rows[0].cnt;
         
@@ -980,10 +979,10 @@ class TelegramBotService {
         const totalFiles = filesRes.rows[0].cnt;
         
         const topMenuRes = await pool.query('SELECT title_ar, title_en, click_count FROM menus WHERE faculty_id = $1 ORDER BY click_count DESC LIMIT 1', [this.facultyId]);
-        let topButtonStr = (lang === 'ar' ? 'Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯' : 'None');
+        let topButtonStr = (lang === 'ar' ? 'لا يوجد' : 'None');
         if (topMenuRes.rows.length > 0 && topMenuRes.rows[0].click_count > 0) {
            const tm = topMenuRes.rows[0];
-           topButtonStr = `${lang === 'ar' ? tm.title_ar : tm.title_en} (${tm.click_count})`;
+           topButtonStr = ` ()`;
         }
         
         let avgLatency = 0;
@@ -992,69 +991,70 @@ class TelegramBotService {
            avgLatency = (sum / global.botLatencies.length).toFixed(0);
         }
         
-        const statsAr = `Ã°Å¸â€œÅ  **Ã˜Â¥Ã˜Â­Ã˜ÂµÃ˜Â§Ã˜Â¦Ã™Å Ã˜Â§Ã˜Âª Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â§Ã™â€¦Ã™â€žÃ˜Â©:**\n\n` +
-          `Ã°Å¸â€˜Â¥ **Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€ **\n` +
-          `- Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å  Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Å Ã™â€ : ${totalUsers}\n` +
-          `- Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã˜Â¯ (Ã˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹): ${weeklySubscribers}\n` +
-          `- Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜ÂªÃ˜Â±Ã™Æ’Ã™Ë†Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¬Ã˜Â¯Ã˜Â¯ (Ã˜Â´Ã™â€¡Ã˜Â±): ${monthlySubscribers}\n\n` +
-          `Ã°Å¸â€œË† **Ã˜Â§Ã™â€žÃ™â€ Ã˜Â´Ã˜Â§Ã˜Â·**\n` +
-          `- Ã™â€ Ã˜Â´Ã˜Â· Ã˜Â§Ã™â€žÃ™Å Ã™Ë†Ã™â€¦: ${dailyActive}\n` +
-          `- Ã™â€ Ã˜Â´Ã˜Â· Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹: ${weeklyActive}\n` +
-          `- Ã™â€ Ã˜Â´Ã˜Â· Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â±: ${monthlyActive}\n\n` +
-          `Ã°Å¸Å¡â‚¬ **Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â¯Ã˜Â§Ã˜Â¡ Ã™Ë†Ã˜Â§Ã™â€žÃ˜ÂªÃ™ÂÃ˜Â§Ã˜Â¹Ã™â€ž**\n` +
-          `- Ã™â€ Ã˜Â³Ã˜Â¨Ã˜Â© Ã˜Â§Ã™â€žÃ™Ë†Ã˜ÂµÃ™Ë†Ã™â€ž (Ã˜Â´Ã™â€¡Ã˜Â±Ã™Å Ã˜Â§Ã™â€¹): ${reachPercentage}%\n` +
-          `- Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å  Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â¨Ã˜Â§Ã˜Âª/Ã˜Â§Ã™â€žÃ˜ÂªÃ™ÂÃ˜Â§Ã˜Â¹Ã™â€žÃ˜Â§Ã˜Âª: ${totalRequests}\n` +
-          `- Ã˜Â²Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¬Ã˜Â§Ã˜Â¨Ã˜Â© (Ã™â€¦Ã˜ÂªÃ™Ë†Ã˜Â³Ã˜Â·): ${avgLatency}ms\n\n` +
-          `Ã°Å¸â€”â€šÃ¯Â¸Â **Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€°**\n` +
-          `- Ã˜Â¹Ã˜Â¯Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã˜ÂªÃ˜Â§Ã˜Â­Ã˜Â©: ${totalButtons}\n` +
-          `- Ã˜Â¹Ã˜Â¯Ã˜Â¯ Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™ÂÃ˜Â§Ã˜Âª Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â±Ã™ÂÃ™Ë†Ã˜Â¹Ã˜Â©: ${totalFiles}\n` +
-          `- Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â£Ã™Æ’Ã˜Â«Ã˜Â± Ã˜Â·Ã™â€žÃ˜Â¨Ã˜Â§Ã™â€¹: ${topButtonStr}\n\n` +
-          `Ã°Å¸â€ºâ€˜ **Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â¸Ã˜Â±**\n` +
-          `- Ã˜Â¹Ã˜Â¯Ã˜Â¯ Ã™â€¦Ã™â€  Ã™â€šÃ˜Â§Ã™â€¦ Ã˜Â¨Ã˜Â­Ã˜Â¸Ã˜Â± Ã˜Â£Ã™Ë† Ã˜Â­Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª: ${blockedUsers}`;
+        const statsAr = `📊 **إحصائيات البوت الشاملة:**\n\n` +
+          `👥 **المشتركون**\n` +
+          `- إجمالي المشتركين: ${totalUsers}\n` +
+          `- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n` +
+          `- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n` +
+          `📈 **النشاط**\n` +
+          `- نشط اليوم: ${dailyActive}\n` +
+          `- نشط هذا الأسبوع: ${weeklyActive}\n` +
+          `- نشط هذا الشهر: ${monthlyActive}\n\n` +
+          `🚀 **الأداء والتفاعل**\n` +
+          `- نسبة الوصول (شهرياً): ${reachPercentage}%\n` +
+          `- إجمالي الطلبات/التفاعلات: ${totalRequests}\n` +
+          `- زمن الاستجابة (متوسط): ${avgLatency}ms\n\n` +
+          `🗂️ **المحتوى**\n` +
+          `- عدد الأزرار المتاحة: ${totalButtons}\n` +
+          `- عدد الملفات المرفوعة: ${totalFiles}\n` +
+          `- الزر الأكثر طلباً: ${topButtonStr}\n\n` +
+          `🛑 **الحظر**\n` +
+          `- عدد من قام بحظر أو حذف البوت: ${blockedUsers}`;
           
-        const statsEn = `Ã°Å¸â€œÅ  **Bot Statistics:**\n\n` +
-          `Ã°Å¸â€˜Â¥ **Subscribers**\n` +
+        const statsEn = `📊 **Bot Statistics:**\n\n` +
+          `👥 **Subscribers**\n` +
           `- Total: ${totalUsers}\n` +
           `- New (Weekly): ${weeklySubscribers}\n` +
           `- New (Monthly): ${monthlySubscribers}\n\n` +
-          `Ã°Å¸â€œË† **Activity**\n` +
+          `📈 **Activity**\n` +
           `- Daily Active: ${dailyActive}\n` +
           `- Weekly Active: ${weeklyActive}\n` +
           `- Monthly Active: ${monthlyActive}\n\n` +
-          `Ã°Å¸Å¡â‚¬ **Performance**\n` +
+          `🚀 **Performance**\n` +
           `- Reach (Monthly): ${reachPercentage}%\n` +
           `- Total Requests: ${totalRequests}\n` +
           `- Avg Latency: ${avgLatency}ms\n\n` +
-          `Ã°Å¸â€”â€šÃ¯Â¸Â **Content**\n` +
+          `🗂️ **Content**\n` +
           `- Total Buttons: ${totalButtons}\n` +
           `- Total Files: ${totalFiles}\n` +
           `- Top Button: ${topButtonStr}\n\n` +
-          `Ã°Å¸â€ºâ€˜ **Blocks**\n` +
+          `🛑 **Blocks**\n` +
           `- Blocked By: ${blockedUsers}`;
         
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? statsAr : statsEn, parse_mode: 'Markdown' });
+        await this.apiCall('sendMessage',
+ { chat_id: chatId, text: lang === 'ar' ? statsAr : statsEn, parse_mode: 'Markdown' });
       } else if (actionId === 'core_settings') {
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         const cfgText = lang === 'ar' 
-          ? 'Ã¢Å¡â„¢Ã¯Â¸Â Ã˜Â¥Ã˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã˜Â§Ã˜Âª Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â§Ã˜Â³Ã™Å Ã˜Â©\n\nÃ™â€¦Ã˜Â§Ã˜Â°Ã˜Â§ Ã˜ÂªÃ˜Â±Ã™Å Ã˜Â¯ Ã˜Â£Ã™â€  Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã™â€ž Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã˜Â§Ã˜Âª Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â§Ã™â€žÃ™Å Ã˜Â©:'
-          : 'Ã¢Å¡â„¢Ã¯Â¸Â  Bot Configuration\n\nWhat would you like to edit?';
+          ? '⚙️ إعدادات البوت الأساسية\n\nماذا تريد أن تعدل من الإعدادات التالية:'
+          : '⚙️ Bot Configuration\n\nWhat would you like to edit?';
         const fac = await dbHelper.getFacultyById(this.facultyId);
-        const monStatus = fac.forward_user_messages ? (lang === 'ar' ? 'Ã™â€¦Ã™Â Ã˜Â¹Ã™â€ž Ã°Å¸Å¸Â¢' : 'ON Ã°Å¸Å¸Â¢') : (lang === 'ar' ? 'Ã™â€¦Ã˜Â¹Ã˜Â·Ã™â€ž Ã°Å¸â€ Â´' : 'OFF Ã°Å¸â€ Â´');
+        const monStatus = fac.forward_user_messages ? (lang === 'ar' ? 'مفعل 🟢' : 'ON 🟢') : (lang === 'ar' ? 'معطل 🔴' : 'OFF 🔴');
         const cfgKb = [
-          [{ text: lang === 'ar' ? 'Ã°Å¸â€œÂ  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â±Ã˜Â­Ã™Å Ã˜Â¨' : 'Ã°Å¸â€œÂ  Welcome Msg' }, { text: lang === 'ar' ? 'Ã¢Â Â¸Ã¯Â¸Â  Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â¥Ã™Å Ã™â€šÃ˜Â§Ã™Â ' : 'Ã¢Â Â¸Ã¯Â¸Â  Maintenance Msg' }],
-          [{ text: lang === 'ar' ? 'Ã¢Â â€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ™Â Ã˜Â§Ã˜Â±Ã˜Âº' : 'Ã¢Â â€œ Empty Button Msg' }, { text: lang === 'ar' ? 'Ã¢Â â€œ Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€ Ã˜Âµ Ã˜ÂºÃ™Å Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜Â±Ã™Ë†Ã™Â ' : 'Ã¢Â â€œ Unknown Text Msg' }],
-          [{ text: lang === 'ar' ? 'Ã¢Å¡Â Ã¯Â¸Â  Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã™â€žÃ™Â ' : 'Ã¢Å¡Â Ã¯Â¸Â  No File Msg' }],
-          [{ text: lang === 'ar' ? 'Ã°Å¸Â Â  Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©' : 'Ã°Å¸Â Â  Home' }]
+          [{ text: lang === 'ar' ? '📝 الترحيب' : '📝 Welcome Msg' }, { text: lang === 'ar' ? '⏸️ رسالة الإيقاف' : '⏸️ Maintenance Msg' }],
+          [{ text: lang === 'ar' ? '❓ رسالة الزر الفارغ' : '❓ Empty Button Msg' }, { text: lang === 'ar' ? '❓ رسالة نص غير معروف' : '❓ Unknown Text Msg' }],
+          [{ text: lang === 'ar' ? '⚠️ رسالة لا يوجد ملف' : '⚠️ No File Msg' }],
+          [{ text: lang === 'ar' ? '🏠 الرئيسية' : '🏠 Home' }]
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
       } else if (actionId === 'manage_admins' || actionId === 'manage_deputies') {
         const isDeputy = actionId === 'manage_deputies';
-        const roleTitle = isDeputy ? (lang === 'ar' ? 'Ø¥Ø¯Ø§Ø±Ø© Ù†ÙˆØ§Ø¨ Ø§Ù„Ù…Ø´Ø±ÙÙŠÙ†:' : 'Manage Deputy Admins:') : (lang === 'ar' ? 'Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø´Ø±ÙÙŠÙ† Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ÙŠÙ†:' : 'Manage Sub-Admins:');
+        const roleTitle = isDeputy ? (lang === 'ar' ? 'إدارة نواب المشرفين:' : 'Manage Deputy Admins:') : (lang === 'ar' ? 'إدارة المشرفين المساعدين:' : 'Manage Sub-Admins:');
         const keyboard = [
-          [{ text: lang === 'ar' ? 'âž• Ø¥Ø¶Ø§ÙØ©' : 'âž• Add' }],
-          [{ text: lang === 'ar' ? 'ðŸ‘ï¸ Ø¹Ø±Ø¶' : 'ðŸ‘ï¸ View' }],
-          [{ text: lang === 'ar' ? 'ðŸ—‘ï¸ Ø¥Ø²Ø§Ù„Ø©' : 'ðŸ—‘ï¸ Remove' }],
-          [{ text: lang === 'ar' ? 'Ø±Ø¬ÙˆØ¹' : 'Back' }]
+          [{ text: lang === 'ar' ? '➕ إضافة' : '➕ Add' }],
+          [{ text: lang === 'ar' ? '👁️ عرض' : '👁️ View' }],
+          [{ text: lang === 'ar' ? '🗑️ إزالة' : '🗑️ Remove' }],
+          [{ text: lang === 'ar' ? 'رجوع' : 'Back' }]
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: roleTitle, reply_markup: { keyboard, resize_keyboard: true } });
         await dbHelper.setAdminState(chatId, { action: isDeputy ? 'admin_manage_deputies_menu' : 'admin_manage_admins_menu' });
@@ -1072,11 +1072,11 @@ class TelegramBotService {
 
     // --- CORE SETTINGS ---
     if (state.action === 'managing_config') {
-      if (text.includes('Ù†Ø´Ø§Ø· Ù…Ø¨Ø§Ø´Ø±') || text.includes('Live Activity')) {
+      if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {
         const fac = await dbHelper.getFacultyById(this.facultyId);
         await dbHelper.toggleFacultyForwarding(this.facultyId, !fac.forward_user_messages);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'âœ… ØªÙ… ØªØ¨Ø¯ÙŠÙ„ Ø­Ø§Ù„Ø© Ø§Ù„Ù†Ø´Ø§Ø· Ø§Ù„Ù…Ø¨Ø§Ø´Ø±.' : 'âœ… Live Activity toggled.' });
-        return this.handleAdminStateMessage(chatId, { text: lang === 'ar' ? 'Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª' : 'Settings' }, lang, { action: 'managing_admin' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? ?? تبديل حالة النشاط المباشر.' : '? Live Activity toggled.' });
+        return this.handleAdminStateMessage(chatId, { text: lang === 'ar' ? 'إعدادات' : 'Settings' }, lang, { action: 'managing_admin' });
       } else if (actionId === 'cfg_welcome') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_welcome_ar' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل رسالة الترحيب الجديدة (بالعربي):' : 'Send new welcome message (Arabic):', reply_markup: cancelKb });
@@ -1105,21 +1105,21 @@ class TelegramBotService {
     // --- NORMAL AWAITING STATES ---
     if (state.action === 'admin_manage_admins_menu' || state.action === 'admin_manage_deputies_menu') {
       const targetRole = state.action === 'admin_manage_admins_menu' ? 'SUB_ADMIN' : 'DEPUTY_ADMIN';
-      const roleName = targetRole === 'SUB_ADMIN' ? (lang === 'ar' ? 'Ù…Ø´Ø±Ù Ù…Ø³Ø§Ø¹Ø¯' : 'Sub-Admin') : (lang === 'ar' ? 'Ù†Ø§Ø¦Ø¨ Ù…Ø´Ø±Ù' : 'Deputy Admin');
+      const roleName = targetRole === 'SUB_ADMIN' ? (lang === 'ar' ? 'مشرف مساعد' : 'Sub-Admin') : (lang === 'ar' ? 'نائب مشرف' : 'Deputy Admin');
 
       if (actionId === 'add_subadmin' || actionId === 'add_deputy') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_new_admin_id', targetRole });
-        const cancelKb = { keyboard: [[{ text: lang === 'ar' ? 'âŒ Ø¥Ù„ØºØ§Ø¡' : 'âŒ Cancel' }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `Ø£Ø±Ø³Ù„ Ù…Ø¹Ø±Ù (ID) Ø§Ù„${roleName} Ø§Ù„Ø¬Ø¯ÙŠØ¯:` : `Send ID for new ${roleName}:`, reply_markup: cancelKb });
+        const cancelKb = { keyboard: [[{ text: lang === 'ar' ? '❌ إلغاء' : '❌ Cancel' }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `أرسل معرف (ID) ال${roleName} الجديد:` : `Send ID for new ${roleName}:`, reply_markup: cancelKb });
         return;
       } else if (actionId === 'view_subadmins' || actionId === 'view_deputies') {
         const admins = await dbHelper.getAdminsByFaculty(this.facultyId);
         const targets = admins.filter(a => a.role === targetRole);
         if (targets.length === 0) {
-           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `Ù„Ø§ ÙŠÙˆØ¬Ø¯ ${roleName}.` : `No ${roleName}s found.` });
+           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `?? يوجد ${roleName}.` : `No ${roleName}s found.` });
            return;
         }
-        let msgText = (lang === 'ar' ? `Ø§Ù„Ø¹Ø¯Ø¯ Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ: ` : `Total: `) + targets.length + '\n\n';
+        let msgText = (lang === 'ar' ? `العدد الإجمالي: ` : `Total: `) + targets.length + '\n\n';
         for (const tAdmin of targets) {
            const secUserRes = await dbHelper.pool.query('SELECT * FROM bot_users WHERE chat_id = $1 AND faculty_id = $2', [tAdmin.chat_id, this.facultyId]);
            const secUser = secUserRes.rows[0];
@@ -1207,21 +1207,21 @@ class TelegramBotService {
         
         const fileKb = {
           keyboard: [
-             [{ text: lang === 'ar' ? '/skip (Ã˜ÂªÃ˜Â®Ã˜Â·Ã™Å  Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€  Ã™â€¦Ã™â€žÃ™Â)' : '/skip' }],
-             [{ text: lang === 'ar' ? 'Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â©' : 'Cancel Operation' }]
+             [{ text: lang === 'ar' ? '/skip (تخطي بدون ملف)' : '/skip' }],
+             [{ text: lang === 'ar' ? '????? العملية' : 'Cancel Operation' }]
           ],
           resize_keyboard: true
         };
         await this.apiCall('sendMessage', { 
           chat_id: chatId, 
-          text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ. Ã™â€¡Ã™â€ž Ã˜ÂªÃ˜Â±Ã™Å Ã˜Â¯ Ã˜Â¥Ã˜Â±Ã™ÂÃ˜Â§Ã™â€š Ã™â€¦Ã™â€žÃ™Â Ã™â€¦Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€ Ã˜Å¸ Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· /skip.' : 'Text saved. Send a file or press /skip.', 
+          text: lang === 'ar' ? '?? حفظ النص. هل تريد إرفاق ملف مع الإع??ن؟ أرسل الملف أو اضغط /skip.' : 'Text saved. Send a file or press /skip.', 
           reply_markup: fileKb 
         });
         break;
 
       case 'awaiting_announcement_file':
         let doc = null;
-        if (text !== '/skip' && text !== '/skip (Ã˜ÂªÃ˜Â®Ã˜Â·Ã™Å  Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€  Ã™â€¦Ã™â€žÃ™Â)') {
+        if (text !== '/skip' && text !== '/skip (تخطي بدون ملف)') {
           doc = this.extractTelegramAttachment(message);
           if (!doc) {
             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'عذراً، لم أتمكن من التعرف على الملف. الرجاء الإرسال كـ Document أو أرسل /skip.' : 'File not recognized. Send as Document or /skip.' });
@@ -1234,20 +1234,20 @@ class TelegramBotService {
 
         const pinKb = {
           keyboard: [
-             [{ text: lang === 'ar' ? 'Ã™â€ Ã˜Â¹Ã™â€¦ (Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª)' : 'Yes (Pin)' }, { text: lang === 'ar' ? 'Ã™â€žÃ˜Â§ (Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€  Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª)' : 'No (Do not pin)' }],
-             [{ text: lang === 'ar' ? 'Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ™Å Ã˜Â©' : 'Cancel Operation' }]
+             [{ text: lang === 'ar' ? '??? (تثبيت)' : 'Yes (Pin)' }, { text: lang === 'ar' ? '?? (بدون تثبيت)' : 'No (Do not pin)' }],
+             [{ text: lang === 'ar' ? '????? العملية' : 'Cancel Operation' }]
           ],
           resize_keyboard: true
         };
         await this.apiCall('sendMessage', {
           chat_id: chatId,
-          text: lang === 'ar' ? 'Ã™â€¡Ã™â€ž Ã˜ÂªÃ˜Â±Ã™Å Ã˜Â¯ Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™ÂÃ™Å  Ã™â€¦Ã˜Â­Ã˜Â§Ã˜Â¯Ã˜Â«Ã˜Â§Ã˜Âª Ã˜Â¬Ã™â€¦Ã™Å Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â§Ã˜Â¨Ã˜Å¸' : 'Do you want to pin this announcement for all users?',
+          text: lang === 'ar' ? 'هل تريد تثبيت الإع??ن في محادثات جميع الط??ب؟' : 'Do you want to pin this announcement for all users?',
           reply_markup: pinKb
         });
         break;
 
       case 'awaiting_announcement_pin':
-        state.isPinned = text === 'Ã™â€ Ã˜Â¹Ã™â€¦ (Ã˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª)' || text === 'Yes (Pin)';
+        state.isPinned = text === '??? (تثبيت)' || text === 'Yes (Pin)';
         await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
         break;
 
@@ -1259,7 +1259,7 @@ class TelegramBotService {
         const eContentEn = '';
         
         await dbHelper.updateAnnouncementContent(state.annId, eTitleAr, eTitleEn, eContentAr, eContentEn);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢ÂÂ³ Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â¬Ã™â€¦Ã™Å Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â§Ã˜Â¨...' : 'Ã¢ÂÂ³ Updating for all users...' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري تحديث الإع??ن لدى جميع الط??ب...' : '⏳ Updating for all users...' });
         
         // Background process
         (async () => {
@@ -1276,12 +1276,12 @@ class TelegramBotService {
                }
                const msgTitle = uLang === 'ar' ? updatedAnn.title_ar : updatedAnn.title_en;
                const msgContent = uLang === 'ar' ? updatedAnn.content_ar : updatedAnn.content_en;
-               const txt = `Ã°Å¸â€œÂ¢ *${msgTitle}*\n\n${msgContent}`;
+               const txt = `📢 *${msgTitle}*\n\n${msgContent}`;
                
                await this.apiCall('editMessageText', { chat_id: msg.chat_id, message_id: msg.message_id, text: txt, parse_mode: 'Markdown' });
             } catch(e) {}
           }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜Â§Ã™Æ’Ã˜ÂªÃ™â€¦Ã™â€ž Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€ .' : 'Ã¢Å“â€¦ Update complete.' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? اك??ل تحديث الإع??ن.' : '? Update complete.' });
         })();
         
         await dbHelper.deleteAdminState(chatId);
@@ -1294,9 +1294,9 @@ class TelegramBotService {
         
         if (text === t(lang, 'BTN_YES_ICON')) {
            if (!delRole) {
-               await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ø§Ù„Ù…Ø´Ø±Ù ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ Ø£ØµÙ„Ø§Ù‹.' : 'Admin not found.' });
+               await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'المشرف غير موجود أص??ً.' : 'Admin not found.' });
            } else if (delRole === 'OWNER') {
-               await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø°Ù Ø§Ù„Ù…Ø§Ù„Ùƒ.' : 'Owner cannot be deleted.' });
+               await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? يمكن حذف المالك.' : 'Owner cannot be deleted.' });
            } else {
                await dbHelper.removeAdmin(this.facultyId, state.subId);
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
@@ -1305,18 +1305,18 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: nextDelState });
         {
           const keyboard = [
-            [{ text: lang === 'ar' ? 'âž• Ø¥Ø¶Ø§ÙØ©' : 'âž• Add' }],
-            [{ text: lang === 'ar' ? 'ðŸ‘ï¸ Ø¹Ø±Ø¶' : 'ðŸ‘ï¸ View' }],
-            [{ text: lang === 'ar' ? 'ðŸ—‘ï¸ Ø¥Ø²Ø§Ù„Ø©' : 'ðŸ—‘ï¸ Remove' }],
-            [{ text: lang === 'ar' ? 'Ø±Ø¬ÙˆØ¹' : 'Back' }]
+            [{ text: lang === 'ar' ? '➕ إضافة' : '➕ Add' }],
+            [{ text: lang === 'ar' ? '👁️ عرض' : '👁️ View' }],
+            [{ text: lang === 'ar' ? '🗑️ إزالة' : '🗑️ Remove' }],
+            [{ text: lang === 'ar' ? 'رجوع' : 'Back' }]
           ];
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'ØªÙ….' : 'Done.', reply_markup: { keyboard, resize_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم.' : 'Done.', reply_markup: { keyboard, resize_keyboard: true } });
         }
         break;
 
       case 'awaiting_del_ann_confirm':
-        if (text === 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' || text === 'Ã¢Å“â€¦ Yes, Delete') {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢ÂÂ³ Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜Â­Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™â€žÃ˜Â¯Ã™â€° Ã˜Â¬Ã™â€¦Ã™Å Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â§Ã˜Â¨...' : 'Ã¢ÂÂ³ Deleting for all users...' });
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '⏳ جاري حذف الإع??ن لدى جميع الط??ب...' : '⏳ Deleting for all users...' });
           
           // Background process
           (async () => {
@@ -1327,20 +1327,20 @@ class TelegramBotService {
               } catch(e) {}
             }
             await dbHelper.deleteAnnouncement(state.annId);
-            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â­Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€  Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¦Ã™Å Ã˜Â¹.' : 'Ã¢Å“â€¦ Announcement deleted from everyone.' });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? ?? حذف الإع??ن ?? الجميع.' : '? Announcement deleted from everyone.' });
           })();
         } else {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™Â.' : 'Deletion cancelled.' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تم إلغاء الحذف.' : 'Deletion cancelled.' });
         }
         await dbHelper.deleteAdminState(chatId);
         await this.sendAdminHome(chatId, lang);
         break;
 
       case 'awaiting_del_btn_confirm':
-        if (text === 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' || text === 'Ã¢Å“â€¦ Yes, Delete') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           const menu = await dbHelper.getMenuById(state.menuId);
           await dbHelper.deleteMenu(state.menuId);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â­Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­' : 'Ã¢Å“â€¦ Button Deleted', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الزر بنجاح' : '✅ Button Deleted', reply_markup: { remove_keyboard: true } });
           if (menu) {
             await dbHelper.setAdminState(chatId, { action: 'admin_home' });
             await this.sendAdminHome(chatId, lang);
@@ -1352,10 +1352,10 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_content_confirm':
-        if (text === 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' || text === 'Ã¢Å“â€¦ Yes, Delete') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
           await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [state.menuId]);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ™ÂÃ˜Â±Ã™Å Ã˜Âº Ã™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€° Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â±' : 'Ã¢Å“â€¦ Content Cleared', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '? ?? تفريغ محتوى الزر' : '? Content Cleared', reply_markup: { remove_keyboard: true } });
           const mContent = await dbHelper.getMenuById(state.menuId);
           if (mContent) {
             await dbHelper.setAdminState(chatId, { action: 'admin_home' });
@@ -1365,9 +1365,9 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_file_confirm':
-        if (text === 'Ã¢Å“â€¦ Ã™â€ Ã˜Â¹Ã™â€¦Ã˜Å’ Ã˜Â­Ã˜Â°Ã™Â' || text === 'Ã¢Å“â€¦ Yes, Delete') {
+        if (text === '✅ نعم، حذف' || text === '✅ Yes, Delete') {
           await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [state.fileId]);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â­Ã˜Â°Ã™Â Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â' : 'Ã¢Å“â€¦ File deleted', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حذف الملف' : '✅ File deleted', reply_markup: { remove_keyboard: true } });
           if (state.menuId) {
             const mFile = await dbHelper.getMenuById(state.menuId);
             if (mFile) {
@@ -1379,7 +1379,7 @@ class TelegramBotService {
             await this.sendAdminHome(chatId, lang); 
           }
         } else {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â±Ã˜Â§Ã˜Â¬Ã˜Â¹ Ã˜Â¹Ã™â€  Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â°Ã™Â.' : 'Deletion cancelled.', reply_markup: { remove_keyboard: true } });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? التراجع عن الحذف.' : 'Deletion cancelled.', reply_markup: { remove_keyboard: true } });
           if (state.menuId) {
             const mFile = await dbHelper.getMenuById(state.menuId);
             if (mFile) {
@@ -1398,7 +1398,7 @@ class TelegramBotService {
         const rMenu = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu.reply_content_en, rMenu.reply_content_ar, rMenu.file_name, rMenu.telegram_file_id, rMenu.mime_type, rMenu.file_size, rMenu.sort_order, rMenu.row_index);
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦Ã˜Âª Ã˜Â¥Ã˜Â¹Ã˜Â§Ã˜Â¯Ã˜Â© Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â³Ã™â€¦Ã™Å Ã˜Â© Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­!' : 'Ã¢Å“â€¦ Renamed!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إعادة التسمية بنجاح!' : '✅ Renamed!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1407,7 +1407,7 @@ class TelegramBotService {
         const rMenu2 = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu2.reply_type, rSubEn, text, rMenu2.file_name, rMenu2.telegram_file_id, rMenu2.mime_type, rMenu2.file_size, rMenu2.sort_order, rMenu2.row_index);
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜ÂªÃ™â€¦Ã™â€¡Ã™Å Ã˜Â¯Ã™Å Ã˜Â©!' : 'Ã¢Å“â€¦ Prompt message updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث الرسالة التمهيدية!' : '✅ Prompt message updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1416,7 +1416,7 @@ class TelegramBotService {
         const m1 = await dbHelper.getMenuById(state.menuId);
         await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order, m1.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m1.parent_id, viewingMenuDetailsId: null });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ!' : 'Ã¢Å“â€¦ Text updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث النص!' : '✅ Text updated!' });
         const adminNavT = require('./admin-menu-navigation');
         await adminNavT.sendAdminReplyMenus(this, chatId, m1.parent_id, lang);
         break;
@@ -1424,7 +1424,7 @@ class TelegramBotService {
       case 'awaiting_replace_file_doc':
         if (text === '/cancel') {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€¦Ã˜Â±. Ã˜Â¹Ã˜Â¯Ã™â€ Ã˜Â§ Ã™â€žÃ™â€žÃ˜Â±Ã˜Â¦Ã™Å Ã˜Â³Ã™Å Ã˜Â©.' : 'Action cancelled. Returned to home.' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '?? ????? الأمر. عدنا للرئيسية.' : 'Action cancelled. Returned to home.' });
           await this.sendAdminHome(chatId, lang);
           return;
         }
@@ -1437,14 +1437,14 @@ class TelegramBotService {
             state.action = 'awaiting_edit_file_doc';
             await dbHelper.setAdminState(chatId, state);
             
-            const doneBtn = lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦' : 'Ã¢Å“â€¦ Done';
+            const doneBtn = lang === 'ar' ? '✅ تم' : '✅ Done';
             await this.apiCall('sendMessage', { 
               chat_id: chatId, 
-              text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¨Ã˜Â¯Ã˜Â§Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™ÂÃ˜Â§Ã˜Âª Ã™Ë†Ã˜Â§Ã˜Â³Ã˜ÂªÃ™â€žÃ˜Â§Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã™â€ž. Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â²Ã™Å Ã˜Â¯ Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· "Ã˜ÂªÃ™â€¦":' : 'Ã¢Å“â€¦ Files replaced. Send more or press "Done":',
+              text: lang === 'ar' ? '✅ تم استبدال الملفات واستلام الملف الأول. أرسل المزيد أو اضغط "تم":' : '✅ Files replaced. Send more or press "Done":',
               reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
             });
           } catch (e) {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: `Ã¢ÂÅ’ Error: ${e.message}` });
+            await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
           }
         } else {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف.' : 'Please send a document.' });
@@ -1452,7 +1452,7 @@ class TelegramBotService {
         break;
 
       case 'awaiting_edit_file_doc':
-        if (text === '/skip' || text === 'Ã¢Å“â€¦ Done' || text === 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦' || text === '/done') {
+        if (text === '/skip' || text === '✅ Done' || text === '✅ تم' || text === '/done') {
           state.action = 'awaiting_edit_file_cap_ar';
           await dbHelper.setAdminState(chatId, state);
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'أرسل الشرح الجديد للملف (بالعربي) أو /skip للاحتفاظ بالحالي:' : 'Send new Arabic caption, or /skip to keep current:', reply_markup: cancelKb });
@@ -1470,10 +1470,10 @@ class TelegramBotService {
               }
 
               const files = await dbHelper.getMenuFiles(state.menuId);
-              const doneBtn = lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦' : 'Ã¢Å“â€¦ Done';
+              const doneBtn = lang === 'ar' ? '✅ تم' : '✅ Done';
               const msg = lang === 'ar' 
-                ? `Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ˜Â© Ã™â€¦Ã™â€žÃ™Â. Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å : ${files.length}\nÃ˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â²Ã™Å Ã˜Â¯Ã˜Å’ Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â¶Ã˜ÂºÃ˜Â· "Ã˜ÂªÃ™â€¦":`
-                : `Ã¢Å“â€¦ File added. Total: ${files.length}\nSend more, or press "Done":`;
+                ? `✅ تم إضافة ملف. الإجمالي: ${files.length}\nأرسل المزيد، أو اضغط "تم":`
+                : `✅ File added. Total: ${files.length}\nSend more, or press "Done":`;
                 
               await this.apiCall('sendMessage', { 
                 chat_id: chatId, 
@@ -1481,7 +1481,7 @@ class TelegramBotService {
                 reply_markup: { keyboard: [[{ text: doneBtn }]], resize_keyboard: true }
               });
             } catch (e) {
-               await this.apiCall('sendMessage', { chat_id: chatId, text: `Ã¢ÂÅ’ Error: ${e.message}` });
+               await this.apiCall('sendMessage', { chat_id: chatId, text: `❌ Error: ${e.message}` });
             }
           } else {
             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'الرجاء إرسال ملف (Document) أو الضغط على "تم".' : 'Please send a document or press "Done".' });
@@ -1493,14 +1493,14 @@ class TelegramBotService {
         const m3 = await dbHelper.getMenuById(state.menuId);
         let cAr = m3.reply_content_ar;
         let cEn = m3.reply_content_en;
-        if (text !== '/skip' && text !== 'Ã¢Å“â€¦ Done' && text !== 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦') {
+        if (text !== '/skip' && text !== '✅ Done' && text !== '✅ تم') {
           cAr = text;
           cEn = await this.translateArToEn(text);
         }
         
         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order, m3.row_index);
         await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: null });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜Â­Ã™ÂÃ˜Â¸ Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­!' : 'Ã¢Å“â€¦ Saved successfully!', reply_markup: { remove_keyboard: true } });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم الحفظ بنجاح!' : '✅ Saved successfully!', reply_markup: { remove_keyboard: true } });
         const adminNavF = require('./admin-menu-navigation');
         await adminNavF.sendAdminReplyMenus(this, chatId, m3.parent_id, lang);
         break;
@@ -1510,7 +1510,7 @@ class TelegramBotService {
         const targetMenuId = text === 'null' ? null : parseInt(text, 10);
         await dbHelper.updateMenu(state.menuId, targetMenuId, m4.title_en, m4.title_ar, m4.reply_type, m4.reply_content_en, m4.reply_content_ar, m4.file_name, m4.telegram_file_id, m4.mime_type, m4.file_size, m4.sort_order, m4.row_index);
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ™â€ Ã™â€šÃ™â€ž Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­!' : 'Ã¢Å“â€¦ Moved successfully!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم النقل بنجاح!' : '✅ Moved successfully!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1530,17 +1530,17 @@ class TelegramBotService {
         if (state.newType === 'submenu') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'submenu', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: newMenuId, viewingMenuDetailsId: null });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦Ã˜Âª Ã˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ˜Â© Ã˜Â§Ã™â€žÃ™â€šÃ˜Â§Ã˜Â¦Ã™â€¦Ã˜Â©! Ã™Å Ã™â€¦Ã™Æ’Ã™â€ Ã™Æ’ Ã˜Â§Ã™â€žÃ˜Â¯Ã˜Â®Ã™Ë†Ã™â€ž Ã˜Â¥Ã™â€žÃ™Å Ã™â€¡Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€  Ã™â€žÃ˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ˜Â© Ã˜Â£Ã˜Â²Ã˜Â±Ã˜Â§Ã˜Â± Ã™ÂÃ˜Â±Ã˜Â¹Ã™Å Ã˜Â©.' : 'Ã¢Å“â€¦ Submenu added!' });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت إضافة القائمة! يمكنك الدخول إليها الآن لإضافة أزرار فرعية.' : '✅ Submenu added!' });
           const adminNav = require('./admin-menu-navigation');
           await adminNav.sendAdminReplyMenus(this, chatId, newMenuId, lang);
         } else if (state.newType === 'text') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'text', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã™â€¦. Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€  Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â­Ã˜ÂªÃ™Ë†Ã™â€° Ã˜Â§Ã™â€žÃ™â€ Ã˜ÂµÃ™Å  Ã™â€žÃ™â€žÃ˜Â²Ã˜Â± (Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å ):' : 'Ã¢Å“â€¦ Name saved. Send text content (Arabic):', reply_markup: cancelKb });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن المحتوى النصي للزر (بالعربي):' : '✅ Name saved. Send text content (Arabic):', reply_markup: cancelKb });
         } else if (state.newType === 'file') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'file', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã™â€¦. Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€  Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â±Ã™ÂÃ™â€š (Document):' : 'Ã¢Å“â€¦ Name saved. Send the file document:', reply_markup: cancelKb });
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم حفظ الاسم. أرسل الآن الملف المرفق (Document):' : '✅ Name saved. Send the file document:', reply_markup: cancelKb });
         }
         break;
 
@@ -1549,7 +1549,7 @@ class TelegramBotService {
         const welEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token, fac2.admin_chat_id, welEn, text, fac2.bot_enabled, fac2.disabled_message_en, fac2.disabled_message_ar, fac2.telegram_api_server, fac2.empty_msg_en, fac2.empty_msg_ar, fac2.unknown_msg_en, fac2.unknown_msg_ar, fac2.no_file_msg_en, fac2.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â«!' : 'Ã¢Å“â€¦ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث!' : '✅ Updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1558,7 +1558,7 @@ class TelegramBotService {
         const disEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, disEn, text, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â«!' : 'Ã¢Å“â€¦ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث!' : '✅ Updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1567,7 +1567,7 @@ class TelegramBotService {
         const empEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token, fac3.admin_chat_id, fac3.welcome_en, fac3.welcome_ar, fac3.bot_enabled, fac3.disabled_message_en, fac3.disabled_message_ar, fac3.telegram_api_server, empEn, text, fac3.unknown_msg_en, fac3.unknown_msg_ar, fac3.no_file_msg_en, fac3.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ™ÂÃ˜Â§Ã˜Â±Ã˜Âº!' : 'Ã¢Å“â€¦ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث رسالة الزر الفارغ!' : '✅ Updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1576,7 +1576,7 @@ class TelegramBotService {
         const unkEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token, fac4.admin_chat_id, fac4.welcome_en, fac4.welcome_ar, fac4.bot_enabled, fac4.disabled_message_en, fac4.disabled_message_ar, fac4.telegram_api_server, fac4.empty_msg_en, fac4.empty_msg_ar, unkEn, text, fac4.no_file_msg_en, fac4.no_file_msg_ar);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ™â€ Ã˜Âµ Ã˜ÂºÃ™Å Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¹Ã˜Â±Ã™Ë†Ã™Â!' : 'Ã¢Å“â€¦ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث رسالة النص غير المعروف!' : '✅ Updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1585,7 +1585,7 @@ class TelegramBotService {
         const nofEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token, fac5.admin_chat_id, fac5.welcome_en, fac5.welcome_ar, fac5.bot_enabled, fac5.disabled_message_en, fac5.disabled_message_ar, fac5.telegram_api_server, fac5.empty_msg_en, fac5.empty_msg_ar, fac5.unknown_msg_en, fac5.unknown_msg_ar, nofEn, text);
         await dbHelper.deleteAdminState(chatId);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™ÂÃ™â€šÃ˜Â¯Ã˜Â§Ã™â€  Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â!' : 'Ã¢Å“â€¦ Updated!' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم تحديث رسالة فقدان الملف!' : '✅ Updated!' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1619,7 +1619,7 @@ case 'awaiting_inline_btn':
         
         await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, JSON.stringify(currentBtns));
         await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜Â£Ã˜Â¶Ã™Å Ã™Â ' : 'Ã¢Å“â€¦ Added' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تمت الإضافة' : '✅ Added' });
         await this.sendAdminHome(chatId, lang);
         break;
 
@@ -1742,7 +1742,7 @@ case 'awaiting_inline_btn':
     let mimeType = null;
     let fileSize = null;
 
-    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã°Å¸Å¡â‚¬ Ã™Å Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â¬Ã™â€¡Ã™Å Ã˜Â² Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž...' : 'Ã°Å¸Å¡â‚¬ Preparing broadcast...' });
+    const stMsg = await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '🚀 ي?? تجهيز الإرسال...' : '🚀 Preparing broadcast...' });
     
     try {
       if (doc) {
@@ -1776,7 +1776,7 @@ case 'awaiting_inline_btn':
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
       this.logError('Broadcast preparation failed', e, { chat_id: chatId });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: 'Ã¢ÂÅ’ Error: ' + e.message });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
       await dbHelper.deleteAdminState(chatId);
     }
   }
@@ -1799,8 +1799,8 @@ case 'awaiting_inline_btn':
        const reach = (totalUsers - blocked) > 0 ? ((sent / (totalUsers - blocked)) * 100).toFixed(1) : 0;
        
        const txt = lang === 'ar' ? 
-          `Ã¢ÂÂ³ **Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜Â¨Ã˜Â« Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã™â€žÃ˜Â§Ã™â€ ...**\n\nÃ°Å¸â€˜Â¥ Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å  Ã˜Â§Ã™â€žÃ˜Â·Ã™â€žÃ˜Â§Ã˜Â¨: ${totalUsers}\nÃ¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž Ã˜Â¥Ã™â€žÃ™â€°: ${sent}\nÃ¢ÂÅ’ Ã™â€žÃ™â€¦ Ã™Å Ã˜ÂµÃ™â€žÃ™â€¡Ã™â€¦ (Ã˜Â­Ã˜Â¸Ã˜Â±/Ã˜Â­Ã˜Â°Ã™Â): ${blocked}\nÃ¢Å¡Â Ã¯Â¸Â Ã™ÂÃ˜Â´Ã™â€ž (Ã˜Â£Ã˜Â®Ã˜Â±Ã™â€°): ${failed}\nÃ°Å¸â€œË† Ã™â€ Ã˜Â³Ã˜Â¨Ã˜Â© Ã˜Â§Ã™â€žÃ™Ë†Ã˜ÂµÃ™Ë†Ã™â€ž: ${reach}%\nÃ¢ÂÂ±Ã¯Â¸Â Ã˜Â³Ã˜Â±Ã˜Â¹Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¬Ã˜Â§Ã˜Â¨Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â§Ã™â€žÃ™Å Ã˜Â©: ${avgLatencyMs}ms\n\n${final ? 'Ã¢Å“â€¦ **Ã˜Â§Ã™Æ’Ã˜ÂªÃ™â€¦Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â« Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­!**' : ''}` :
-          `Ã¢ÂÂ³ **Broadcasting...**\n\nÃ°Å¸â€˜Â¥ Total: ${totalUsers}\nÃ¢Å“â€¦ Sent: ${sent}\nÃ¢ÂÅ’ Blocked: ${blocked}\nÃ¢Å¡Â Ã¯Â¸Â Failed: ${failed}\nÃ°Å¸â€œË† Reach: ${reach}%\nÃ¢ÂÂ±Ã¯Â¸Â Speed/Latency: ${avgLatencyMs}ms\n\n${final ? 'Ã¢Å“â€¦ **Complete!**' : ''}`;
+          `⏳ **جاري بث الإع??ن...**\n\n👥 إجمالي الط??ب: ${totalUsers}\n? ?? الإرسال إلى: ${sent}\n❌ لم يصلهم (حظر/حذف): ${blocked}\n⚠️ فشل (أخرى): ${failed}\n📈 نسبة الوصول: ${reach}%\n⏱️ سرعة ا??ستجابة الحالية: ${avgLatencyMs}ms\n\n${final ? '? **اك??ل البث بنجاح!**' : ''}` :
+          `⏳ **Broadcasting...**\n\n👥 Total: ${totalUsers}\n? Sent: ${sent}\n❌ Blocked: ${blocked}\n⚠️ Failed: ${failed}\n📈 Reach: ${reach}%\n⏱️ Speed/Latency: ${avgLatencyMs}ms\n\n${final ? '? **Complete!**' : ''}`;
           
        if (statusMsgId && adminChatId) {
           await this.apiCall('editMessageText', { chat_id: adminChatId, message_id: statusMsgId, text: txt, parse_mode: 'Markdown' });
@@ -1823,7 +1823,7 @@ case 'awaiting_inline_btn':
 
           if (announcement.content_ar.includes('<tg-emoji') || announcement.title_ar.includes('<tg-emoji')) {
              // Entities mode
-             const combinedTextAr = `Ã°Å¸â€œÂ£ ${announcement.title_ar}\n\n${announcement.content_ar}`;
+             const combinedTextAr = `📢 ${announcement.title_ar}\n\n${announcement.content_ar}`;
              if (user.language === 'ar') {
                 if (!announcement.parsed_ar) announcement.parsed_ar = await translationService.processPremiumEntities(combinedTextAr, null);
                 finalTxt = announcement.parsed_ar.text;
@@ -1835,7 +1835,7 @@ case 'awaiting_inline_btn':
                 finalEntities = JSON.parse(JSON.stringify(announcement.parsed_en.entities));
              }
 
-             // Title Bold Entity (Offset 2 accounts for 'Ã°Å¸â€œÂ£ ')
+             // Title Bold Entity (Offset 2 accounts for '📢 ')
              const titleLength = user.language === 'ar' ? announcement.title_ar.length : (announcement.title_en ? announcement.title_en.length : announcement.title_ar.length); 
              // Note: Google Translate might change title length, calculating exact length of first line:
              const firstLineLen = finalTxt.split('\n')[0].length;
@@ -1851,7 +1851,7 @@ case 'awaiting_inline_btn':
              // Standard Markdown mode
              const title = user.language === 'ar' ? announcement.title_ar : announcement.title_en;
              const content = user.language === 'ar' ? announcement.content_ar : announcement.content_en;
-             finalTxt = `Ã°Å¸â€œÂ¢ *${title}*\n\n${content}`;
+             finalTxt = `📢 *${title}*\n\n${content}`;
           }
           
           let res;
@@ -1905,11 +1905,11 @@ case 'awaiting_inline_btn':
       await dbHelper.addMenuFile(newMenuId, telegramFileId, fileName, mimeType, fileSize);
 
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ˜Â© Ã˜Â²Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­!' : 'Ã¢Å“â€¦ File button added!' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم إضافة زر الملف بنجاح!' : '✅ File button added!' });
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
       this.logError('Add file failed', e, { chat_id: chatId });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: 'Ã¢ÂÅ’ Error: ' + e.message });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
       await this.sendAdminHome(chatId, lang);
     }
@@ -1927,7 +1927,7 @@ case 'awaiting_inline_btn':
       await dbHelper.updateMenu(menu.id, menu.parent_id, menu.title_en, menu.title_ar, 'file', state.contentEn, state.contentAr, fileName, telegramFileId, mimeType, fileSize, menu.sort_order, menu.row_index);
 
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â«' : 'Ã¢Å“â€¦ Updated' });
+      await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? '✅ تم التحديث' : '✅ Updated' });
       await this.sendAdminHome(chatId, lang);
     } catch(e) {
       this.logError('Edit file failed', e, { chat_id: chatId });
@@ -1955,7 +1955,7 @@ case 'awaiting_inline_btn':
       ];
       
       if (ann.is_pinned) {
-        inlineKeyboard.push([{ text: lang === 'ar' ? 'Ã¢ÂÅ’ Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â«Ã˜Â¨Ã™Å Ã˜Âª' : 'Ã¢ÂÅ’ Unpin', callback_data: `unpin_ann_${ann.id}` }]);
+        inlineKeyboard.push([{ text: lang === 'ar' ? '? ????? التثبيت' : '❌ Unpin', callback_data: `unpin_ann_${ann.id}` }]);
       }
       
       await this.apiCall('sendMessage', { 
@@ -1984,7 +1984,7 @@ case 'awaiting_inline_btn':
       text: t(lang, 'CHOOSE_LANGUAGE'),
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ English", callback_data: "lang_en" }, { text: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¦ Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å Ã˜Â©", callback_data: "lang_ar" }]
+          [{ text: "🇺🇸 English", callback_data: "lang_en" }, { text: "🇸🇦 العربية", callback_data: "lang_ar" }]
         ]
       }
     });
@@ -2020,7 +2020,7 @@ case 'awaiting_inline_btn':
     let inlineKeyboardMarkup = null;
 
     if (parentId === null) {
-      promptText = lang === 'ar' ? (faculty.welcome_ar || 'Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§Ã™â€¹ Ã˜Â¨Ã™Æ’') : (faculty.welcome_en || 'Welcome');
+      promptText = lang === 'ar' ? (faculty.welcome_ar || 'مرحباً بك') : (faculty.welcome_en || 'Welcome');
     } else {
       const pMenu = menus.find(m => m.id === parentId);
       const customPrompt = lang === 'ar' ? pMenu.reply_content_ar : pMenu.reply_content_en;
@@ -2083,7 +2083,7 @@ case 'awaiting_inline_btn':
     }
 
     if (isAdmin && parentId === null) {
-      keyboard.push([{ text: lang === 'ar' ? 'Ã°Å¸â€ºÂ Ã¯Â¸Â Ã™â€žÃ™Ë†Ã˜Â­Ã˜Â© Ã˜ÂªÃ˜Â­Ã™Æ’Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™Å Ã™â€ ' : 'Ã°Å¸â€ºÂ Ã¯Â¸Â Admin Panel' }]);
+      keyboard.push([{ text: lang === 'ar' ? '🛠️ لوحة تحكم المشرفين' : '??? Admin Panel' }]);
     }
 
     const replyMarkup = keyboard.length > 0 ? { keyboard, resize_keyboard: true } : { remove_keyboard: true };
@@ -2136,11 +2136,11 @@ case 'awaiting_inline_btn':
       { command: 'admin', description: 'Admin control panel' }
     ];
     const ar = [
-      { command: 'start', description: 'Ã˜Â§Ã™â€žÃ˜Â¨Ã˜Â¯Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¹Ã˜Â±Ã˜Â§Ã˜Â¶ Ã˜Â§Ã™â€žÃ™â€šÃ˜Â§Ã˜Â¦Ã™â€¦Ã˜Â©' },
-      { command: 'changelanguage', description: 'Ã˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â± Ã™â€žÃ˜ÂºÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª' },
-      { command: 'back', description: 'Ã˜Â§Ã™â€žÃ˜Â¹Ã™Ë†Ã˜Â¯Ã˜Â© Ã™â€žÃ™â€žÃ™â€šÃ˜Â§Ã˜Â¦Ã™â€¦Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â§Ã˜Â¨Ã™â€šÃ˜Â©' },
-      { command: 'id', description: 'Ã˜Â§Ã™â€žÃ˜Â­Ã˜ÂµÃ™Ë†Ã™â€ž Ã˜Â¹Ã™â€žÃ™â€° Ã™â€¦Ã˜Â¹Ã˜Â±Ã™Â Ã˜ÂªÃ™Å Ã™â€žÃ™Å Ã˜Â¬Ã˜Â±Ã˜Â§Ã™â€¦' },
-      { command: 'admin', description: 'Ã™â€žÃ™Ë†Ã˜Â­Ã˜Â© Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã™Æ’Ã™â€¦ Ã™â€žÃ™â€žÃ™â€¦Ã˜Â´Ã˜Â±Ã™ÂÃ™Å Ã™â€ ' }
+      { command: 'start', description: 'البدء واسترجاع القائمة' },
+      { command: 'changelanguage', description: 'تغيير لغة البوت' },
+      { command: 'back', description: 'العودة للقائمة السابقة' }
+      { command: 'id', description: 'الحصول على معرف تيليجرام' },
+      { command: 'admin', description: 'لوحة التحكم للمشرفين' }
     ];
     await this.apiCall('setMyCommands', { commands: en });
     await this.apiCall('setMyCommands', { commands: ar, language_code: 'ar' });
@@ -2263,7 +2263,7 @@ case 'awaiting_inline_btn':
     });
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Centralized file delivery helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  // *** Centralized file delivery helper ***
   // All file delivery code MUST use this method instead of calling Telegram
   // API methods directly. It inspects mime_type and chooses the correct API.
   async sendTelegramFile(chatId, file, caption = null, replyMarkup = null) {
@@ -2351,7 +2351,7 @@ case 'awaiting_inline_btn':
       if (owner) {
         await this.apiCall('sendMessage', {
           chat_id: owner.chat_id,
-          text: `âš ï¸ Error: A file could not be delivered.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`
+          text: `⚠️ Error: A file could not be delivered.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`
         });
       }
     } catch (adminErr) {
@@ -2359,17 +2359,17 @@ case 'awaiting_inline_btn':
     }
   }
 
-  // Legacy wrapper Ã¢â‚¬â€ kept so any remaining call sites still work
+  // Legacy wrapper kept so any remaining call sites still work
   async sendDocumentWithFallback(chatId, fileKey, fileName, caption, replyMarkup, telegramFileId = null, dbUpdateFn = null) {
     return this.sendTelegramFile(chatId, { telegram_file_id: telegramFileId, file_name: fileName, mime_type: null }, caption, replyMarkup);
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Paginated file delivery Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  // *** Paginated file delivery ***
   async sendFilePage(chatId, menuId, page, lang, caption = null, isAdminPreview = false) {
     const FILES_PER_PAGE = 10;
     const allFiles = await dbHelper.getMenuFiles(menuId);
 
-    // Legacy fallback: no menu_files rows Ã¢â€ â€™ try the legacy menus column
+    // Legacy fallback: no menu_files rows → try the legacy menus column
     if (!allFiles || allFiles.length === 0) {
       const menu = await dbHelper.getMenuById(menuId);
       if (menu && menu.telegram_file_id) {
@@ -2426,7 +2426,7 @@ case 'awaiting_inline_btn':
           }
         }
         if (isAdminPreview) {
-          kbButtons.push([{ text: lang === 'ar' ? 'Ã°Å¸â€”â€˜Ã¯Â¸Â Ã˜Â­Ã˜Â°Ã™Â Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â' : 'Ã°Å¸â€”â€˜Ã¯Â¸Â Delete this file', callback_data: `del_file_${file.id}` }]);
+          kbButtons.push([{ text: lang === 'ar' ? '🗑️ حذف هذا الملف' : '🗑️ Delete this file', callback_data: `del_file_${file.id}` }]);
         }
         if (kbButtons.length > 0) {
           replyMarkup = { inline_keyboard: kbButtons };
