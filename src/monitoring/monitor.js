@@ -1,151 +1,96 @@
 const dbHelper = require('../../database');
 
 class Monitor {
-  constructor() {
-    this.blockedCache = new Set();
+  constructor() {}
+
+  getBotManager() {
+    if (!this.botManager) {
+      this.botManager = require('../../bot-manager');
+    }
+    return this.botManager;
   }
 
-  /**
-   * Monitor incoming updates (read-only)
-   */
-  async onIncomingUpdate(botService, update) {
+  async onIncomingUpdate(facultyId, update) {
     try {
-      if (!botService || !botService.facultyId) return;
+      console.log('[Monitor] Update Received');
 
-      const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
-      
+      if (!facultyId || !update) return;
+
+      const faculty = await dbHelper.getFacultyById(facultyId);
+      if (!faculty) return;
+
+      if (!faculty.monitoring_enabled) return;
+      console.log('[Monitor] Monitoring Enabled');
+
+      if (!faculty.admin_chat_id) return;
       const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
       if (adminIds.length === 0) return;
+      
       const primaryAdminId = adminIds[0];
 
-      // Identify user from update
-      const msg = update.message || update.callback_query?.message;
-      const from = update.message?.from || update.callback_query?.from;
+      // Extract user info
+      let from = null;
+      let text = '';
+      
+      if (update.message) {
+        from = update.message.from;
+        text = update.message.text || update.message.caption || '';
+        if (!text) {
+          if (update.message.photo) text = '[Photo]';
+          else if (update.message.document) text = '[Document]';
+          else if (update.message.video) text = '[Video]';
+          else if (update.message.audio) text = '[Audio]';
+          else if (update.message.voice) text = '[Voice]';
+          else text = '[Other Media]';
+        }
+      } else if (update.callback_query) {
+        from = update.callback_query.from;
+        text = update.callback_query.data || '';
+      } else if (update.edited_message) {
+        from = update.edited_message.from;
+        text = update.edited_message.text || update.edited_message.caption || '[Edited Message]';
+      } else if (update.my_chat_member) {
+        // e.g. blocked/unblocked
+        from = update.my_chat_member.from;
+        text = '[Chat Member Status Change]';
+      } else {
+        // Other updates
+        return;
+      }
+
       if (!from || from.is_bot) return;
 
       const telegramId = from.id.toString();
-      
-      // Ignore updates from administrators
+      // Ignore admins interacting with the bot
       if (adminIds.includes(telegramId)) return;
 
-      const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || 'Unknown';
+      console.log('[Monitor] Processing Message');
+
       const username = from.username ? `@${from.username}` : 'N/A';
       const lang = from.language_code || 'N/A';
-      
-      let text = update.message?.text || update.callback_query?.data || '';
-      let command = text.startsWith('/') ? text.split(' ')[0] : 'None';
+      const facultyName = faculty.name_en || faculty.slug || 'Unknown';
 
-      const notifyText = `💬 User Activity\nName: ${name}\nUsername: ${username}\nTelegram ID: ${telegramId}\nLanguage: ${lang}\nMessage: ${text}\nCommand: ${command}\nTime: ${new Date().toISOString()}`;
-
-      console.log(`[Monitor] Sending activity alert to ${primaryAdminId}`);
-      botService.apiCall('sendMessage', {
-        chat_id: primaryAdminId,
-        text: notifyText
-      }).catch(() => {});
-    } catch (e) {
-      // Silently ignore all errors
-    }
-  }
-
-  /**
-   * Monitor new user registrations
-   */
-  async onNewUser(botService, user) {
-    try {
-      if (!botService || !botService.facultyId) return;
-
-      const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
-      
-      const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
-      if (adminIds.length === 0) return;
-      const primaryAdminId = adminIds[0];
-
-      const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
-      const username = user.username ? `@${user.username}` : 'N/A';
-      const telegramId = user.id ? user.id.toString() : 'Unknown';
-      const lang = user.language_code || 'N/A';
-
-      const notifyText = `🟢 New User\nName: ${name}\nUsername: ${username}\nTelegram ID: ${telegramId}\nLanguage: ${lang}\nFaculty: ${faculty.name_en || faculty.slug || 'Unknown'}\nTime: ${new Date().toISOString()}`;
-
-      console.log(`[Monitor] Sending new user alert to ${primaryAdminId}`);
-      botService.apiCall('sendMessage', {
-        chat_id: primaryAdminId,
-        text: notifyText
-      }).catch(() => {});
-    } catch (e) {}
-  }
-
-  /**
-   * Monitor blocked bot
-   */
-  async onUserBlocked(botService, user) {
-    try {
-      if (!botService || !botService.facultyId) return;
-
-      const chatId = user.chat_id || user.id?.toString();
-      if (!chatId) return;
-
-      // Ignore duplicate notifications
-      const cacheKey = `${botService.facultyId}_${chatId}`;
-      if (this.blockedCache.has(cacheKey)) return;
-      this.blockedCache.add(cacheKey);
-
-      const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
-      
-      const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
-      if (adminIds.length === 0) return;
-      const primaryAdminId = adminIds[0];
-
-      const username = user.username ? `@${user.username}` : 'N/A';
-      let name = [user.first_name, user.last_name].filter(Boolean).join(' ');
-      if (!name) {
-          // fallback to db
-          const userRes = await dbHelper.pool.query('SELECT * FROM bot_users WHERE chat_id = $1 AND faculty_id = $2', [chatId.toString(), botService.facultyId]);
-          if (userRes.rows[0]) {
-              name = userRes.rows[0].username || 'Unknown';
-          } else {
-              name = 'Unknown';
-          }
+      let notifyText = '';
+      if (text.trim() === '/start') {
+        notifyText = `🟢 New User\n\nUsername: ${username}\nID: ${telegramId}\nLanguage: ${lang}\nFaculty: ${facultyName}`;
+      } else {
+        notifyText = `💬 User Message\n\nUsername: ${username}\nID: ${telegramId}\nText: ${text}`;
       }
 
-      const notifyText = `🚫 Bot Blocked\nName: ${name}\nUsername: ${username}\nTelegram ID: ${chatId}\nTime: ${new Date().toISOString()}`;
+      console.log('[Monitor] Sending Alert');
 
-      console.log(`[Monitor] Sending bot blocked alert to ${primaryAdminId}`);
-      botService.apiCall('sendMessage', {
+      const botService = await this.getBotManager().getBotService(facultyId);
+      
+      await botService.apiCall('sendMessage', {
         chat_id: primaryAdminId,
         text: notifyText
-      }).catch(() => {});
-    } catch (e) {}
-  }
+      });
 
-  /**
-   * Monitor Telegram API Errors
-   */
-  async onTelegramError(botService, error) {
-    try {
-      if (!botService || !botService.facultyId) return;
+      console.log('[Monitor] Alert Sent');
 
-      const faculty = await dbHelper.getFacultyById(botService.facultyId);
-      if (!faculty || !faculty.admin_chat_id || !faculty.monitoring_enabled) return;
-      
-      const adminIds = faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean);
-      if (adminIds.length === 0) return;
-      const primaryAdminId = adminIds[0];
-
-      const errorCode = error.error_code || 'Unknown';
-      const description = error.description || 'No description';
-
-      const notifyText = `⚠️ <b>Telegram API Error</b>\n<b>Code:</b> ${errorCode}\n<b>Description:</b> ${description}\n<b>Time:</b> ${new Date().toISOString()}`;
-
-      botService.apiCall('sendMessage', {
-        chat_id: primaryAdminId,
-        text: notifyText,
-        parse_mode: 'HTML'
-      }).catch(() => {});
-    } catch (e) {}
+    } catch (e) {
+      // Ignore silently as this is non-intrusive monitoring
+    }
   }
 }
 
