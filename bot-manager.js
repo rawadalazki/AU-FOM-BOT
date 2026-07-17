@@ -1124,25 +1124,19 @@ class TelegramBotService {
       if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {
         const fac = await dbHelper.getFacultyById(this.facultyId);
         await dbHelper.toggleFacultyForwarding(this.facultyId, !fac.forward_user_messages);
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        return this.handleAdminStateMessage(chatId, { text: t(lang, 'MSG_ADMIN_1') }, lang, { action: 'managing_admin' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_17') });
         return this.handleAdminStateMessage(chatId, { text: t(lang, 'MSG_ADMIN_18') }, lang, { action: 'managing_admin' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      } else if (actionId === 'cfg_maintenance') {
+      } else if (actionId === 'cfg_welcome') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_19'), reply_markup: cancelKb });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      } else if (actionId === 'cfg_empty_btn') {
+      } else if (actionId === 'cfg_maintenance') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_20'), reply_markup: cancelKb });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      } else if (actionId === 'cfg_unknown_text') {
+      } else if (actionId === 'cfg_empty_btn') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_21'), reply_markup: cancelKb });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      } else if (actionId === 'cfg_no_file') {
+      } else if (actionId === 'cfg_unknown_text') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_22'), reply_markup: cancelKb });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-      }
+      } else if (actionId === 'cfg_no_file') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_23'), reply_markup: cancelKb });
+      }
     }
 
     // --- MANAGING MENUS ---
@@ -1154,23 +1148,21 @@ class TelegramBotService {
     // --- NORMAL AWAITING STATES ---
     if (state.action === 'admin_manage_admins_menu' || state.action === 'admin_manage_deputies_menu') {
       const targetRole = state.action === 'admin_manage_admins_menu' ? 'SUB_ADMIN' : 'DEPUTY_ADMIN';
-      const roleName = targetRole === 'SUB_ADMIN' ? (t(lang, 'MSG_ADMIN_1')) : (t(lang, 'MSG_ADMIN_1'));
-
-      const roleName = targetRole === 'SUB_ADMIN' ? (t(lang, 'MSG_ADMIN_24')) : (t(lang, 'MSG_ADMIN_25'));
+      const roleName = targetRole === 'SUB_ADMIN' ? t(lang, 'MSG_ADMIN_24') : t(lang, 'MSG_ADMIN_25');
+      if (actionId === 'add_subadmin' || actionId === 'add_deputy') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_new_admin_id', targetRole });
         const cancelKb = { keyboard: [[{ text: t(lang, 'BTN_CANCEL') }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1'), reply_markup: cancelKb });
-        const cancelKb = { keyboard: [[{ text: t(lang, 'BTN_CANCEL') }]], resize_keyboard: true };
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_26'), reply_markup: cancelKb });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_26').replace('${roleName}', roleName), reply_markup: cancelKb });
+      } else if (actionId === 'view_subadmins' || actionId === 'view_deputies') {
         const admins = await dbHelper.getAdminsByFaculty(this.facultyId);
         const targets = admins.filter(a => a.role === targetRole);
         if (targets.length === 0) {
-           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
+           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_27').replace('${roleName}', roleName) });
            return;
-           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_27') });
-        let msgText = (t(lang, 'MSG_ADMIN_1')) + targets.length + '\n\n';
+        }
+        let msgText = t(lang, 'MSG_ADMIN_28') + targets.length + '\n\n';
         for (const tAdmin of targets) {
-        let msgText = (t(lang, 'MSG_ADMIN_28')) + targets.length + '\n\n';
+           const secUserRes = await dbHelper.pool.query('SELECT username, language, created_at FROM bot_users WHERE chat_id = $1', [tAdmin.chat_id]);
            const secUser = secUserRes.rows[0];
            msgText += `ID: <code>${tAdmin.chat_id}</code>\n`;
            if (secUser) {
@@ -1206,46 +1198,43 @@ class TelegramBotService {
     }
 
     switch (state.action) {
-      case 'awaiting_new_admin_id':
+      case 'awaiting_new_admin_id': {
         const targetRole = state.targetRole || 'SUB_ADMIN';
-        const roleName = targetRole === 'SUB_ADMIN' ? (t(lang, 'MSG_ADMIN_1')) : (t(lang, 'MSG_ADMIN_1'));
+        const roleName = targetRole === 'SUB_ADMIN' ? t(lang, 'MSG_ADMIN_24') : t(lang, 'MSG_ADMIN_25');
         const nextStateAction = targetRole === 'SUB_ADMIN' ? 'admin_manage_admins_menu' : 'admin_manage_deputies_menu';
-        const roleName = targetRole === 'SUB_ADMIN' ? (t(lang, 'MSG_ADMIN_24')) : (t(lang, 'MSG_ADMIN_25'));
         if (text === '❌ إلغاء' || text === '❌ Cancel' || text === '⭅️ Cancel Operation' || text === '⭅️ إلغاء الأمد' || text === t(lang, 'BTN_CANCEL_OP')) {
           await dbHelper.setAdminState(chatId, { action: nextStateAction });
           const keyboard = [
             [{ text: t(lang, 'BTN_ADD') }],
             [{ text: t(lang, 'BTN_VIEW') }],
-            [{ text: t(lang, 'BTN_ADD') }],
-            [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_REMOVE') }],
             [{ text: t(lang, 'MSG_ADMIN_29') }]
-          return;
+          ];
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30'), reply_markup: { keyboard, resize_keyboard: true } });
-        if (!/^\d+/.test(text)) {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
           return;
+        }
+        if (!/^\d+/.test(text)) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_31') });
-        
+          return;
+        }
         const existingRole = await dbHelper.getAdminRole(this.facultyId, text, targetRole);
         if (existingRole) {
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        } else {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_32') });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-        }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_33') });
-        {
+        } else {
+          await dbHelper.createAdmin(text, targetRole, this.facultyId);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_33').replace('${roleName}', roleName) });
+          await dbHelper.setAdminState(chatId, { action: nextStateAction });
           const keyboard = [
-            [{ text: t(lang, 'MSG_ADMIN_1') }],
-            [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_ADD') }],
             [{ text: t(lang, 'BTN_VIEW') }],
             [{ text: t(lang, 'BTN_REMOVE') }],
             [{ text: t(lang, 'MSG_ADMIN_29') }]
+          ];
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_34').replace('${roleName}', roleName), reply_markup: { keyboard, resize_keyboard: true } });
         }
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_34'), reply_markup: { keyboard, resize_keyboard: true } });
-      case 'awaiting_announcement_text':
+        break;
+      }
+      case 'awaiting_announcement_text': {
         const lines = text.split('\n');
         state.titleAr = lines[0].trim();
         state.contentAr = lines.slice(1).join('\n').trim() || ' '; // To ensure content isn't strictly empty
@@ -1256,26 +1245,26 @@ class TelegramBotService {
         
         const fileKb = {
           keyboard: [
-             [{ text: t(lang, 'MSG_ADMIN_1') }],
-             [{ text: t(lang, 'MSG_ADMIN_1') }]
              [{ text: t(lang, 'MSG_ADMIN_35') }],
              [{ text: t(lang, 'MSG_ADMIN_2') }]
+          ],
+          resize_keyboard: true
         };
         await this.apiCall('sendMessage', { 
           chat_id: chatId, 
-          text: t(lang, 'MSG_ADMIN_1'), 
-          reply_markup: fileKb 
           text: t(lang, 'MSG_ADMIN_36'), 
+          reply_markup: fileKb 
+        });
         break;
-
-      case 'awaiting_announcement_file':
+      }
+      case 'awaiting_announcement_file': {
         let doc = null;
-        if (text !== '/skip' && text !== '/skip (تخطي بدون ملف)') {
+        if (text !== '/skip' && text !== '/skip (تخطي بدون ملف)' && text !== t(lang, 'MSG_ADMIN_35')) {
           doc = this.extractTelegramAttachment(message);
           if (!doc) {
-            await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_1') });
-            return;
             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_37') });
+            return;
+          }
         }
         state.doc = doc;
         state.action = 'awaiting_announcement_pin';
@@ -1283,22 +1272,23 @@ class TelegramBotService {
 
         const pinKb = {
           keyboard: [
-             [{ text: t(lang, 'MSG_ADMIN_1') }, { text: t(lang, 'MSG_ADMIN_1') }],
-             [{ text: t(lang, 'MSG_ADMIN_1') }]
              [{ text: t(lang, 'MSG_ADMIN_38') }, { text: t(lang, 'MSG_ADMIN_39') }],
              [{ text: t(lang, 'MSG_ADMIN_2') }]
+          ],
+          resize_keyboard: true
         };
         await this.apiCall('sendMessage', {
           chat_id: chatId,
-          text: t(lang, 'MSG_ADMIN_1'),
-          reply_markup: pinKb
           text: t(lang, 'MSG_ADMIN_40'),
+          reply_markup: pinKb
+        });
         break;
-
-      case 'awaiting_announcement_pin':
-        state.isPinned = text === '??? (تثبيت)' || text === 'Yes (Pin)';
+      }
+      case 'awaiting_announcement_pin': {
+        state.isPinned = text === 'نعم (تثبيت)' || text === 'Yes (Pin)' || text === t(lang, 'MSG_ADMIN_38');
         await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
         break;
+      }
 
       case 'awaiting_edit_ann_text':
         const editLines = text.split('\n');
