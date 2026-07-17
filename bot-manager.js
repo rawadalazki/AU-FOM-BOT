@@ -1,4 +1,4 @@
-﻿const https = require('node:https');
+const https = require('node:https');
 const crypto = require('node:crypto');
 const monitor = require('./src/monitoring/monitor');
 const FormData = require('form-data');
@@ -2138,7 +2138,7 @@ case 'awaiting_inline_btn':
     const ar = [
       { command: 'start', description: 'البدء واسترجاع القائمة' },
       { command: 'changelanguage', description: 'تغيير لغة البوت' },
-      { command: 'back', description: 'العودة للقائمة السابقة' }
+      { command: 'back', description: 'العودة للقائمة السابقة' },
       { command: 'id', description: 'الحصول على معرف تيليجرام' },
       { command: 'admin', description: 'لوحة التحكم للمشرفين' }
     ];
