@@ -723,7 +723,6 @@ class TelegramBotService {
     else if (data.startsWith('del_sub_')) {
       const subId = data.replace('del_sub_', '');
       await dbHelper.setAdminState(chatId, { action: 'awaiting_del_sub_confirm', subId });
-      const { t } = require('./src/localization');
       const confirmKb = { keyboard: [[{ text: t(lang, 'BTN_YES_ICON') }, { text: t(lang, 'BTN_NO_ICON') }]], resize_keyboard: true };
       await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ARE_YOU_SURE'), reply_markup: confirmKb });
       await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id });
@@ -825,36 +824,36 @@ class TelegramBotService {
   // --- Admin State Machine ---
   getAdminActionFromText(text) {
     if (!text) return null;
-    const t = text.trim();
-    if (t === '📂 إدارة القوائم والملفات' || t === '📂 Manage Menus & Files') return 'manage_menus';
-    if (t === '📁 إدارة المجلدات' || t === '📁 Manage Folders') return 'manage_folders';
-    if (t === '📢 إرسال إعلان جديد' || t === '📢 Broadcast Announcement') return 'new_announcement';
-    if (t === '📢 إدارة الإعلانات' || t === '📢 Manage Announcements') return 'manage_announcements';
-    if (t === '📊 الإحصائيات' || t === '📊 Statistics') return 'statistics';
-    if (t === '⚙️ الإعدادات' || t === '⚙️ Settings') return 'core_settings';
-    const loc = require('./src/localization').t;
-    if (t === loc('ar', 'BTN_MANAGE_ADMINS') || t === loc('en', 'BTN_MANAGE_ADMINS')) return 'manage_admins';
-    if (t === loc('ar', 'BTN_MONITORING') || t === loc('en', 'BTN_MONITORING')) return 'admin_monitoring';
-    if (t === loc('ar', 'BTN_ADD_SUBADMIN') || t === loc('en', 'BTN_ADD_SUBADMIN')) return 'add_subadmin';
-    if (t === loc('ar', 'BTN_VIEW_SUBADMINS') || t === loc('en', 'BTN_VIEW_SUBADMINS')) return 'view_subadmins';
-    if (t === loc('ar', 'BTN_REMOVE_SUBADMIN') || t === loc('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
-    if (t === loc('ar', 'BTN_ENABLE_MONITORING') || t === loc('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
-    if (t === loc('ar', 'BTN_DISABLE_MONITORING') || t === loc('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
-    if (t === '🔙 رجوع' || t === '🔙 Back') return 'back';
-    if (t === '❌ إلغاء' || t === '❌ Cancel' || t === '❌ إغلاق' || t === '❌ Close') return 'close';
+    const trimmedText = text.trim();
+    if (trimmedText === '📂 إدارة القوائم والملفات' || trimmedText === '📂 Manage Menus & Files') return 'manage_menus';
+    if (trimmedText === '📁 إدارة المجلدات' || trimmedText === '📁 Manage Folders') return 'manage_folders';
+    if (trimmedText === '📢 إرسال إعلان جديد' || trimmedText === '📢 Broadcast Announcement') return 'new_announcement';
+    if (trimmedText === '📢 إدارة الإعلانات' || trimmedText === '📢 Manage Announcements') return 'manage_announcements';
+    if (trimmedText === '📊 الإحصائيات' || trimmedText === '📊 Statistics') return 'statistics';
+    if (trimmedText === '⚙️ الإعدادات' || trimmedText === '⚙️ Settings') return 'core_settings';
+    
+    if (trimmedText === t('ar', 'BTN_MANAGE_ADMINS') || trimmedText === t('en', 'BTN_MANAGE_ADMINS')) return 'manage_admins';
+    if (trimmedText === t('ar', 'BTN_MONITORING') || trimmedText === t('en', 'BTN_MONITORING')) return 'admin_monitoring';
+    if (trimmedText === t('ar', 'BTN_ADD_SUBADMIN') || trimmedText === t('en', 'BTN_ADD_SUBADMIN')) return 'add_subadmin';
+    if (trimmedText === t('ar', 'BTN_VIEW_SUBADMINS') || trimmedText === t('en', 'BTN_VIEW_SUBADMINS')) return 'view_subadmins';
+    if (trimmedText === t('ar', 'BTN_REMOVE_SUBADMIN') || trimmedText === t('en', 'BTN_REMOVE_SUBADMIN')) return 'remove_subadmin';
+    if (trimmedText === t('ar', 'BTN_ENABLE_MONITORING') || trimmedText === t('en', 'BTN_ENABLE_MONITORING')) return 'enable_monitoring';
+    if (trimmedText === t('ar', 'BTN_DISABLE_MONITORING') || trimmedText === t('en', 'BTN_DISABLE_MONITORING')) return 'disable_monitoring';
+    if (trimmedText === '🔙 رجوع' || trimmedText === '🔙 Back') return 'back';
+    if (trimmedText === '❌ إلغاء' || trimmedText === '❌ Cancel' || trimmedText === '❌ إغلاق' || trimmedText === '❌ Close') return 'close';
 
     // Settings Keyboard
-    if (t === '📝 الترحيب' || t === '📝 Welcome Msg') return 'cfg_welcome';
-    if (t === '⏸️ رسالة الإيقاف' || t === '⏸️ Maintenance Msg') return 'cfg_maintenance';
-    if (t === '❓ رسالة الزر الفارغ' || t === '❓ Empty Button Msg') return 'cfg_empty_btn';
-    if (t === '❓ رسالة نص غير معروف' || t === '❓ Unknown Text Msg') return 'cfg_unknown_text';
-    if (t === '⚠️ رسالة لا يوجد ملف' || t === '⚠️ No File Msg') return 'cfg_no_file';
-    if (t === '🏠 الرئيسية' || t === '🏠 Home') return 'cfg_home';
-    if (t === '⬅️ إلغاء الأمر' || t === '⬅️ Cancel Operation') return 'cancel';
+    if (trimmedText === '📝 الترحيب' || trimmedText === '📝 Welcome Msg') return 'cfg_welcome';
+    if (trimmedText === '⏸️ رسالة الإيقاف' || trimmedText === '⏸️ Maintenance Msg') return 'cfg_maintenance';
+    if (trimmedText === '❓ رسالة الزر الفارغ' || trimmedText === '❓ Empty Button Msg') return 'cfg_empty_btn';
+    if (trimmedText === '❓ رسالة نص غير معروف' || trimmedText === '❓ Unknown Text Msg') return 'cfg_unknown_text';
+    if (trimmedText === '⚠️ رسالة لا يوجد ملف' || trimmedText === '⚠️ No File Msg') return 'cfg_no_file';
+    if (trimmedText === '🏠 الرئيسية' || trimmedText === '🏠 Home') return 'cfg_home';
+    if (trimmedText === '⬅️ إلغاء الأمر' || trimmedText === '⬅️ Cancel Operation') return 'cancel';
 
     // Global
-    if (t === '🟢 نشاط مباشر' || t === '🟢 Live Activity') return 'live_activity'; // Though handled differently maybe
-
+    if (trimmedText === '🟢 نشاط مباشر' || trimmedText === '🟢 Live Activity') return 'live_activity'; // Though handled differently maybe
+    
     return null;
   }
 
@@ -1036,7 +1035,6 @@ class TelegramBotService {
         ];
         await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
       } else if (actionId === 'manage_admins') {
-        const { t } = require('./src/localization');
         const keyboard = [
           [{ text: t(lang, 'BTN_ADD_SUBADMIN') }],
           [{ text: t(lang, 'BTN_VIEW_SUBADMINS') }],
@@ -1046,7 +1044,6 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MANAGE_ADMINS') + ':', reply_markup: { keyboard, resize_keyboard: true } });
         await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
       } else if (actionId === 'admin_monitoring') {
-        const { t } = require('./src/localization');
         const keyboard = [
           [{ text: t(lang, 'BTN_ENABLE_MONITORING') }],
           [{ text: t(lang, 'BTN_DISABLE_MONITORING') }],
@@ -1091,7 +1088,6 @@ class TelegramBotService {
     if (handledByAdminNav) return;
 
     // --- NORMAL AWAITING STATES ---
-    const { t } = require('./src/localization');
     if (state.action === 'admin_manage_admins_menu') {
       if (actionId === 'add_subadmin') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_subadmin_id' });
@@ -1146,7 +1142,6 @@ class TelegramBotService {
 
     switch (state.action) {
       case 'awaiting_subadmin_id':
-        const { t } = require('./src/localization');
         if (text === t(lang, 'BTN_CANCEL_OP')) {
           await dbHelper.setAdminState(chatId, { action: 'admin_manage_admins_menu' });
           const keyboard = [
@@ -1276,7 +1271,6 @@ class TelegramBotService {
         break;
 
       case 'awaiting_del_sub_confirm':
-        const { t } = require('./src/localization');
         if (text === t(lang, 'BTN_YES_ICON')) {
            const faculty = await dbHelper.getFacultyById(this.facultyId);
            const adminIds = faculty.admin_chat_id ? faculty.admin_chat_id.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1925,7 +1919,6 @@ class TelegramBotService {
     ];
     
     if (isCentralAdmin) {
-      const { t } = require('./src/localization');
       keyboard.push([
         { text: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings' },
         { text: t(lang, 'BTN_MANAGE_ADMINS') }
