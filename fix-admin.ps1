@@ -1,0 +1,81 @@
+$content = Get-Content -Path bot-manager.js -Raw -Encoding UTF8
+
+$search1 = "if (match('BTN_CANCEL') || trimmedText === '/cancel') return 'cancel';"
+$replace1 = "if (match('BTN_CANCEL') || match('BTN_CANCEL_OP') || trimmedText === '/cancel' || trimmedText === '⭐ إلغاء العملية' || trimmedText === '❌ إلغاء العملية') return 'cancel';"
+
+$search2 = @"
+    if (actionId === 'back') {
+      if (state.action === 'awaiting_new_admin_id' || state.action === 'awaiting_remove_admin_id') {
+        const targetRole = state.targetRole || 'SUB_ADMIN';
+        const isDeputy = targetRole === 'DEPUTY_ADMIN';
+        const roleTitle = isDeputy ? (t(lang, 'MSG_ADMIN_11')) : (t(lang, 'MSG_ADMIN_12'));
+        const keyboard = [
+          [{ text: t(lang, 'BTN_ADD') }],
+          [{ text: t(lang, 'BTN_VIEW') }],
+          [{ text: t(lang, 'BTN_REMOVE') }],
+          [{ text: t(lang, 'BTN_BACK') }]
+        ];
+        await dbHelper.setAdminState(chatId, { action: isDeputy ? 'admin_manage_deputies_menu' : 'admin_manage_admins_menu' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: roleTitle, reply_markup: { keyboard, resize_keyboard: true } });
+        return;
+      }
+"@
+
+$replace2 = @"
+    if (actionId === 'back') {
+      if (state.action === 'awaiting_new_admin_id' || state.action === 'awaiting_remove_admin_id' || state.action === 'awaiting_del_sub_confirm') {
+        let isDeputy = false;
+        if (state.action === 'awaiting_del_sub_confirm' && state.subId) {
+            const delRole = await dbHelper.getAdminRole(this.facultyId, state.subId);
+            isDeputy = (delRole === 'DEPUTY_ADMIN');
+        } else {
+            const targetRole = state.targetRole || 'SUB_ADMIN';
+            isDeputy = (targetRole === 'DEPUTY_ADMIN');
+        }
+        const roleTitle = isDeputy ? (t(lang, 'MSG_ADMIN_11')) : (t(lang, 'MSG_ADMIN_12'));
+        const keyboard = [
+          [{ text: t(lang, 'BTN_ADD') }],
+          [{ text: t(lang, 'BTN_VIEW') }],
+          [{ text: t(lang, 'BTN_REMOVE') }],
+          [{ text: t(lang, 'BTN_BACK') }]
+        ];
+        await dbHelper.setAdminState(chatId, { action: isDeputy ? 'admin_manage_deputies_menu' : 'admin_manage_admins_menu' });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: roleTitle, reply_markup: { keyboard, resize_keyboard: true } });
+        return;
+      }
+"@
+
+$search3 = @"
+      case 'awaiting_announcement_pin': {
+        if (text === t(lang, 'MSG_ADMIN_2') || text === '? ????? ???????') {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30') });
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+        }
+        state.isPinned = text === t(lang, 'MSG_ADMIN_38');
+        await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
+        break;
+      }
+"@
+
+$replace3 = @"
+      case 'awaiting_announcement_pin': {
+        if (text === t(lang, 'MSG_ADMIN_2') || text === '⭐ إلغاء العملية' || text === '❌ إلغاء العملية' || actionId === 'cancel') {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_30') });
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
+          await this.sendAdminHome(chatId, lang);
+          return;
+        }
+        state.isPinned = (text === t(lang, 'MSG_ADMIN_38') || text === 'نعم (تثبيت)');
+        await this.handleAdminAnnouncementBroadcast(chatId, state, lang);
+        break;
+      }
+"@
+
+$content = $content.Replace($search1, $replace1)
+$content = $content.Replace($search2, $replace2)
+$content = $content.Replace($search3, $replace3)
+
+Set-Content -Path bot-manager.js -Value $content -Encoding UTF8
+Write-Host "Fixes applied successfully"

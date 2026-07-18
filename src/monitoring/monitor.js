@@ -1,4 +1,4 @@
-﻿const dbHelper = require('../../database');
+const dbHelper = require('../../database');
 
 class Monitor {
   constructor() {}
@@ -8,6 +8,18 @@ class Monitor {
       this.botManager = require('../../bot-manager');
     }
     return this.botManager;
+  }
+
+  onTelegramError(botManager, res) {
+    // console.log('[Monitor] Telegram Error:', res);
+  }
+
+  onUserBlocked(botManager, data) {
+    // console.log('[Monitor] User Blocked:', data);
+  }
+
+  onNewUser(botManager, user) {
+    // console.log('[Monitor] New User:', user);
   }
 
   async onIncomingUpdate(facultyId, update) {

@@ -268,6 +268,7 @@ class AdminMenuNavigation {
 
       // 2. Navigation Actions
       if (text === t('ar', 'BTN_CFG_HOME') || text === t('en', 'BTN_CFG_HOME')) {
+        await dbHelper.setAdminState(chatId, { action: 'admin_home' });
         await botCtx.sendAdminHome(chatId, lang);
         return true;
       }
@@ -284,9 +285,11 @@ class AdminMenuNavigation {
             await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: currentMenu.parent_id, viewingMenuDetailsId: null });
             await this.sendAdminReplyMenus(botCtx, chatId, currentMenu.parent_id, lang);
           } else {
+            await dbHelper.setAdminState(chatId, { action: 'admin_home' });
             await botCtx.sendAdminHome(chatId, lang);
           }
         } else {
+          await dbHelper.setAdminState(chatId, { action: 'admin_home' });
           await botCtx.sendAdminHome(chatId, lang);
         }
         return true;
