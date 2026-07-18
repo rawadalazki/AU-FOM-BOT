@@ -15,9 +15,9 @@ const AdminRoutes = {
 
   // Statistics & Monitoring
   'statistics': { roles: ['OWNER', 'DEPUTY_ADMIN'] },
-  'admin_monitoring': { roles: ['OWNER'] },
-  'enable_monitoring': { roles: ['OWNER'] },
-  'disable_monitoring': { roles: ['OWNER'] },
+  'admin_monitoring': { roles: ['OWNER', 'DEPUTY_ADMIN'] },
+  'enable_monitoring': { roles: ['OWNER', 'DEPUTY_ADMIN'] },
+  'disable_monitoring': { roles: ['OWNER', 'DEPUTY_ADMIN'] },
   
   // Settings & Configuration
   'core_settings': { roles: ['OWNER'] },

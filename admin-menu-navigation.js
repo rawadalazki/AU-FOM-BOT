@@ -285,8 +285,8 @@ class AdminMenuNavigation {
             await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: currentMenu.parent_id, viewingMenuDetailsId: null });
             await this.sendAdminReplyMenus(botCtx, chatId, currentMenu.parent_id, lang);
           } else {
-            await dbHelper.setAdminState(chatId, { action: 'admin_home' });
-            await botCtx.sendAdminHome(chatId, lang);
+            await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: null, viewingMenuDetailsId: null });
+            await this.sendAdminReplyMenus(botCtx, chatId, null, lang);
           }
         } else {
           await dbHelper.setAdminState(chatId, { action: 'admin_home' });
