@@ -1,45 +1,95 @@
-STATSARBLOCK
-        const statsAr = `📊 **إحصائيات البوت الشاملة:**\n\n` +
-          `👥 **المشتركون**\n` +
-          `- إجمالي المشتركين: ${totalUsers}\n` +
-          `- المشتركون الجدد (أسبوع): ${weeklySubscribers}\n` +
-          `- المشتركون الجدد (شهر): ${monthlySubscribers}\n\n` +
-          `📈 **النشاط**\n` +
-          `- نشط اليوم: ${dailyActive}\n` +
-          `- نشط هذا الأسبوع: ${weeklyActive}\n` +
-          `- نشط هذا الشهر: ${monthlyActive}\n\n` +
-          `🚀 **الأداء والتفاعل**\n` +
-          `- نسبة الوصول (شهرياً): ${reachPercentage}%\n` +
-          `- إجمالي الطلبات/التفاعلات: ${totalRequests}\n` +
-          `- زمن الاستجابة (متوسط): ${avgLatency}ms\n\n` +
-          `🗂️ **المحتوى**\n` +
-          `- عدد الأزرار المتاحة: ${totalButtons}\n` +
-          `- عدد الملفات المرفوعة: ${totalFiles}\n` +
-          `- الزر الأكثر طلباً: ${topButtonStr}\n\n` +
-          `🛑 **الحظر**\n` +
-          `- عدد من قام بحظر أو حذف البوت: ${blockedUsers}`;
+DEL_BTN
+      case 'awaiting_del_btn_confirm': {
+        const menu = await dbHelper.getMenuById(state.menuId);
+        const parentId = menu ? menu.parent_id : null;
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+
+        if (text === t(lang, 'MSG_ADMIN_4')) {
+          if (menu) {
+            await dbHelper.deleteMenu(state.menuId);
+          }
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_48'), reply_markup: { remove_keyboard: true } });
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: null });
+          await AdminMenuNavigation.sendAdminReplyMenus(this, chatId, parentId, lang);
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
+          await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+          await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        }
+        break;
+      }
 END
-LINE748
-      await this.apiCall('answerCallbackQuery', { callback_query_id: callbackQuery.id, text: lang === 'ar' ? 'تم إلغاء تثبيت الإعلان لدى الجميع.' : 'Announcement unpinned.', show_alert: true });
+DEL_CONTENT
+      case 'awaiting_del_content_confirm': {
+        const m = await dbHelper.getMenuById(state.menuId);
+        const parentId = m ? m.parent_id : null;
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+
+        if (text === t(lang, 'BTN_YES_DELETE_ICON')) {
+          await dbHelper.runQuery('DELETE FROM menu_files WHERE menu_id = $1', [state.menuId]);
+          await dbHelper.runQuery('UPDATE menus SET reply_content_ar = NULL, reply_content_en = NULL, inline_buttons = NULL WHERE id = $1', [state.menuId]);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_49'), reply_markup: { remove_keyboard: true } });
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED') });
+        }
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+        await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        break;
+      }
 END
-LINE1036
-           topButtonStr = `${tm.title_ar || tm.title_en} (${tm.click_count})`;
+DEL_FILE
+      case 'awaiting_del_file_confirm': {
+        const mFile = await dbHelper.getMenuById(state.menuId);
+        const parentId = mFile ? mFile.parent_id : null;
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+
+        if (text === t(lang, 'BTN_YES_DELETE_ICON')) {
+          await dbHelper.runQuery('DELETE FROM menu_files WHERE id = $1', [state.fileId]);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_50'), reply_markup: { remove_keyboard: true } });
+        } else {
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_DELETION_CANCELLED'), reply_markup: { remove_keyboard: true } });
+        }
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+        await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        break;
+      }
 END
-LINE1079
-          const cfgText = (lang === 'ar' ? 'الإعدادات\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;
+RENAME_TITLE
+      case 'awaiting_rename_title_ar': {
+        const rTitleEn = await this.translateArToEn(text);
+        const rMenu = await dbHelper.getMenuById(state.menuId);
+        const parentId = rMenu ? rMenu.parent_id : null;
+        await dbHelper.updateMenu(state.menuId, rMenu.parent_id, rTitleEn, text, rMenu.reply_type, rMenu.reply_content_en, rMenu.reply_content_ar, rMenu.file_name, rMenu.telegram_file_id, rMenu.mime_type, rMenu.file_size, rMenu.sort_order, rMenu.row_index);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_52') });
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+        await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        break;
+      }
 END
-LINE1113
-      if (text.includes('نشاط مباشر') || text.includes('Live Activity')) {
+EDIT_SUBMENU
+      case 'awaiting_edit_submenu_ar': {
+        const rSubEn = await this.translateArToEn(text);
+        const rMenu2 = await dbHelper.getMenuById(state.menuId);
+        const parentId = rMenu2 ? rMenu2.parent_id : null;
+        await dbHelper.updateMenu(state.menuId, rMenu2.parent_id, rMenu2.title_en, rMenu2.title_ar, rMenu2.reply_type, rSubEn, text, rMenu2.file_name, rMenu2.telegram_file_id, rMenu2.mime_type, rMenu2.file_size, rMenu2.sort_order, rMenu2.row_index);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_53') });
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+        await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        break;
+      }
 END
-LINE1252
-        if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35')) {
-END
-LINE1278
-        state.isPinned = text === t(lang, 'MSG_ADMIN_38');
-END
-LINE1307
-               const txt = `📢 *${msgTitle}*\n\n${msgContent}\n\n${updatedAnn.is_pinned ? '📌 (Pinned)' : ''}`;
-END
-LINE1816
-      await this.apiCall('sendMessage', { chat_id: chatId, text: '❌ Error: ' + e.message });
+EDIT_TEXT
+      case 'awaiting_edit_text_ar': {
+        const textEn = await this.translateArToEn(text);
+        const m1 = await dbHelper.getMenuById(state.menuId);
+        const parentId = m1 ? m1.parent_id : null;
+        await dbHelper.updateMenu(state.menuId, m1.parent_id, m1.title_en, m1.title_ar, 'text', textEn, text, m1.file_name, m1.telegram_file_id, m1.mime_type, m1.file_size, m1.sort_order, m1.row_index);
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_54') });
+        const AdminMenuNavigation = require('./admin-menu-navigation');
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: parentId, viewingMenuDetailsId: state.menuId });
+        await AdminMenuNavigation.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        break;
+      }
 END
