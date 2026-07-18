@@ -285,7 +285,7 @@ class TelegramBotService {
     }
 
     if (isNewUserRegistration && faculty.notify_new_user) {
-      const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
+      const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER' || a.role === 'DEPUTY_ADMIN').map(a => a.chat_id);
       const notifyText = `👤 <b>مستخدم حديٯ حدخل  البوت</b>\n` +
                          `الاسم: ${message.from.first_name || 'غير متوفر'}\n` +
                          `Username: ${message.from.username ? '@' + message.from.username : 'غدر متوفر'}\n` +
@@ -315,7 +315,7 @@ class TelegramBotService {
     }
 
     if (faculty.forward_user_messages && !isAdmin) {
-      const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
+      const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER' || a.role === 'DEPUTY_ADMIN').map(a => a.chat_id);
       for (const adminId of adminIds) {
         if (adminId) {
           const userStr = message.from.username ? `@${message.from.username}` : message.from.first_name;
@@ -598,7 +598,7 @@ class TelegramBotService {
       const adminRole = await dbHelper.getAdminRole(faculty.id, chatId);
     const isAdmin = !!adminRole;
       if (faculty && faculty.forward_user_messages && !isAdmin) {
-        const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
+        const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER' || a.role === 'DEPUTY_ADMIN').map(a => a.chat_id);
         for (const adminId of adminIds) {
           if (adminId) {
             const userStr = callbackQuery.from.username ? `@${callbackQuery.from.username}` : callbackQuery.from.first_name;
@@ -650,7 +650,7 @@ class TelegramBotService {
         });
       }
       if (isNewUserRegistration && faculty && faculty.notify_new_user) {
-        const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER').map(a => a.chat_id);
+        const adminIds = (await dbHelper.getAdminsByFaculty(faculty.id)).filter(a => a.role === 'OWNER' || a.role === 'DEPUTY_ADMIN').map(a => a.chat_id);
         const notifyText = `👤 <b>مستخدم جديد دخل البوت</b>\n` +
                            `الاسم: ${callbackQuery.from.first_name || 'غير متوفر'}\n` +
                            `Username: ${callbackQuery.from.username ? '@' + callbackQuery.from.username : 'غير متوفر'}\n` +
@@ -939,6 +939,10 @@ class TelegramBotService {
             const adminNavRep = require('./admin-menu-navigation');
             await adminNavRep.sendAdminReplyMenus(this, chatId, state.currentMenuId, lang);
          }
+         return;
+      } else if (state.action && state.action.startsWith('awaiting_cfg_')) {
+         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
+         await this._sendAdminConfigMenu(chatId, lang);
          return;
       }
       await dbHelper.setAdminState(chatId, { action: 'admin_home' });
@@ -1642,9 +1646,9 @@ class TelegramBotService {
         const fac2 = await dbHelper.getFacultyById(this.facultyId);
         const welEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token, fac2.admin_chat_id, welEn, text, fac2.bot_enabled, fac2.disabled_message_en, fac2.disabled_message_ar, fac2.telegram_api_server, fac2.empty_msg_en, fac2.empty_msg_ar, fac2.unknown_msg_en, fac2.unknown_msg_ar, fac2.no_file_msg_en, fac2.no_file_msg_ar);
-        await dbHelper.deleteAdminState(chatId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_65') });
-        await this.sendAdminHome(chatId, lang);
+        await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
 
@@ -1652,9 +1656,9 @@ class TelegramBotService {
         const fac1 = await dbHelper.getFacultyById(this.facultyId);
         const disEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, disEn, text, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar);
-        await dbHelper.deleteAdminState(chatId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
-        await this.sendAdminHome(chatId, lang);
+        await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
 
@@ -1662,9 +1666,9 @@ class TelegramBotService {
         const fac3 = await dbHelper.getFacultyById(this.facultyId);
         const empEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token, fac3.admin_chat_id, fac3.welcome_en, fac3.welcome_ar, fac3.bot_enabled, fac3.disabled_message_en, fac3.disabled_message_ar, fac3.telegram_api_server, empEn, text, fac3.unknown_msg_en, fac3.unknown_msg_ar, fac3.no_file_msg_en, fac3.no_file_msg_ar);
-        await dbHelper.deleteAdminState(chatId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_67') });
-        await this.sendAdminHome(chatId, lang);
+        await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
 
@@ -1672,9 +1676,9 @@ class TelegramBotService {
         const fac4 = await dbHelper.getFacultyById(this.facultyId);
         const unkEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token, fac4.admin_chat_id, fac4.welcome_en, fac4.welcome_ar, fac4.bot_enabled, fac4.disabled_message_en, fac4.disabled_message_ar, fac4.telegram_api_server, fac4.empty_msg_en, fac4.empty_msg_ar, unkEn, text, fac4.no_file_msg_en, fac4.no_file_msg_ar);
-        await dbHelper.deleteAdminState(chatId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_68') });
-        await this.sendAdminHome(chatId, lang);
+        await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
 
@@ -1682,9 +1686,9 @@ class TelegramBotService {
         const fac5 = await dbHelper.getFacultyById(this.facultyId);
         const nofEn = await this.translateArToEn(text);
         await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token, fac5.admin_chat_id, fac5.welcome_en, fac5.welcome_ar, fac5.bot_enabled, fac5.disabled_message_en, fac5.disabled_message_ar, fac5.telegram_api_server, fac5.empty_msg_en, fac5.empty_msg_ar, fac5.unknown_msg_en, fac5.unknown_msg_ar, nofEn, text);
-        await dbHelper.deleteAdminState(chatId);
+        await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_69') });
-        await this.sendAdminHome(chatId, lang);
+        await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
 
@@ -2481,7 +2485,7 @@ class TelegramBotService {
   async _notifyAdminFileError(fileName, errorDesc) {
     try {
       const admins = await dbHelper.getAdminsByFaculty(this.facultyId);
-      const owner = admins.find(a => a.role === 'OWNER');
+      const owner = admins.find(a => a.role === 'OWNER' || a.role === 'DEPUTY_ADMIN');
       if (owner) {
         await this.apiCall('sendMessage', {
           chat_id: owner.chat_id,
