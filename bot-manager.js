@@ -321,9 +321,14 @@ class TelegramBotService {
           const userStr = message.from.username ? `@${message.from.username}` : message.from.first_name;
           await this.apiCall('sendMessage', { 
             chat_id: adminId, 
-            text: `📝 <b>رسالة جديدة</b>\n\n👤 المرسل: ${this.escapeHTML(userStr)} (ID: ${message.from.id})\n💬 النص: ${this.escapeHTML(text)}`,
+            text: `📝 <b>رسالة جديدة</b>\n\n👤 المرسل: ${this.escapeHTML(userStr)} (ID: <code>${message.from.id}</code>)`,
             parse_mode: 'HTML'
-          });
+          }).catch(() => {});
+          await this.apiCall('forwardMessage', {
+            chat_id: adminId,
+            from_chat_id: message.chat.id,
+            message_id: message.message_id
+          }).catch(() => {});
         }
       }
     }
