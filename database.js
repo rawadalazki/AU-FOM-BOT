@@ -534,7 +534,7 @@ async function updateAdminChatId(facultyId, newAdminChatIds) {
 }
 
 async function updateMonitoringEnabled(id, enabled) {
-  await pool.query('UPDATE faculties SET monitoring_enabled = $1 WHERE id = $2', [enabled, id]);
+  await pool.query('UPDATE faculties SET monitoring_enabled = $1, forward_user_messages = $1 WHERE id = $2', [enabled, id]);
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
 }
@@ -921,7 +921,9 @@ async function toggleMenuStatus(menuId, field, value) {
 }
 
 async function toggleFacultyForwarding(facultyId, value) {
-  await runQuery(`UPDATE faculties SET forward_user_messages = $1 WHERE id = $2`, [value, facultyId]);
+  await runQuery(`UPDATE faculties SET forward_user_messages = $1, monitoring_enabled = $1 WHERE id = $2`, [value, facultyId]);
+  await cache.del('faculties:all');
+  await cache.del(`faculty:id:${facultyId}`);
 }
 
 async function updateUserActivity(facultyId, platform, chatId) {
