@@ -111,10 +111,24 @@ async function close() {
   }
 }
 
+/**
+ * Flush all keys from the cache.
+ */
+async function flush() {
+  if (!isConnected || !client) return;
+  try {
+    await client.flushAll();
+    logger.info('[Cache] Flushed all keys');
+  } catch (err) {
+    logger.warn({ err }, '[Cache] Error flushing cache');
+  }
+}
+
 module.exports = {
   get,
   set,
   del,
+  flush,
   ping,
   close,
   isActive: () => isConnected
