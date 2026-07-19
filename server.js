@@ -409,7 +409,10 @@ const server = http.createServer(async (req, res) => {
     // Protected Super Admin Routes
     const adminUser = await auth.authenticateRequest(req);
     if (!adminUser) return sendJson(res, 401, { error: 'Unauthorized' });
-    if (!auth.authorize(adminUser, 'manage_admins')) return sendJson(res, 403, { error: 'Forbidden' });
+
+    if (pathname.startsWith('/api/superadmin/users')) {
+      if (!auth.authorize(adminUser, 'manage_admins')) return sendJson(res, 403, { error: 'Forbidden' });
+    }
 
     if (pathname === '/api/superadmin/users' && method === 'GET') {
       const users = await dbHelper.getAllAdmins();
@@ -516,6 +519,94 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { ok: true });
       } catch(e) {
         return sendJson(res, 500, { error: e.message });
+      }
+    }
+
+    // --- Backups API ---
+    if (pathname.startsWith('/api/superadmin/backups')) {
+      const backupMod = require('./backup');
+      const bs = backupMod.backupService;
+
+      if (pathname === '/api/superadmin/backups' && method === 'GET') {
+        const list = await bs.listBackups();
+        const nextMs = bs.getNextScheduledBackupMs();
+        return sendJson(res, 200, {
+          isConfigured: bs.isConfigured(),
+          nextScheduledMs: nextMs,
+          backups: list
+        });
+      }
+
+      if (pathname === '/api/superadmin/backups/create' && method === 'POST') {
+        const result = await bs.createBackup('manual');
+        if (result.success) {
+          await dbHelper.logAdminAction(adminUser.id, 'create_backup', 'backups', result.key, await auth.getClientIp(req));
+          return sendJson(res, 200, result);
+        }
+        return sendJson(res, 500, result);
+      }
+
+      if (pathname === '/api/superadmin/backups/restore' && method === 'POST') {
+        const body = await parseJsonBody(req);
+        if (!body.key) return sendJson(res, 400, { error: 'Missing backup key' });
+        
+        const list = await bs.listBackups();
+        if (!list.some(b => b.key === body.key)) return sendJson(res, 404, { error: 'Backup not found' });
+
+        const result = await bs.restoreBackup(body.key);
+        if (result.success) {
+          await dbHelper.logAdminAction(adminUser.id, 'restore_backup', 'backups', body.key, await auth.getClientIp(req));
+          return sendJson(res, 200, result);
+        }
+        return sendJson(res, 500, result);
+      }
+
+      // Owner & Deputy only for Delete and Download
+      if (adminUser.role !== 'OWNER' && !adminUser.is_deputy_owner) {
+        return sendJson(res, 403, { error: 'Forbidden: Requires OWNER or DEPUTY Owner' });
+      }
+
+      const backupDeleteMatch = pathname.match(/^\/api\/superadmin\/backups$/);
+      if (backupDeleteMatch && method === 'DELETE') {
+        const key = parsedUrl.searchParams.get('key');
+        if (!key) return sendJson(res, 400, { error: 'Missing key parameter' });
+        
+        const list = await bs.listBackups();
+        if (!list.some(b => b.key === key)) return sendJson(res, 404, { error: 'Backup not found' });
+
+        const result = await bs.deleteBackup(key);
+        if (result.success) {
+          await dbHelper.logAdminAction(adminUser.id, 'delete_backup', 'backups', key, await auth.getClientIp(req));
+          return sendJson(res, 200, result);
+        }
+        return sendJson(res, 500, result);
+      }
+
+      if (pathname === '/api/superadmin/backups/download' && method === 'GET') {
+        const key = parsedUrl.searchParams.get('key');
+        if (!key) return sendJson(res, 400, { error: 'Missing key parameter' });
+        
+        const list = await bs.listBackups();
+        if (!list.some(b => b.key === key)) return sendJson(res, 404, { error: 'Backup not found' });
+
+        try {
+          const storage = require('./src/backup/backup-storage');
+          const buffer = await storage.download(key);
+          const filename = key.split('/').pop();
+          
+          await dbHelper.logAdminAction(adminUser.id, 'download_backup', 'backups', key, await auth.getClientIp(req));
+
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Content-Length': buffer.length
+          });
+          res.end(buffer);
+          return;
+        } catch (err) {
+          logger.error({ err, key }, 'Failed to download backup');
+          return sendJson(res, 500, { error: 'Failed to download backup' });
+        }
       }
     }
 
@@ -1465,10 +1556,6 @@ async function main() {
     
     // 5. Start HTTP server
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`[DB INIT] Core tables: ${dbHelper.initStatus.coreOk ? 'OK' : 'FAILED'}`);
-      console.log(`[DB INIT] Optional tables: ${dbHelper.initStatus.optionalFailed ? 'PARTIAL' : 'OK'}`);
-      console.log(`[DB INIT] Startup completed successfully`);
-      
       logger.info(`[Server] FOMbot server listening on port ${PORT}`);
       console.log('Server Ready');
     });

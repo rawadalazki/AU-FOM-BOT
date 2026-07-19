@@ -86,6 +86,7 @@ async function upload(key, buffer) {
  */
 async function download(key) {
   if (!s3Client) throw new Error('[Backup Storage] S3 not configured');
+  if (!key.startsWith(BACKUP_PREFIX)) throw new Error('Invalid backup key prefix');
 
   const response = await s3Client.send(new GetObjectCommand({
     Bucket: bucketName,
@@ -143,6 +144,7 @@ async function list() {
  */
 async function remove(key) {
   if (!s3Client) throw new Error('[Backup Storage] S3 not configured');
+  if (!key.startsWith(BACKUP_PREFIX)) throw new Error('Invalid backup key prefix');
 
   await s3Client.send(new DeleteObjectCommand({
     Bucket: bucketName,

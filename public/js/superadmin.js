@@ -299,3 +299,193 @@ async function deleteAdmin() {
     btn.disabled = false;
   }
 }
+
+// --- BACKUPS LOGIC ---
+document.addEventListener('DOMContentLoaded', () => {
+  const backupsTabBtn = document.getElementById('backups-tab');
+  if (backupsTabBtn) backupsTabBtn.addEventListener('click', loadBackups);
+  
+  const refreshBtn = document.getElementById('refreshBackupsBtn');
+  if (refreshBtn) refreshBtn.addEventListener('click', loadBackups);
+  
+  const createBtn = document.getElementById('createBackupBtn');
+  if (createBtn) createBtn.addEventListener('click', createBackup);
+  
+  const restoreConfirm = document.getElementById('restoreConfirmInput');
+  if (restoreConfirm) {
+    restoreConfirm.addEventListener('input', (e) => {
+      document.getElementById('confirmRestoreBtn').disabled = e.target.value !== 'RESTORE';
+    });
+  }
+  
+  const confirmResBtn = document.getElementById('confirmRestoreBtn');
+  if (confirmResBtn) confirmResBtn.addEventListener('click', executeRestore);
+  
+  const confirmDelBtn = document.getElementById('confirmDeleteBackupBtn');
+  if (confirmDelBtn) confirmDelBtn.addEventListener('click', executeDeleteBackup);
+});
+
+async function loadBackups() {
+  try {
+    const res = await fetch('/api/superadmin/backups');
+    if (!res.ok) throw new Error('Failed to load backups');
+    const data = await res.json();
+    
+    // Update header
+    const statusBadge = document.getElementById('backupConfiguredStatus');
+    if (data.isConfigured) {
+      statusBadge.textContent = 'Storage: Configured';
+      statusBadge.className = 'badge bg-success me-3';
+    } else {
+      statusBadge.textContent = 'Storage: Not Configured';
+      statusBadge.className = 'badge bg-danger me-3';
+    }
+    
+    const nextRun = document.getElementById('backupNextRun');
+    if (data.nextScheduledMs) {
+      nextRun.textContent = 'Next auto backup: ' + new Date(data.nextScheduledMs).toLocaleString();
+    } else {
+      nextRun.textContent = 'Auto backup disabled';
+    }
+    
+    const tbody = document.getElementById('backupsTableBody');
+    tbody.innerHTML = '';
+    
+    if (!data.backups || data.backups.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No backups found</td></tr>';
+      return;
+    }
+    
+    // Determine permissions
+    let canDownloadDelete = currentUser.role === 'OWNER' || currentUser.is_deputy_owner;
+    
+    data.backups.forEach(b => {
+      const isAuto = b.key.includes('auto') || !b.key.includes('manual');
+      const tr = document.createElement('tr');
+      
+      let actionsHtml = `
+        <button class="btn btn-sm btn-outline-danger btn-restore-backup" data-key="${b.key}" data-date="${new Date(b.createdAt).toLocaleString()}">
+          <i class="bi bi-arrow-counterclockwise"></i> Restore
+        </button>
+      `;
+      
+      if (canDownloadDelete) {
+        actionsHtml += `
+          <a href="/api/superadmin/backups/download?key=${encodeURIComponent(b.key)}" class="btn btn-sm btn-outline-primary ms-1" target="_blank" title="Download">
+            <i class="bi bi-download"></i>
+          </a>
+          <button class="btn btn-sm btn-outline-secondary btn-delete-backup ms-1" data-key="${b.key}" data-date="${new Date(b.createdAt).toLocaleString()}" title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        `;
+      }
+      
+      tr.innerHTML = `
+        <td>${new Date(b.createdAt).toLocaleString()}</td>
+        <td>${isAuto ? '<span class="badge bg-info text-dark">Auto</span>' : '<span class="badge bg-secondary">Manual</span>'}</td>
+        <td>${b.sizeHuman}</td>
+        <td class="text-end">${actionsHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    
+    // Attach listeners
+    document.querySelectorAll('.btn-restore-backup').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const key = e.currentTarget.getAttribute('data-key');
+        const date = e.currentTarget.getAttribute('data-date');
+        document.getElementById('restoreBackupKey').value = key;
+        document.getElementById('restoreBackupDateDisplay').textContent = date;
+        document.getElementById('restoreConfirmInput').value = '';
+        document.getElementById('confirmRestoreBtn').disabled = true;
+        document.getElementById('restoreBackupError').classList.add('d-none');
+        new bootstrap.Modal(document.getElementById('restoreBackupModal')).show();
+      });
+    });
+    
+    document.querySelectorAll('.btn-delete-backup').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const key = e.currentTarget.getAttribute('data-key');
+        const date = e.currentTarget.getAttribute('data-date');
+        document.getElementById('deleteBackupKey').value = key;
+        document.getElementById('deleteBackupDateDisplay').textContent = date;
+        document.getElementById('deleteBackupError').classList.add('d-none');
+        new bootstrap.Modal(document.getElementById('deleteBackupModal')).show();
+      });
+    });
+    
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function createBackup() {
+  const btn = document.getElementById('createBackupBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...';
+  
+  try {
+    const res = await fetch('/api/superadmin/backups/create', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create backup');
+    alert('Backup created successfully!');
+    loadBackups();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Manual Backup';
+  }
+}
+
+async function executeRestore() {
+  const key = document.getElementById('restoreBackupKey').value;
+  const btn = document.getElementById('confirmRestoreBtn');
+  const errDiv = document.getElementById('restoreBackupError');
+  
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
+  errDiv.classList.add('d-none');
+  
+  try {
+    const res = await fetch('/api/superadmin/backups/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Restore failed');
+    
+    alert('Database restored successfully! All active sessions have been terminated. You will now be redirected to login.');
+    window.location.href = '/login.html';
+  } catch(e) {
+    errDiv.textContent = e.message;
+    errDiv.classList.remove('d-none');
+    btn.disabled = false;
+    btn.textContent = 'Restore Database';
+  }
+}
+
+async function executeDeleteBackup() {
+  const key = document.getElementById('deleteBackupKey').value;
+  const btn = document.getElementById('confirmDeleteBackupBtn');
+  const errDiv = document.getElementById('deleteBackupError');
+  
+  btn.disabled = true;
+  errDiv.classList.add('d-none');
+  
+  try {
+    const res = await fetch('/api/superadmin/backups?key=' + encodeURIComponent(key), { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete backup');
+    
+    bootstrap.Modal.getInstance(document.getElementById('deleteBackupModal')).hide();
+    loadBackups();
+  } catch(e) {
+    errDiv.textContent = e.message;
+    errDiv.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+  }
+}

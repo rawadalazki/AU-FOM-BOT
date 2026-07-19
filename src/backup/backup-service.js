@@ -686,6 +686,20 @@ class BackupService {
   }
 
   /**
+   * Get the timestamp of the next scheduled backup (or null if disabled).
+   */
+  getNextScheduledBackupMs() {
+    if (!this._timerId) return null;
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(3, 0, 0, 0); // 03:00 UTC daily
+    if (now >= next) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+    return next.getTime();
+  }
+
+  /**
    * Check if the backup system is fully configured and ready.
    */
   isConfigured() {

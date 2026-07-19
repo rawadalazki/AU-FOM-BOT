@@ -46,7 +46,6 @@ async function safeInitQuery(queryText, params = [], { retries = 5, delay = 500,
         query_timeout: 15000
       };
       const res = await pool.query(queryObj);
-      logger.info(`[DB INIT] Success`);
       return res;
     } catch (err) {
       const isTransient = 
@@ -396,6 +395,10 @@ async function _initDb() {
   await seedAdminData();
 
   initStatus.coreOk = true;
+
+  logger.info(`[DB INIT] Core tables: ${initStatus.coreOk ? 'OK' : 'FAILED'}`);
+  logger.info(`[DB INIT] Optional tables: ${initStatus.optionalFailed ? 'PARTIAL' : 'OK'}`);
+  logger.info(`[DB INIT] Startup completed successfully`);
 }
 
 async function seedData() {
