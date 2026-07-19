@@ -304,12 +304,18 @@ class TelegramBotService {
     const isAdmin = !!adminRole;
     if (faculty.bot_enabled === 0 && !isAdmin) {
       const disabledMsg = user.language === 'ar' 
-        ? (faculty.disabled_message_ar || 'عذراٌ، البوت متوقف حالياٌ لإجراء بعض التحديث٧ت.') 
+        ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً للصيانة والتحديثات.') 
         : (faculty.disabled_message_en || 'Sorry, the bot is temporarily offline for maintenance.');
       
-      const res = await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg, parse_mode: 'Markdown' });
+      const payload = { chat_id: chatId, text: disabledMsg, parse_mode: 'Markdown' };
+      if (faculty.disabled_button_text && faculty.disabled_button_url) {
+        payload.reply_markup = { inline_keyboard: [[{ text: faculty.disabled_button_text, url: faculty.disabled_button_url }]] };
+      }
+
+      const res = await this.apiCall('sendMessage', payload);
       if (!res.ok) {
-        await this.apiCall('sendMessage', { chat_id: chatId, text: disabledMsg });
+        delete payload.parse_mode;
+        await this.apiCall('sendMessage', payload);
       }
       return;
     }
@@ -1668,9 +1674,9 @@ class TelegramBotService {
       case 'awaiting_cfg_welcome_ar': {
         const fac2 = await dbHelper.getFacultyById(this.facultyId);
         const welEn = await this.translateArToEn(text);
-        await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token, fac2.admin_chat_id, welEn, text, fac2.bot_enabled, fac2.disabled_message_en, fac2.disabled_message_ar, fac2.telegram_api_server, fac2.empty_msg_en, fac2.empty_msg_ar, fac2.unknown_msg_en, fac2.unknown_msg_ar, fac2.no_file_msg_en, fac2.no_file_msg_ar);
+        await dbHelper.updateFaculty(fac2.id, fac2.name_en, fac2.name_ar, fac2.slug, fac2.telegram_token, fac2.admin_chat_id, welEn, text, fac2.bot_enabled, fac2.disabled_message_en, fac2.disabled_message_ar, fac2.telegram_api_server, fac2.empty_msg_en, fac2.empty_msg_ar, fac2.unknown_msg_en, fac2.unknown_msg_ar, fac2.no_file_msg_en, fac2.no_file_msg_ar, fac2.notify_new_user, fac2.disabled_button_text, fac2.disabled_button_url);
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_65') });
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
         await this._sendAdminConfigMenu(chatId, lang);
         break;
       }
@@ -1678,7 +1684,36 @@ class TelegramBotService {
       case 'awaiting_cfg_maintenance_ar': {
         const fac1 = await dbHelper.getFacultyById(this.facultyId);
         const disEn = await this.translateArToEn(text);
-        await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, disEn, text, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar);
+        await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, disEn, text, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar, fac1.notify_new_user, fac1.disabled_button_text, fac1.disabled_button_url);
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_maintenance_btn' });
+        const cancelKb = { keyboard: [[{ text: t(lang, 'MSG_ADMIN_35') }], [{ text: '/clear (إزالة الزر)' }], [{ text: t(lang, 'MSG_ADMIN_2') }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? "هل تريد إضافة زر شفاف لرسالة التوقف؟ أرسل 'نص الزر - الرابط' أو أرسل /skip لتخطي ذلك:" : "Add an inline button? Send 'Text - URL' or /skip:", reply_markup: cancelKb });
+        break;
+      }
+
+      case 'awaiting_cfg_maintenance_btn': {
+        let btnText = null;
+        let btnUrl = null;
+        const fac1 = await dbHelper.getFacultyById(this.facultyId);
+        if (text !== '/skip' && text !== t(lang, 'MSG_ADMIN_35') && text !== t(lang, 'MSG_ADMIN_2') && !text.startsWith('/clear')) {
+          if (text.includes('-')) {
+             const parts = text.split('-');
+             btnText = parts[0].trim();
+             btnUrl = parts.slice(1).join('-').trim();
+          } else {
+             await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'تنسيق خاطئ. الرجاء استخدام: نص الزر - الرابط' : 'Invalid format. Use: Text - URL' });
+             return;
+          }
+        } else if (text === t(lang, 'MSG_ADMIN_2')) {
+           await dbHelper.setAdminState(chatId, { action: 'managing_config' });
+           await this._sendAdminConfigMenu(chatId, lang);
+           return;
+        } else {
+           btnText = fac1.disabled_button_text;
+           btnUrl = fac1.disabled_button_url;
+           if (text.startsWith('/clear')) { btnText = null; btnUrl = null; }
+        }
+        await dbHelper.updateFaculty(fac1.id, fac1.name_en, fac1.name_ar, fac1.slug, fac1.telegram_token, fac1.admin_chat_id, fac1.welcome_en, fac1.welcome_ar, fac1.bot_enabled, fac1.disabled_message_en, fac1.disabled_message_ar, fac1.telegram_api_server, fac1.empty_msg_en, fac1.empty_msg_ar, fac1.unknown_msg_en, fac1.unknown_msg_ar, fac1.no_file_msg_en, fac1.no_file_msg_ar, fac1.notify_new_user, btnText, btnUrl);
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_66') });
         await this._sendAdminConfigMenu(chatId, lang);
@@ -1688,7 +1723,7 @@ class TelegramBotService {
       case 'awaiting_cfg_empty_btn_ar': {
         const fac3 = await dbHelper.getFacultyById(this.facultyId);
         const empEn = await this.translateArToEn(text);
-        await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token, fac3.admin_chat_id, fac3.welcome_en, fac3.welcome_ar, fac3.bot_enabled, fac3.disabled_message_en, fac3.disabled_message_ar, fac3.telegram_api_server, empEn, text, fac3.unknown_msg_en, fac3.unknown_msg_ar, fac3.no_file_msg_en, fac3.no_file_msg_ar);
+        await dbHelper.updateFaculty(fac3.id, fac3.name_en, fac3.name_ar, fac3.slug, fac3.telegram_token, fac3.admin_chat_id, fac3.welcome_en, fac3.welcome_ar, fac3.bot_enabled, fac3.disabled_message_en, fac3.disabled_message_ar, fac3.telegram_api_server, empEn, text, fac3.unknown_msg_en, fac3.unknown_msg_ar, fac3.no_file_msg_en, fac3.no_file_msg_ar, fac3.notify_new_user, fac3.disabled_button_text, fac3.disabled_button_url);
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_67') });
         await this._sendAdminConfigMenu(chatId, lang);
@@ -1698,7 +1733,7 @@ class TelegramBotService {
       case 'awaiting_cfg_unknown_text_ar': {
         const fac4 = await dbHelper.getFacultyById(this.facultyId);
         const unkEn = await this.translateArToEn(text);
-        await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token, fac4.admin_chat_id, fac4.welcome_en, fac4.welcome_ar, fac4.bot_enabled, fac4.disabled_message_en, fac4.disabled_message_ar, fac4.telegram_api_server, fac4.empty_msg_en, fac4.empty_msg_ar, unkEn, text, fac4.no_file_msg_en, fac4.no_file_msg_ar);
+        await dbHelper.updateFaculty(fac4.id, fac4.name_en, fac4.name_ar, fac4.slug, fac4.telegram_token, fac4.admin_chat_id, fac4.welcome_en, fac4.welcome_ar, fac4.bot_enabled, fac4.disabled_message_en, fac4.disabled_message_ar, fac4.telegram_api_server, fac4.empty_msg_en, fac4.empty_msg_ar, unkEn, text, fac4.no_file_msg_en, fac4.no_file_msg_ar, fac4.notify_new_user, fac4.disabled_button_text, fac4.disabled_button_url);
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_68') });
         await this._sendAdminConfigMenu(chatId, lang);
@@ -1708,7 +1743,7 @@ class TelegramBotService {
       case 'awaiting_cfg_no_file_ar': {
         const fac5 = await dbHelper.getFacultyById(this.facultyId);
         const nofEn = await this.translateArToEn(text);
-        await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token, fac5.admin_chat_id, fac5.welcome_en, fac5.welcome_ar, fac5.bot_enabled, fac5.disabled_message_en, fac5.disabled_message_ar, fac5.telegram_api_server, fac5.empty_msg_en, fac5.empty_msg_ar, fac5.unknown_msg_en, fac5.unknown_msg_ar, nofEn, text);
+        await dbHelper.updateFaculty(fac5.id, fac5.name_en, fac5.name_ar, fac5.slug, fac5.telegram_token, fac5.admin_chat_id, fac5.welcome_en, fac5.welcome_ar, fac5.bot_enabled, fac5.disabled_message_en, fac5.disabled_message_ar, fac5.telegram_api_server, fac5.empty_msg_en, fac5.empty_msg_ar, fac5.unknown_msg_en, fac5.unknown_msg_ar, nofEn, text, fac5.notify_new_user, fac5.disabled_button_text, fac5.disabled_button_url);
         await dbHelper.setAdminState(chatId, { action: 'managing_config' });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_69') });
         await this._sendAdminConfigMenu(chatId, lang);
