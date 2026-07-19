@@ -1163,14 +1163,24 @@ class TelegramBotService {
         return this.handleAdminStateMessage(chatId, { text: t(lang, 'MSG_ADMIN_18') }, lang, { action: 'managing_admin' });
       } else if (actionId === 'cfg_welcome') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_19'), reply_markup: cancelKb });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_welcome_ar' });
+        return;
       } else if (actionId === 'cfg_maintenance') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_20'), reply_markup: cancelKb });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_maintenance_ar' });
+        return;
       } else if (actionId === 'cfg_empty_btn') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_21'), reply_markup: cancelKb });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_empty_btn_ar' });
+        return;
       } else if (actionId === 'cfg_unknown_text') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_22'), reply_markup: cancelKb });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_unknown_text_ar' });
+        return;
       } else if (actionId === 'cfg_no_file') {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_23'), reply_markup: cancelKb });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_cfg_no_file_ar' });
+        return;
       }
     }
 
