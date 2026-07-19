@@ -1149,7 +1149,7 @@ const server = http.createServer(async (req, res) => {
   const ownerMatch = pathname.match(/^\/api\/faculties\/(\d+)\/assign-owner$/);
   if (ownerMatch && method === 'POST') {
     try {
-      if (adminUser.role !== 'OWNER' && !adminUser.is_deputy_owner) {
+      if (req.adminUser.role !== 'OWNER' && !req.adminUser.is_deputy_owner) {
         return sendJson(res, 403, { error: 'Forbidden: Requires Platform OWNER or DEPUTY_OWNER' });
       }
       const id = parseInt(ownerMatch[1], 10);
@@ -1158,7 +1158,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'telegram_id is required' });
       }
       
-      const success = await dbHelper.assignBotOwner(id, data.telegram_id.toString(), adminUser.id);
+      const success = await dbHelper.assignBotOwner(id, data.telegram_id.toString(), req.adminUser.id);
       if (success) {
         return sendJson(res, 200, { message: 'Bot Owner assigned successfully' });
       } else {
