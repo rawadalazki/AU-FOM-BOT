@@ -1281,10 +1281,10 @@ class TelegramBotService {
           return;
         }
         const existingRole = await dbHelper.getAdminRole(this.facultyId, text, targetRole);
-        if (existingRole && existingRole !== 'USER') {
+        if (existingRole) {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_32') });
         } else {
-          await dbHelper.setAdminRole(this.facultyId, text, targetRole, chatId);
+          await dbHelper.setAdminRole(this.facultyId, text, targetRole);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_33').replace('${roleName}', roleName) });
           await dbHelper.setAdminState(chatId, { action: nextStateAction });
           const keyboard = [
@@ -1410,7 +1410,7 @@ class TelegramBotService {
            } else if (delRole === 'OWNER') {
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_44') });
            } else {
-               await dbHelper.removeAdmin(this.facultyId, state.subId, chatId);
+               await dbHelper.removeAdmin(this.facultyId, state.subId);
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
            }
         }
@@ -1884,7 +1884,7 @@ class TelegramBotService {
         const fs = require('node:fs');
         const faculty = await dbHelper.getFacultyById(this.facultyId);
         if (!faculty) {
-           return reject(new Error('Faculty does not have any assigned administrators to store the file'));
+           return reject(new Error('Faculty does not have an admin_chat_id to store the file'));
         }
         
         const admins = await dbHelper.getAdminsByFaculty(faculty.id);

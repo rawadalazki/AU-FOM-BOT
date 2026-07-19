@@ -346,29 +346,25 @@ async function _initDb() {
     )
   `);
 
-  // Phase: Multi-Tenant Permissions (Bot Memberships)
-  await safeInitQuery(`
-    CREATE TABLE IF NOT EXISTS bot_memberships (
-      faculty_id INTEGER NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
-      telegram_id TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'USER',
-      assigned_by_telegram_id TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      PRIMARY KEY (faculty_id, telegram_id)
-    )
-  `);
-
-  await safeInitQuery(`CREATE INDEX IF NOT EXISTS idx_bot_memberships_faculty_id ON bot_memberships(faculty_id);`);
-  await safeInitQuery(`CREATE INDEX IF NOT EXISTS idx_bot_memberships_telegram_id ON bot_memberships(telegram_id);`);
-  await safeInitQuery(`CREATE INDEX IF NOT EXISTS idx_bot_memberships_role ON bot_memberships(role);`);
-  
-  // Enforce exactly one owner in bot_memberships to prevent race conditions
-  await safeInitQuery(`CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_memberships_one_owner ON bot_memberships(faculty_id) WHERE role = 'OWNER';`);
-
-  // Allow telegram_admin_id in audit log
-  await safeInitQuery(`ALTER TABLE admin_audit_log ALTER COLUMN admin_id DROP NOT NULL;`);
-  await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS telegram_admin_id TEXT;`);
-  await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS details JSONB;`);
+  // Automatic Migration from faculties.admin_chat_id
+  try {
+    const { rows: facultiesToMigrate } = await safeInitQuery('SELECT id, admin_chat_id FROM faculties WHERE admin_chat_id IS NOT NULL AND admin_chat_id != $1', ['']);
+    for (const f of facultiesToMigrate) {
+      if (f.admin_chat_id) {
+        const adminIds = f.admin_chat_id.split(',').map(s => s.trim()).filter(s => s);
+        for (let i = 0; i < adminIds.length; i++) {
+          const role = i === 0 ? 'OWNER' : 'SUB_ADMIN';
+          await safeInitQuery(`
+            INSERT INTO admins (faculty_id, chat_id, role)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (faculty_id, chat_id) DO NOTHING
+          `, [f.id, adminIds[i], role]);
+        }
+      }
+    }
+  } catch (e) {
+    logger.error(`[DB] Error during admins table migration: ${e.message}`);
+  }
 
   // Handle column migrations (PostgreSQL native approach)
   const alterQueries = [
@@ -852,209 +848,35 @@ async function getAllAdmins() {
 }
 
 // ==========================================
-// TELEGRAM BOT ADMIN ROLE HELPERS (Multi-Tenant)
+// TELEGRAM BOT ADMIN ROLE HELPERS
 // ==========================================
 
-async function getAdminRole(facultyId, chatId, client = pool) {
-  // bot_memberships is the single source of truth. No legacy fallback.
-  const { rows: memRows } = await client.query('SELECT role FROM bot_memberships WHERE faculty_id = $1 AND telegram_id = $2', [facultyId, chatId]);
-  if (memRows.length > 0) return memRows[0].role;
-  
-  // Default to USER if no membership exists
-  return 'USER';
+async function getAdminRole(facultyId, chatId) {
+  const { rows } = await pool.query('SELECT role FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
+  if (rows.length > 0) return rows[0].role;
+  return null;
 }
 
-async function setAdminRole(facultyId, chatId, role, assignedByTelegramId = null, client = pool) {
-  // Prevent self-role modification
-  if (chatId === assignedByTelegramId) {
-    logger.warn('[DB] Rejected self-role modification attempt.');
-    return false;
-  }
-
-  const actorRole = await getAdminRole(facultyId, assignedByTelegramId, client);
-  
-  // Only the OWNER of the bot can assign a DEPUTY_ADMIN
-  if (role === 'DEPUTY_ADMIN' && actorRole !== 'OWNER') {
-    logger.warn('[DB] Rejected attempt to assign DEPUTY_ADMIN by non-OWNER.');
-    return false;
-  }
-
-  const oldRole = await getAdminRole(facultyId, chatId, client);
-  
-  // Prevent removing the last owner implicitly
-  if (oldRole === 'OWNER' && role !== 'OWNER') {
-    logger.warn('[DB] Rejected attempt to demote the OWNER. Use assignBotOwner instead.');
-    return false; 
-  }
-
-  // Enforce exactly ONE bot OWNER per faculty
-  if (role === 'OWNER') {
-    const { rows: ownerRows } = await client.query(`SELECT telegram_id FROM bot_memberships WHERE faculty_id = $1 AND role = 'OWNER'`, [facultyId]);
-    if (ownerRows.length > 0 && ownerRows[0].telegram_id !== chatId) {
-       logger.warn('[DB] Rejected attempt to create a second OWNER.');
-       return false;
-    }
-  }
-
-  // Always write to the new multi-tenant table (admins is read-only)
-  await client.query(`
-    INSERT INTO bot_memberships (faculty_id, telegram_id, role, assigned_by_telegram_id) 
-    VALUES ($1, $2, $3, $4) 
-    ON CONFLICT (faculty_id, telegram_id) DO UPDATE SET role = $3, assigned_by_telegram_id = $4
-  `, [facultyId, chatId, role, assignedByTelegramId]);
-
-  // Log to audit log with full details
-  const details = { old_role: oldRole, new_role: role, faculty_id: facultyId, target_telegram_id: chatId, actor_telegram_id: assignedByTelegramId };
-  await client.query(`
-    INSERT INTO admin_audit_log (telegram_admin_id, action, entity_type, entity_id, details)
-    VALUES ($1, 'ASSIGN_ROLE', 'bot_memberships', $2, $3)
-  `, [assignedByTelegramId, `${facultyId}:${chatId}:${role}`, JSON.stringify(details)]);
-  
-  return true;
+async function setAdminRole(facultyId, chatId, role) {
+  await pool.query(`
+    INSERT INTO admins (faculty_id, chat_id, role) 
+    VALUES ($1, $2, $3) 
+    ON CONFLICT (faculty_id, chat_id) DO UPDATE SET role = $3
+  `, [facultyId, chatId, role]);
 }
 
-async function removeAdmin(facultyId, chatId, removedByTelegramId = null, client = pool) {
-  // Prevent self-removal
-  if (chatId === removedByTelegramId) {
-    logger.warn('[DB] Rejected self-removal attempt.');
-    return false;
-  }
-
-  const oldRole = await getAdminRole(facultyId, chatId, client);
-  const actorRole = await getAdminRole(facultyId, removedByTelegramId, client);
-
-  // Only the OWNER of the bot can remove a DEPUTY_ADMIN
-  if (oldRole === 'DEPUTY_ADMIN' && actorRole !== 'OWNER') {
-    logger.warn('[DB] Rejected attempt to remove DEPUTY_ADMIN by non-OWNER.');
-    return false;
-  }
-
-  if (oldRole === 'OWNER') {
-    logger.warn('[DB] Rejected attempt to remove the OWNER.');
-    return false;
-  }
-
-  // Tombstone the role in bot_memberships.
-  await client.query(`
-    INSERT INTO bot_memberships (faculty_id, telegram_id, role, assigned_by_telegram_id) 
-    VALUES ($1, $2, 'USER', $3) 
-    ON CONFLICT (faculty_id, telegram_id) DO UPDATE SET role = 'USER', assigned_by_telegram_id = $3
-  `, [facultyId, chatId, removedByTelegramId]);
-
-  // Log to audit log
-  const details = { old_role: oldRole, new_role: 'USER', faculty_id: facultyId, target_telegram_id: chatId, actor_telegram_id: removedByTelegramId };
-  await client.query(`
-    INSERT INTO admin_audit_log (telegram_admin_id, action, entity_type, entity_id, details)
-    VALUES ($1, 'REMOVE_ROLE', 'bot_memberships', $2, $3)
-  `, [removedByTelegramId, `${facultyId}:${chatId}`, JSON.stringify(details)]);
-  
-  return true;
-}
-
-async function assignBotOwner(facultyId, newOwnerId, assignedByAdminUserId, externalClient = null) {
-  // Dedicated function for Platform Dashboard to assign Bot Owner
-  // Atomic transaction
-  const client = externalClient || await pool.connect();
-  try {
-    if (!externalClient) await client.query('BEGIN');
-    
-    // Demote any existing OWNER to USER
-    const { rows: currentOwners } = await client.query(`SELECT telegram_id FROM bot_memberships WHERE faculty_id = $1 AND role = 'OWNER'`, [facultyId]);
-    for (const oldOwner of currentOwners) {
-      if (oldOwner.telegram_id !== newOwnerId) {
-        await client.query(`UPDATE bot_memberships SET role = 'USER', assigned_by_telegram_id = $1 WHERE faculty_id = $2 AND telegram_id = $3`, [assignedByAdminUserId, facultyId, oldOwner.telegram_id]);
-        
-        const demoteDetails = { old_role: 'OWNER', new_role: 'USER', faculty_id: facultyId, target_telegram_id: oldOwner.telegram_id, actor_admin_user_id: assignedByAdminUserId };
-        await client.query(`
-          INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, details)
-          VALUES ($1, 'REMOVE_ROLE', 'bot_memberships', $2, $3)
-        `, [assignedByAdminUserId, `${facultyId}:${oldOwner.telegram_id}`, JSON.stringify(demoteDetails)]);
-      }
-    }
-
-    const oldRoleOfNewOwner = currentOwners.some(o => o.telegram_id === newOwnerId) ? 'OWNER' : 'USER';
-    
-    if (oldRoleOfNewOwner !== 'OWNER') {
-      // Promote new owner
-      await client.query(`
-        INSERT INTO bot_memberships (faculty_id, telegram_id, role, assigned_by_telegram_id) 
-        VALUES ($1, $2, 'OWNER', $3) 
-        ON CONFLICT (faculty_id, telegram_id) DO UPDATE SET role = 'OWNER', assigned_by_telegram_id = $3
-      `, [facultyId, newOwnerId, assignedByAdminUserId]);
-
-      const details = { old_role: 'USER', new_role: 'OWNER', faculty_id: facultyId, target_telegram_id: newOwnerId, actor_admin_user_id: assignedByAdminUserId };
-      await client.query(`
-        INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, details)
-        VALUES ($1, 'ASSIGN_ROLE', 'bot_memberships', $2, $3)
-      `, [assignedByAdminUserId, `${facultyId}:${newOwnerId}`, JSON.stringify(details)]);
-    }
-
-    if (!externalClient) await client.query('COMMIT');
-    return true;
-  } catch (e) {
-    if (!externalClient) await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    if (!externalClient) client.release();
-  }
-}
-
-async function transferOwnership(facultyId, currentOwnerId, newOwnerId) {
-  // We keep this for internal bot usage if needed, though UI might not expose it.
-  if (currentOwnerId === newOwnerId) return false;
-  
-  const currentRole = await getAdminRole(facultyId, currentOwnerId);
-  if (currentRole !== 'OWNER') return false;
-
-  // Atomic transaction
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Tombstone current owner (demote to USER)
-    await client.query(`
-      INSERT INTO bot_memberships (faculty_id, telegram_id, role, assigned_by_telegram_id) 
-      VALUES ($1, $2, 'USER', $1) 
-      ON CONFLICT (faculty_id, telegram_id) DO UPDATE SET role = 'USER', assigned_by_telegram_id = $1
-    `, [facultyId, currentOwnerId]);
-
-    // Promote new owner
-    await client.query(`
-      INSERT INTO bot_memberships (faculty_id, telegram_id, role, assigned_by_telegram_id) 
-      VALUES ($1, $2, 'OWNER', $1) 
-      ON CONFLICT (faculty_id, telegram_id) DO UPDATE SET role = 'OWNER', assigned_by_telegram_id = $1
-    `, [facultyId, newOwnerId]);
-
-    const details = { old_role: 'OWNER', new_role: 'OWNER', faculty_id: facultyId, target_telegram_id: newOwnerId, actor_telegram_id: currentOwnerId };
-    await client.query(`
-      INSERT INTO admin_audit_log (telegram_admin_id, action, entity_type, entity_id, details)
-      VALUES ($1, 'TRANSFER_OWNERSHIP', 'bot_memberships', $2, $3)
-    `, [currentOwnerId, `${facultyId}:${newOwnerId}`, JSON.stringify(details)]);
-
-    await client.query('COMMIT');
-    return true;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    throw e;
-  } finally {
-    client.release();
-  }
+async function removeAdmin(facultyId, chatId) {
+  await pool.query('DELETE FROM admins WHERE faculty_id = $1 AND chat_id = $2', [facultyId, chatId]);
 }
 
 async function getAdminsByFaculty(facultyId) {
-  // bot_memberships is the single source of truth. No legacy fallback.
-  const { rows } = await pool.query(`
-    SELECT telegram_id as chat_id, role, created_at 
-    FROM bot_memberships 
-    WHERE faculty_id = $1 AND role != 'USER'
-    ORDER BY created_at ASC
-  `, [facultyId]);
+  const { rows } = await pool.query('SELECT chat_id, role, created_at FROM admins WHERE faculty_id = $1 ORDER BY created_at ASC', [facultyId]);
   return rows;
 }
 
 async function hasPermission(chatId, facultyId, permission) {
   const role = await getAdminRole(facultyId, chatId);
-  if (!role || role === 'USER') return false;
+  if (!role) return false;
 
   if (role === 'OWNER') return true;
 
@@ -1270,8 +1092,6 @@ module.exports = {
   getAdminRole,
   setAdminRole,
   removeAdmin,
-  assignBotOwner,
-  transferOwnership,
   getAdminsByFaculty,
   hasPermission,
 

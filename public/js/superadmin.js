@@ -303,12 +303,7 @@ async function deleteAdmin() {
 // --- BACKUPS LOGIC ---
 document.addEventListener('DOMContentLoaded', () => {
   const backupsTabBtn = document.getElementById('backups-tab');
-  if (backupsTabBtn) {
-    backupsTabBtn.addEventListener('shown.bs.tab', () => {
-      loadBackups();
-      loadBackupSettings();
-    });
-  }
+  if (backupsTabBtn) backupsTabBtn.addEventListener('click', loadBackups);
   
   const refreshBtn = document.getElementById('refreshBackupsBtn');
   if (refreshBtn) refreshBtn.addEventListener('click', loadBackups);
@@ -331,6 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saveSchedBtn = document.getElementById('saveScheduleBtn');
   if (saveSchedBtn) saveSchedBtn.addEventListener('click', saveBackupSchedule);
+  
+  if (backupsTabBtn) backupsTabBtn.addEventListener('click', loadBackupSettings);
 });
 
 async function loadBackupSettings() {
