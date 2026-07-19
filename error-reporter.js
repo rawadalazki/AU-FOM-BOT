@@ -222,8 +222,14 @@ async function sendAggregatedReport(logId) {
     }
 
     const faculty = await dbHelper.getFacultyById(log.faculty_id);
-    if (!faculty || !faculty.admin_chat_id) {
-      console.error('Cannot route error notification: Faculty not found or has no admin_chat_id', log.faculty_id);
+    if (!faculty) {
+      console.error('Cannot route error notification: Faculty not found', log.faculty_id);
+      return;
+    }
+
+    const botAdmins = await dbHelper.getAdminsByFaculty(faculty.id);
+    if (botAdmins.length === 0) {
+      console.error('Cannot route error notification: Faculty has no administrators in bot_memberships', log.faculty_id);
       return;
     }
 
@@ -276,9 +282,8 @@ async function sendAggregatedReport(logId) {
       `*Recent History:*\n\`${escapeMarkdown(histStr.substring(0, 500))}\`\n\n` +
       `*Stack:*\n\`${escapeMarkdown(stackSnippet)}\``;
 
-    const adminChats = faculty.admin_chat_id.split(',').map(s => s.trim());
-    for (const adminChat of adminChats) {
-      await svc.apiCall('sendMessage', { chat_id: adminChat, text: msg, parse_mode: 'Markdown' });
+    for (const admin of botAdmins) {
+      await svc.apiCall('sendMessage', { chat_id: admin.chat_id, text: msg, parse_mode: 'Markdown' });
     }
   } catch (e) {
     console.error('Failed to send Telegram error report', e);

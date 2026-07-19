@@ -273,7 +273,8 @@ class TelegramBotService {
       return;
     }
 
-    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
+    const adminRole = await dbHelper.getAdminRole(faculty.id, chatId);
+    const isAdmin = adminRole !== 'USER';
     const adminState = await dbHelper.getAdminState(chatId);
 
     if (text === '/start' || text.startsWith('/start ')) {
@@ -717,13 +718,14 @@ class TelegramBotService {
           return;
         }
         const facultyData = await dbHelper.getFacultyById(this.facultyId);
-        const currentAdmins = facultyData.admin_chat_id ? facultyData.admin_chat_id.split(',').map(s => s.trim()) : [];
-        if (currentAdmins.includes(text)) {
+        const existingRole = await dbHelper.getAdminRole(this.facultyId, text);
+        if (existingRole !== 'USER') {
           await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? 'هذا المعرف موجود مسبقاً.' : 'This ID already exists.' });
         } else {
-          currentAdmins.push(text);
-          await dbHelper.updateFaculty(facultyData.id, facultyData.name_en, facultyData.name_ar, facultyData.slug, facultyData.telegram_token, currentAdmins.join(','), facultyData.welcome_en, facultyData.welcome_ar, facultyData.bot_enabled, facultyData.disabled_message_en, facultyData.disabled_message_ar, facultyData.telegram_api_server, facultyData.empty_msg_en, facultyData.empty_msg_ar, facultyData.unknown_msg_en, facultyData.unknown_msg_ar, facultyData.no_file_msg_en, facultyData.no_file_msg_ar);
-          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `✅ تم إضافة المشرف بنجاح.\n\nالمشرفون الحاليون:\n${currentAdmins.join('\n')}` : `✅ Sub-admin added.\n\nCurrent admins:\n${currentAdmins.join('\n')}` });
+          await dbHelper.setAdminRole(this.facultyId, text, 'SUB_ADMIN', chatId);
+          const currentAdmins = await dbHelper.getAdminsByFaculty(this.facultyId);
+          const currentAdminsStr = currentAdmins.map(a => a.chat_id).join('\n');
+          await this.apiCall('sendMessage', { chat_id: chatId, text: lang === 'ar' ? `✅ تم إضافة المشرف بنجاح.\n\nالمشرفون الحاليون:\n${currentAdminsStr}` : `✅ Sub-admin added.\n\nCurrent admins:\n${currentAdminsStr}` });
         }
         await dbHelper.deleteAdminState(chatId);
         await this.sendAdminHome(chatId, lang);
@@ -999,11 +1001,13 @@ class TelegramBotService {
       try {
         const fs = require('node:fs');
         const faculty = await dbHelper.getFacultyById(this.facultyId);
-        if (!faculty || !faculty.admin_chat_id) {
-           return reject(new Error('Faculty does not have an admin_chat_id to store the file'));
+        if (!faculty) {
+           return reject(new Error('Faculty not found'));
         }
         
-        const targetChatId = faculty.admin_chat_id.split(',')[0].trim();
+        const admins = await dbHelper.getAdminsByFaculty(faculty.id);
+        const targetChatId = admins.length > 0 ? admins[0].chat_id : null;
+        if (!targetChatId) return reject(new Error('No admins found for faculty'));
         const form = new FormData();
         form.append('chat_id', targetChatId);
         form.append('document', fs.createReadStream(filePath), {
@@ -1145,7 +1149,9 @@ class TelegramBotService {
 
   async sendAdminHome(chatId, lang) {
     const faculty = await dbHelper.getFacultyById(this.facultyId);
-    const centralAdminId = faculty && faculty.admin_chat_id ? faculty.admin_chat_id.split(',')[0].trim() : null;
+    const admins = await dbHelper.getAdminsByFaculty(this.facultyId);
+    const owner = admins.find(a => a.role === 'OWNER');
+    const centralAdminId = owner ? owner.chat_id : null;
     const isCentralAdmin = centralAdminId === chatId;
 
     const keyboard = [
@@ -1305,7 +1311,8 @@ class TelegramBotService {
       keyboard.push([{ text: lang === 'ar' ? '⬅️ عودة' : '⬅️ Back' }]);
     }
 
-    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
+    const adminRole = await dbHelper.getAdminRole(this.facultyId, chatId);
+    const isAdmin = adminRole !== 'USER';
     if (isAdmin && parentId === null) {
       keyboard.push([{ text: lang === 'ar' ? '🛠️ لوحة التحكم للمشرفين' : '🛠️ Admin Panel' }]);
     }
@@ -1471,8 +1478,9 @@ class TelegramBotService {
   async _notifyAdminFileError(fileName, errorDesc) {
     try {
       const faculty = await dbHelper.getFacultyById(this.facultyId);
-      if (faculty && faculty.admin_chat_id) {
-        const adminChatId = faculty.admin_chat_id.split(',')[0].trim();
+      if (faculty) {
+        const admins = await dbHelper.getAdminsByFaculty(faculty.id);
+        const adminChatId = admins.length > 0 ? admins[0].chat_id : null;
         await this.apiCall('sendMessage', {
           chat_id: adminChatId,
           text: `⚠️ Error: A file could not be delivered.\n\nFile Name: ${fileName || 'Unknown'}\nError: ${errorDesc || 'Unknown error'}\n\nPlease re-upload the file in the admin panel.`

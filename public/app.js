@@ -509,6 +509,31 @@ function setupFormListeners() {
     }
   });
 
+  const assignOwnerBtn = document.getElementById('btn-assign-owner');
+  if (assignOwnerBtn) {
+    assignOwnerBtn.addEventListener('click', async () => {
+      if (!activeFaculty) return;
+      const telegramId = prompt(currentLang === 'ar' ? 'أدخل معرف تيليجرام (ID) لمالك البوت الجديد (مالك واحد فقط لكل بوت):' : 'Enter the Telegram ID of the new Bot Owner (exactly ONE owner per bot):');
+      if (!telegramId) return;
+      
+      try {
+        const res = await fetch(`/api/faculties/${activeFaculty.id}/assign-owner`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegram_id: telegramId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(currentLang === 'ar' ? 'تم تعيين المالك بنجاح!' : 'Bot Owner assigned successfully!');
+        } else {
+          alert((currentLang === 'ar' ? 'خطأ: ' : 'Error: ') + (data.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert((currentLang === 'ar' ? 'خطأ: ' : 'Error: ') + e.message);
+      }
+    });
+  }
+
   // 3. Menu Form submit (Create/Update Menu)
   const menuForm = document.getElementById('menu-item-form');
   menuForm.addEventListener('submit', async (e) => {

@@ -1884,7 +1884,7 @@ class TelegramBotService {
         const fs = require('node:fs');
         const faculty = await dbHelper.getFacultyById(this.facultyId);
         if (!faculty) {
-           return reject(new Error('Faculty does not have an admin_chat_id to store the file'));
+           return reject(new Error('Faculty does not have any assigned administrators to store the file'));
         }
         
         const admins = await dbHelper.getAdminsByFaculty(faculty.id);

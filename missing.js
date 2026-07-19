@@ -68,7 +68,8 @@
       keyboard.push([{ text: lang === 'ar' ? 'â¬…ï¸ Ø¹ÙˆØ¯Ø©' : 'â¬…ï¸ Back' }]);
     }
 
-    const isAdmin = faculty.admin_chat_id && faculty.admin_chat_id.split(',').map(s => s.trim()).includes(chatId);
+    const adminRole = await dbHelper.getAdminRole(faculty.id, chatId);
+    const isAdmin = adminRole !== 'USER';
     if (isAdmin && parentId === null) {
       keyboard.push([{ text: lang === 'ar' ? 'ðŸ› ï¸ Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ… Ù„Ù„Ù…Ø´Ø±ÙÙŠÙ†' : 'ðŸ› ï¸ Admin Panel' }]);
     }
