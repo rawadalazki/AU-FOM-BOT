@@ -20,7 +20,8 @@
 'use strict';
 
 const logger = require('../../logger');
-const { pool, getSystemSetting } = require('../../database');
+const dbHelper = require('../../database');
+const { pool } = dbHelper;
 const crypto = require('./backup-crypto');
 const compressor = require('./backup-compressor');
 const storage = require('./backup-storage');
@@ -603,7 +604,7 @@ class BackupService {
     }
 
     // Default to 24 hours if not set
-    const intervalHours = await getSystemSetting('backup_interval_hours', 24);
+    const intervalHours = await dbHelper.getSystemSetting('backup_interval_hours', 24);
 
     if (intervalHours === 0) {
       logger.info('[Backup] Automatic backups are DISABLED via system settings.');
@@ -667,7 +668,7 @@ class BackupService {
 
     this._timerId = setTimeout(async () => {
       await this.createBackup('scheduler');
-      const latestInterval = await getSystemSetting('backup_interval_hours', 24);
+      const latestInterval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
       await this._scheduleNext(latestInterval); // Schedule the next one using latest setting
     }, delayMs);
 
