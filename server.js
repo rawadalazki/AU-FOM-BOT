@@ -17,6 +17,7 @@ const bcrypt = require('bcryptjs');
 const { reportRuntimeError, recoverUnsentReports, initReporterDB } = require('./error-reporter');
 
 process.on('uncaughtException', async (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
   try {
     const isFatal = true; // All uncaught exceptions are fatal by default in Node
     await reportRuntimeError({
@@ -29,11 +30,14 @@ process.on('uncaughtException', async (err) => {
       Operation: 'Unhandled Application Crash'
     });
     await flushPendingNotifications();
-  } catch(e) {}
+  } catch(e) {
+    console.error('Failed to report uncaught exception:', e);
+  }
   process.exit(1);
 });
 
 process.on('unhandledRejection', async (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
   try {
     await reportRuntimeError({
       Severity: 'CRITICAL',
@@ -45,8 +49,11 @@ process.on('unhandledRejection', async (reason, promise) => {
       Operation: 'Unhandled Promise Rejection'
     });
     await flushPendingNotifications();
-  } catch(e) {}
-  // Node default for unhandledRejection is often to not exit, but let's let it log it safely.
+  } catch(e) {
+    console.error('Failed to report unhandled rejection:', e);
+  }
+  // Let Node.js exit if it's going to, or we can force it:
+  process.exit(1);
 });
 
 const loginAttempts = new Map();
