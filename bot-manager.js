@@ -1281,10 +1281,10 @@ class TelegramBotService {
           return;
         }
         const existingRole = await dbHelper.getAdminRole(this.facultyId, text, targetRole);
-        if (existingRole) {
+        if (existingRole && existingRole !== 'USER') {
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_32') });
         } else {
-          await dbHelper.setAdminRole(this.facultyId, text, targetRole);
+          await dbHelper.setAdminRole(this.facultyId, text, targetRole, chatId);
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_33').replace('${roleName}', roleName) });
           await dbHelper.setAdminState(chatId, { action: nextStateAction });
           const keyboard = [
@@ -1410,7 +1410,7 @@ class TelegramBotService {
            } else if (delRole === 'OWNER') {
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_44') });
            } else {
-               await dbHelper.removeAdmin(this.facultyId, state.subId);
+               await dbHelper.removeAdmin(this.facultyId, state.subId, chatId);
                await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_SUBADMIN_REMOVED') });
            }
         }
