@@ -121,6 +121,8 @@ async function _initDb() {
       notify_new_user BOOLEAN DEFAULT false,
       disabled_button_text TEXT,
       disabled_button_url TEXT,
+      welcome_button_text TEXT,
+      welcome_button_url TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
@@ -129,6 +131,8 @@ async function _initDb() {
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS notify_new_user BOOLEAN DEFAULT false;`);
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_button_text TEXT;`);
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_button_url TEXT;`);
+    await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS welcome_button_text TEXT;`);
+    await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS welcome_button_url TEXT;`);
   } catch (e) {
     console.log('Error adding columns to faculties:', e.message);
   }
@@ -513,16 +517,17 @@ async function createFaculty(nameEn, nameAr, slug) {
   return rows[0].id;
 }
 
-async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, disabledBtnText, disabledBtnUrl) {
+async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, disabledBtnText, disabledBtnUrl, welcomeBtnText, welcomeBtnUrl) {
   await pool.query(`
     UPDATE faculties 
     SET name_en = $1, name_ar = $2, slug = $3, telegram_token = $4, admin_chat_id = $5,
         welcome_en = $6, welcome_ar = $7, bot_enabled = $8, disabled_message_en = $9, 
         disabled_message_ar = $10, telegram_api_server = $11, empty_msg_en = $12, empty_msg_ar = $13,
         unknown_msg_en = $14, unknown_msg_ar = $15, no_file_msg_en = $16, no_file_msg_ar = $17,
-        notify_new_user = $18, disabled_button_text = $19, disabled_button_url = $20
-    WHERE id = $21
-  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, disabledBtnText, disabledBtnUrl, id]);
+        notify_new_user = $18, disabled_button_text = $19, disabled_button_url = $20,
+        welcome_button_text = $21, welcome_button_url = $22
+    WHERE id = $23
+  `, [nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, disabledBtnText, disabledBtnUrl, welcomeBtnText, welcomeBtnUrl, id]);
   
   await cache.del('faculties:all');
   await cache.del(`faculty:id:${id}`);
