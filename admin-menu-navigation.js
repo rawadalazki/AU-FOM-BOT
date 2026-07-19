@@ -82,6 +82,7 @@ class AdminMenuNavigation {
         { text: t(lang, 'BTN_PREVIEW_FILES'), callback_data: `admin_previewfiles_${menuId}` },
         { text: t(lang, 'BTN_ADD_FILE'), callback_data: `admin_addfile_${menuId}` }
       ]);
+      kb.push([{ text: t(lang, 'BTN_EDIT_TEXT'), callback_data: `admin_edittext_${menuId}` }]);
     } else if (menu.reply_type === 'text') {
       kb.push([{ text: t(lang, 'BTN_DELETE_CONTENT'), callback_data: `admin_delcontent_${menuId}` }]);
       kb.push([{ text: t(lang, 'BTN_EDIT_TEXT'), callback_data: `admin_edittext_${menuId}` }]);

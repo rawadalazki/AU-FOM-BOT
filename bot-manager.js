@@ -786,8 +786,15 @@ class TelegramBotService {
         await this.sendAdminMenuDetails(chatId, menuId, lang); // send details again at bottom
       } else if (action === 'addfile') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId });
-        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_7'), reply_markup: cancelKb });
+        const skipCancelKb = { keyboard: [[{ text: t(lang, 'MSG_ADMIN_35') }], [{ text: t(lang, 'MSG_ADMIN_2') }]], resize_keyboard: true };
+        await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_7'), reply_markup: skipCancelKb });
       } else if (action === 'edittext') {
+        const m = await dbHelper.getMenuById(menuId);
+        if (m && m.reply_type === 'file') {
+             await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_cap_ar', menuId });
+             await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_59'), reply_markup: cancelKb });
+             return;
+        }
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_8'), reply_markup: cancelKb });
       } else if (action === 'inline') {
@@ -1652,7 +1659,8 @@ class TelegramBotService {
         } else if (state.newType === 'file') {
           const newMenuId = await dbHelper.createMenu(this.facultyId, state.currentMenuId, nTitleEn, text, 'file', null, null, null, null, null, null, nextOrder, targetRowIndex);
           await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_file_doc', menuId: newMenuId });
-          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_64'), reply_markup: cancelKb });
+          const skipCancelKb = { keyboard: [[{ text: t(lang, 'MSG_ADMIN_35') }], [{ text: t(lang, 'MSG_ADMIN_2') }]], resize_keyboard: true };
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_64'), reply_markup: skipCancelKb });
         }
         break;
       }
@@ -1750,6 +1758,19 @@ class TelegramBotService {
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_72'), reply_markup: { remove_keyboard: true } });
         break;
     }
+  }
+
+  async _sendAdminConfigMenu(chatId, lang) {
+    const fac = await dbHelper.getFacultyById(this.facultyId);
+    const monStatus = fac.forward_user_messages ? t(lang, 'MSG_ADMIN_15') : t(lang, 'MSG_ADMIN_16');
+    const cfgText = (lang === 'ar' ? 'الإعدادات العامة\n\nالمراقبة: ' : 'Settings\n\nMonitoring: ') + monStatus;
+    const cfgKb = [
+      [{ text: t(lang, 'BTN_CFG_WELCOME') }, { text: t(lang, 'BTN_CFG_MAINTENANCE') }],
+      [{ text: t(lang, 'BTN_CFG_EMPTY_BTN') }, { text: t(lang, 'BTN_CFG_UNKNOWN_TEXT') }],
+      [{ text: t(lang, 'BTN_CFG_NO_FILE') }],
+      [{ text: t(lang, 'BTN_CFG_HOME') }]
+    ];
+    await this.apiCall('sendMessage', { chat_id: chatId, text: cfgText, reply_markup: { keyboard: cfgKb, resize_keyboard: true } });
   }
 
   async sendAdminHome(chatId, lang) {
