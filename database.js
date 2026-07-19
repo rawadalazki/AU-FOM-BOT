@@ -249,10 +249,19 @@ async function _initDb() {
       id SERIAL PRIMARY KEY,
       admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
       action TEXT NOT NULL,
-      entity TEXT,
+      entity_type TEXT NOT NULL,
       entity_id TEXT,
       ip_address TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // 9. Create system_settings table
+  await safeInitQuery(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
@@ -991,12 +1000,46 @@ async function updateTranslationField(table, id, enColumn, translatedText) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SYSTEM SETTINGS
+// ---------------------------------------------------------------------------
+
+async function getSystemSetting(key, defaultValue = null) {
+  try {
+    const { rows } = await pool.query('SELECT value FROM system_settings WHERE key = $1', [key]);
+    if (rows.length > 0) {
+      return rows[0].value;
+    }
+    return defaultValue;
+  } catch (err) {
+    logger.error({ err, key }, 'Error getting system setting');
+    return defaultValue;
+  }
+}
+
+async function setSystemSetting(key, value) {
+  try {
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at) 
+       VALUES ($1, $2, NOW()) 
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [key, JSON.stringify(value)]
+    );
+    return true;
+  } catch (err) {
+    logger.error({ err, key }, 'Error setting system setting');
+    return false;
+  }
+}
+
 module.exports = {
   pool,
   initStatus,
   runQuery,
   safeInitQuery,
   initDb,
+  getSystemSetting,
+  setSystemSetting,
   addAnnouncementMessage,
   getAnnouncementMessages,
   getAnnouncementById,
