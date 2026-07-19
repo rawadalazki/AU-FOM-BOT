@@ -32,7 +32,7 @@ function init() {
   const endpoint = process.env.S3_ENDPOINT;
   const accessKey = process.env.S3_ACCESS_KEY;
   const secretKey = process.env.S3_SECRET_KEY;
-  const region = process.env.S3_REGION || 'auto';
+  const region = (process.env.S3_REGION || 'auto').trim().toLowerCase();
   bucketName = process.env.S3_BUCKET || 'fombot-uploads';
 
   if (endpoint && accessKey && secretKey) {
