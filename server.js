@@ -547,7 +547,7 @@ const server = http.createServer(async (req, res) => {
           }
 
           await dbHelper.setSystemSetting('backup_interval_hours', hours);
-          await dbHelper.logAdminAction(adminUser.id, 'update_backup_schedule', 'system_settings', \`\${hours}h\`, await auth.getClientIp(req));
+          await dbHelper.logAdminAction(adminUser.id, 'update_backup_schedule', 'system_settings', `${hours}h`, await auth.getClientIp(req));
           
           // Update the live scheduler
           const backupMod = require('./backup');
