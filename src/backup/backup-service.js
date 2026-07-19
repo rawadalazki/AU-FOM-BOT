@@ -164,11 +164,7 @@ class BackupService {
             continue;
           }
 
-          // Dump via COPY TO CSV
-          const copyQuery = `COPY "${table}" TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')`;
-          const stream = client.query(require('pg').default?.Cursor ? copyQuery : null);
-
-          // Use the pg copyTo approach
+          // Dump table using fallback or COPY
           const csvData = await this._copyToBuffer(client, table);
 
           dataMap[`${table}.csv`] = csvData;
@@ -189,35 +185,12 @@ class BackupService {
   }
 
   /**
-   * Use pg COPY protocol to stream table data to a buffer.
-   * Falls back to SELECT-based JSON dump if COPY is not available.
+   * Stream table data to a buffer.
+   * Since the native pg driver doesn't handle COPY TO STDOUT without pg-copy-streams,
+   * we use the SELECT-based JSON/CSV dump which is safe and reliable.
    */
   async _copyToBuffer(client, table) {
-    try {
-      // Use the raw connection stream approach for COPY TO
-      return await new Promise((resolve, reject) => {
-        let chunks = [];
-        const stream = client.connection.stream;
-
-        // Send the COPY command via the pg protocol
-        const query = `COPY "${table}" TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')`;
-
-        client.query(query)
-          .then(result => {
-            // pg driver handles COPY TO STDOUT and returns the data in the result
-            // For the pg driver, COPY TO STDOUT is not directly supported via query()
-            // so we fall back to the SELECT-based approach
-            throw new Error('COPY TO STDOUT requires stream handling');
-          })
-          .catch(() => {
-            // Fall back: use SELECT * and format as CSV manually
-            this._selectToCsv(client, table).then(resolve).catch(reject);
-          });
-      });
-    } catch (err) {
-      // Fallback: SELECT-based CSV dump
-      return await this._selectToCsv(client, table);
-    }
+    return await this._selectToCsv(client, table);
   }
 
   /**
