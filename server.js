@@ -522,6 +522,44 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // --- System Settings API ---
+    if (pathname === '/api/superadmin/settings/backup') {
+      if (method === 'GET') {
+        try {
+          const interval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
+          return sendJson(res, 200, { intervalHours: interval });
+        } catch(e) {
+          return sendJson(res, 500, { error: e.message });
+        }
+      }
+
+      if (method === 'POST') {
+        if (adminUser.role !== 'OWNER' && !adminUser.is_deputy_owner) {
+          return sendJson(res, 403, { error: 'Forbidden: Requires OWNER or DEPUTY Owner' });
+        }
+        
+        try {
+          const body = await parseJsonBody(req);
+          const hours = parseInt(body.intervalHours, 10);
+          
+          if (isNaN(hours) || hours < 0) {
+            return sendJson(res, 400, { error: 'Invalid interval hours' });
+          }
+
+          await dbHelper.setSystemSetting('backup_interval_hours', hours);
+          await dbHelper.logAdminAction(adminUser.id, 'update_backup_schedule', 'system_settings', \`\${hours}h\`, await auth.getClientIp(req));
+          
+          // Update the live scheduler
+          const backupMod = require('./backup');
+          await backupMod.updateSchedule(hours);
+          
+          return sendJson(res, 200, { ok: true, intervalHours: hours });
+        } catch(e) {
+          return sendJson(res, 500, { error: e.message });
+        }
+      }
+    }
+
     // --- Backups API ---
     if (pathname.startsWith('/api/superadmin/backups')) {
       const backupMod = require('./backup');
@@ -1550,7 +1588,7 @@ async function main() {
     await translationService.initDb();
     
     // 3. Start Backup Scheduler
-    backup.startScheduler();
+    await backup.startScheduler();
     
     // 4. Start Telegram Bot (implicit by webhooks being enabled now)
     

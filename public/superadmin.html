@@ -120,13 +120,23 @@
 </div> <!-- end errors-pane -->
 
 <div class="tab-pane fade" id="backups-pane" role="tabpanel">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h2>System Backups</h2>
-    <div>
-      <span id="backupConfiguredStatus" class="badge bg-secondary me-3">Checking Status...</span>
-      <span id="backupNextRun" class="text-muted me-3" style="font-size:0.9rem;"></span>
-      <button class="btn btn-primary" id="createBackupBtn"><i class="bi bi-plus-circle"></i> Create Manual Backup</button>
-      <button class="btn btn-outline-secondary ms-2" id="refreshBackupsBtn"><i class="bi bi-arrow-clockwise"></i></button>
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <div class="input-group input-group-sm me-2" style="width: 250px;">
+        <span class="input-group-text bg-light"><i class="bi bi-clock-history"></i></span>
+        <select class="form-select" id="backupScheduleSelect">
+          <option value="12">Every 12 Hours</option>
+          <option value="24">Every 24 Hours</option>
+          <option value="168">Every 7 Days</option>
+          <option value="0">Disabled</option>
+        </select>
+        <button class="btn btn-outline-primary" id="saveScheduleBtn">Save</button>
+      </div>
+      <span id="backupConfiguredStatus" class="badge bg-secondary">Checking Status...</span>
+      <span id="backupNextRun" class="text-muted mx-2" style="font-size:0.85rem;"></span>
+      <button class="btn btn-primary btn-sm" id="createBackupBtn"><i class="bi bi-plus-circle"></i> Create Manual Backup</button>
+      <button class="btn btn-outline-secondary btn-sm" id="refreshBackupsBtn"><i class="bi bi-arrow-clockwise"></i></button>
     </div>
   </div>
   <div class="card">

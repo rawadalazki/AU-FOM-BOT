@@ -22,6 +22,7 @@ module.exports = {
   // ── Backward-compatible API (used by server.js) ──
   startScheduler: () => backupService.startScheduler(),
   stopScheduler: () => backupService.stopScheduler(),
+  updateSchedule: (hours) => backupService.updateSchedule(hours),
   performBackup: (triggeredBy) => backupService.createBackup(triggeredBy || 'manual'),
 
   // ── Extended API (for future Telegram Bot / Web Platform integration) ──

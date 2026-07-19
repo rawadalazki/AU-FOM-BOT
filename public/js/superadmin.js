@@ -323,7 +323,66 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const confirmDelBtn = document.getElementById('confirmDeleteBackupBtn');
   if (confirmDelBtn) confirmDelBtn.addEventListener('click', executeDeleteBackup);
+
+  const saveSchedBtn = document.getElementById('saveScheduleBtn');
+  if (saveSchedBtn) saveSchedBtn.addEventListener('click', saveBackupSchedule);
+  
+  if (backupsTabBtn) backupsTabBtn.addEventListener('click', loadBackupSettings);
 });
+
+async function loadBackupSettings() {
+  if (currentUser.role !== 'OWNER' && !currentUser.is_deputy_owner) {
+    const schedSelect = document.getElementById('backupScheduleSelect');
+    if (schedSelect && schedSelect.parentElement) {
+      schedSelect.parentElement.classList.add('d-none');
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/superadmin/settings/backup');
+    if (res.ok) {
+      const data = await res.json();
+      const select = document.getElementById('backupScheduleSelect');
+      if (select) {
+        select.value = data.intervalHours.toString();
+      }
+    }
+  } catch(e) {
+    console.error('Failed to load backup settings', e);
+  }
+}
+
+async function saveBackupSchedule() {
+  const btn = document.getElementById('saveScheduleBtn');
+  const select = document.getElementById('backupScheduleSelect');
+  if (!btn || !select) return;
+
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+  try {
+    const res = await fetch('/api/superadmin/settings/backup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intervalHours: select.value })
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to save');
+    }
+    
+    btn.innerHTML = '<i class="bi bi-check-lg text-success"></i>';
+    setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
+    loadBackups(); // Refresh the next run time
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
 
 async function loadBackups() {
   try {

@@ -20,13 +20,12 @@
 'use strict';
 
 const logger = require('../../logger');
-const { pool } = require('../../database');
+const { pool, getSystemSetting } = require('../../database');
 const crypto = require('./backup-crypto');
 const compressor = require('./backup-compressor');
 const storage = require('./backup-storage');
 
 const MAX_BACKUPS = 5;
-const SCHEDULE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Tables in FK-safe insertion order.
@@ -583,9 +582,9 @@ class BackupService {
   // ─── SCHEDULER ────────────────────────────────────────────────
 
   /**
-   * Start the automatic backup scheduler (every 24 hours).
+   * Start the automatic backup scheduler based on system settings.
    */
-  startScheduler() {
+  async startScheduler() {
     const enabled = process.env.BACKUP_ENABLED === 'true';
 
     if (!enabled) {
@@ -603,8 +602,16 @@ class BackupService {
       return;
     }
 
-    logger.info(`[Backup] Automatic backups ENABLED (interval: 24h, retention: ${MAX_BACKUPS})`);
-    this._scheduleNext();
+    // Default to 24 hours if not set
+    const intervalHours = await getSystemSetting('backup_interval_hours', 24);
+
+    if (intervalHours === 0) {
+      logger.info('[Backup] Automatic backups are DISABLED via system settings.');
+      return;
+    }
+
+    logger.info(`[Backup] Automatic backups ENABLED (interval: ${intervalHours}h, retention: ${MAX_BACKUPS})`);
+    await this._scheduleNext(intervalHours);
   }
 
   /**
@@ -619,25 +626,49 @@ class BackupService {
   }
 
   /**
-   * Schedule the next backup run.
-   * Uses setTimeout to calculate delay until the next 03:00 UTC,
-   * then re-schedules after completion.
+   * Update the backup schedule dynamically.
+   * @param {number} hours 
    */
-  _scheduleNext() {
+  async updateSchedule(hours) {
+    this.stopScheduler();
+    
+    if (hours === 0) {
+      logger.info('[Backup] Automatic backups have been DISABLED via updateSchedule.');
+      return;
+    }
+    
+    logger.info(`[Backup] Schedule updated to every ${hours}h`);
+    await this._scheduleNext(hours);
+  }
+
+  /**
+   * Schedule the next backup run based on interval.
+   */
+  async _scheduleNext(intervalHours) {
+    if (!intervalHours || intervalHours <= 0) return;
+
     const now = new Date();
     const next = new Date(now);
-    next.setUTCHours(3, 0, 0, 0); // 03:00 UTC daily
 
-    if (now >= next) {
-      next.setUTCDate(next.getUTCDate() + 1);
+    if (intervalHours === 24) {
+      next.setUTCHours(3, 0, 0, 0); // 03:00 UTC daily for 24h interval
+      if (now >= next) {
+        next.setUTCDate(next.getUTCDate() + 1);
+      }
+    } else {
+      // For other intervals (e.g. 12, 168), just add hours to current time
+      next.setUTCHours(next.getUTCHours() + intervalHours);
     }
 
     const delayMs = next.getTime() - now.getTime();
     logger.info(`[Backup] Next automatic backup scheduled in ${Math.round(delayMs / 60000)} minutes (at ${next.toISOString()})`);
 
+    this._nextScheduledTime = next.getTime();
+
     this._timerId = setTimeout(async () => {
       await this.createBackup('scheduler');
-      this._scheduleNext(); // Schedule the next one
+      const latestInterval = await getSystemSetting('backup_interval_hours', 24);
+      await this._scheduleNext(latestInterval); // Schedule the next one using latest setting
     }, delayMs);
 
     // Prevent the timer from keeping the Node.js process alive
@@ -663,13 +694,7 @@ class BackupService {
    */
   getNextScheduledBackupMs() {
     if (!this._timerId) return null;
-    const now = new Date();
-    const next = new Date(now);
-    next.setUTCHours(3, 0, 0, 0); // 03:00 UTC daily
-    if (now >= next) {
-      next.setUTCDate(next.getUTCDate() + 1);
-    }
-    return next.getTime();
+    return this._nextScheduledTime || null;
   }
 
   /**
