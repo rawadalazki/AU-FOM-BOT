@@ -811,6 +811,14 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn_ar', menuId });
         const m = t(lang, 'MSG_ADMIN_9');
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: cancelKb });
+      } else if (action === 'rminline') {
+        const menuBtn = await dbHelper.getMenuById(menuId);
+        if (menuBtn) {
+          await dbHelper.updateMenu(menuBtn.id, menuBtn.parent_id, menuBtn.title_en, menuBtn.title_ar, menuBtn.reply_type, menuBtn.reply_content_en, menuBtn.reply_content_ar, menuBtn.file_name, menuBtn.telegram_file_id, menuBtn.mime_type, menuBtn.file_size, menuBtn.sort_order, menuBtn.row_index, null);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_INLINE_BUTTONS_REMOVED') });
+          const adminNavRep = require('./admin-menu-navigation');
+          await adminNavRep.sendAdminMenuDetails(this, chatId, menuBtn.id, lang);
+        }
       } else if (action === 'move') {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_move_dest', menuId });
         const m = t(lang, 'MSG_ADMIN_10');

@@ -69,6 +69,8 @@
   "BTN_FILE_BUTTON": "📄 زر ملفات",
   "BTN_TEXT_BUTTON": "📝 زر نصي",
   "BTN_INLINE_BUTTONS": "🔗 أزرار شفافة",
+  "BTN_REMOVE_INLINE_BUTTONS": "🗑️ إزالة الأزرار الشفافة",
+  "MSG_INLINE_BUTTONS_REMOVED": "✅ تم إزالة الأزرار الشفافة بنجاح.",
   "BTN_MOVE": "🔄 نقل الزر",
   "BTN_CHANGE_ORDER": "↕️ تغيير الترتيب",
   "BTN_RENAME": "✏️ إعادة التسمية",

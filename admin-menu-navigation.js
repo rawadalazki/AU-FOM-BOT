@@ -89,10 +89,18 @@ class AdminMenuNavigation {
     }
 
     // Advanced options (Inline buttons, Move, Order)
-    kb.push([
-      { text: t(lang, 'BTN_INLINE_BUTTONS'), callback_data: `admin_inline_${menuId}` },
-      { text: t(lang, 'BTN_MOVE'), callback_data: `admin_move_${menuId}` }
-    ]);
+    if (menu.inline_buttons) {
+      kb.push([
+        { text: t(lang, 'BTN_INLINE_BUTTONS'), callback_data: `admin_inline_${menuId}` },
+        { text: t(lang, 'BTN_REMOVE_INLINE_BUTTONS'), callback_data: `admin_rminline_${menuId}` }
+      ]);
+      kb.push([{ text: t(lang, 'BTN_MOVE'), callback_data: `admin_move_${menuId}` }]);
+    } else {
+      kb.push([
+        { text: t(lang, 'BTN_INLINE_BUTTONS'), callback_data: `admin_inline_${menuId}` },
+        { text: t(lang, 'BTN_MOVE'), callback_data: `admin_move_${menuId}` }
+      ]);
+    }
 
     kb.push([{ text: t(lang, 'BTN_CHANGE_ORDER'), callback_data: `admin_order_${menuId}` }]);
 

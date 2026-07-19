@@ -69,6 +69,8 @@
   "BTN_FILE_BUTTON": "📄 File Button",
   "BTN_TEXT_BUTTON": "📝 Text Button",
   "BTN_INLINE_BUTTONS": "🔗 Inline Buttons",
+  "BTN_REMOVE_INLINE_BUTTONS": "🗑️ Remove Inline Buttons",
+  "MSG_INLINE_BUTTONS_REMOVED": "✅ Inline buttons removed successfully.",
   "BTN_MOVE": "🔄 Move",
   "BTN_CHANGE_ORDER": "↕️ Change Order",
   "BTN_RENAME": "✏️ Rename",
