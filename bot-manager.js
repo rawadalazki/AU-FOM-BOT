@@ -1601,8 +1601,8 @@ class TelegramBotService {
         await dbHelper.updateMenu(state.menuId, m3.parent_id, m3.title_en, m3.title_ar, 'file', cEn, cAr, m3.file_name, m3.telegram_file_id, m3.mime_type, m3.file_size, m3.sort_order, m3.row_index);
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_61'), reply_markup: { remove_keyboard: true } });
         const adminNavF = require('./admin-menu-navigation');
-        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: state.menuId });
-        await adminNavF.sendAdminMenuDetails(this, chatId, state.menuId, lang);
+        await dbHelper.setAdminState(chatId, { action: 'managing_menus', currentMenuId: m3.parent_id, viewingMenuDetailsId: null });
+        await adminNavF.sendAdminReplyMenus(this, chatId, m3.parent_id, lang);
         break;
       }
 
