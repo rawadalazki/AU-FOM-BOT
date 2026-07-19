@@ -804,7 +804,7 @@ class TelegramBotService {
         await dbHelper.setAdminState(chatId, { action: 'awaiting_edit_text_ar', menuId });
         await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_ADMIN_8'), reply_markup: cancelKb });
       } else if (action === 'inline') {
-        await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn', menuId });
+        await dbHelper.setAdminState(chatId, { action: 'awaiting_inline_btn_ar', menuId });
         const m = t(lang, 'MSG_ADMIN_9');
         await this.apiCall('sendMessage', { chat_id: chatId, text: m, reply_markup: cancelKb });
       } else if (action === 'move') {
