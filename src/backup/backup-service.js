@@ -586,6 +586,7 @@ class BackupService {
    * Start the automatic backup scheduler based on system settings.
    */
   async startScheduler() {
+    console.log('[DEBUG] dbHelper keys at startScheduler:', Object.keys(dbHelper));
     const enabled = process.env.BACKUP_ENABLED === 'true';
 
     if (!enabled) {
