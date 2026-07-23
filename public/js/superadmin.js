@@ -419,7 +419,7 @@ async function loadBackups() {
     let canDownloadDelete = currentUser.role === 'OWNER' || currentUser.is_deputy_owner;
     
     data.backups.forEach(b => {
-      const isAuto = b.key.includes('auto') || !b.key.includes('manual');
+      const isAuto = b.key.includes('-auto-');
       const tr = document.createElement('tr');
       
       let actionsHtml = `

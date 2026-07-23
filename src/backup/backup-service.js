@@ -95,7 +95,8 @@ class BackupService {
 
       // Step 4: Upload to R2
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const key = `${storage.BACKUP_PREFIX}fombot-backup-${timestamp}.enc`;
+      const source = triggeredBy === 'scheduler' ? 'auto' : 'manual';
+      const key = `${storage.BACKUP_PREFIX}fombot-backup-${source}-${timestamp}.enc`;
       await storage.upload(key, encrypted);
 
       // Step 5: Cleanup old backups
@@ -668,9 +669,20 @@ class BackupService {
     this._nextScheduledTime = next.getTime();
 
     this._timerId = setTimeout(async () => {
-      await this.createBackup('scheduler');
-      const latestInterval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
-      await this._scheduleNext(latestInterval); // Schedule the next one using latest setting
+      try {
+        await this.createBackup('scheduler');
+      } catch (err) {
+        logger.error({ err }, '[Backup] Scheduled backup failed unexpectedly');
+      }
+
+      // Always reschedule the next backup, even if this one failed
+      try {
+        const latestInterval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
+        await this._scheduleNext(latestInterval);
+      } catch (err) {
+        logger.error({ err }, '[Backup] Failed to reschedule next backup, retrying in 1 hour');
+        await this._scheduleNext(1); // Fallback: retry in 1 hour
+      }
     }, delayMs);
 
     // Prevent the timer from keeping the Node.js process alive
