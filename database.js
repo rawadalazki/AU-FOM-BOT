@@ -132,6 +132,7 @@ async function _initDb() {
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS disabled_button_url TEXT;`);
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS welcome_button_text TEXT;`);
     await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS welcome_button_url TEXT;`);
+    await safeInitQuery(`ALTER TABLE faculties ADD COLUMN IF NOT EXISTS bot_maintenance_mode BOOLEAN DEFAULT false;`);
   } catch (e) {
     console.log('Error adding columns to faculties:', e.message);
   }
@@ -534,6 +535,14 @@ async function createFaculty(nameEn, nameAr, slug) {
   
   await cache.del('faculties:all');
   return rows[0].id;
+}
+
+async function updateFacultyMaintenanceMode(facultyId, mode) {
+  const result = await pool.query(
+    'UPDATE faculties SET bot_maintenance_mode = $1 WHERE id = $2 RETURNING *',
+    [mode, facultyId]
+  );
+  return result.rows[0];
 }
 
 async function updateFaculty(id, nameEn, nameAr, slug, token, adminChat, welcomeEn, welcomeAr, botEnabled, disabledEn, disabledAr, apiServer, emptyEn, emptyAr, unknownEn, unknownAr, noFileEn, noFileAr, notifyNewUser, disabledBtnText, disabledBtnUrl, welcomeBtnText, welcomeBtnUrl) {
@@ -1114,6 +1123,7 @@ module.exports = {
   logAdminAction,
   assignDeputyOwner,
   getSystemSetting,
-  setSystemSetting
+  setSystemSetting,
+  updateFacultyMaintenanceMode
 };
 

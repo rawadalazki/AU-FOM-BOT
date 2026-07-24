@@ -178,5 +178,9 @@
   "MSG_ADMIN_90": "✅ Button moved successfully.",
   "MSG_ADMIN_91": "What type of button?",
   "MSG_ADMIN_92": "No permission to add folder.",
-  "MSG_ADMIN_93": "Send the new button name (Arabic):"
+  "MSG_ADMIN_93": "Send new button name (Arabic):",
+  "BTN_TOGGLE_MAINTENANCE_ON": "🔴 Stop Bot (Maintenance)",
+  "BTN_TOGGLE_MAINTENANCE_OFF": "🟢 Start Bot (End Maintenance)",
+  "MSG_MAINTENANCE_ENABLED": "✅ Bot stopped successfully. Regular users cannot use it now.",
+  "MSG_MAINTENANCE_DISABLED": "✅ Bot started successfully. Regular users can now use it."
 }

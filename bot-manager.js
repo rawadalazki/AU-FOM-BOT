@@ -302,7 +302,7 @@ class TelegramBotService {
 
     const adminRole = await dbHelper.getAdminRole(faculty.id, chatId);
     const isAdmin = !!adminRole;
-    if (faculty.bot_enabled === 0 && !isAdmin) {
+    if ((faculty.bot_enabled === 0 || faculty.bot_maintenance_mode) && !isAdmin) {
       const disabledMsg = user.language === 'ar' 
         ? (faculty.disabled_message_ar || 'عذراً، البوت متوقف حالياً للصيانة والتحديثات.') 
         : (faculty.disabled_message_en || 'Sorry, the bot is temporarily offline for maintenance.');
@@ -572,6 +572,18 @@ class TelegramBotService {
     
     const dbHelper = require('./database');
     const faculty = await dbHelper.getFacultyById(this.facultyId);
+    
+    const adminRoleQ = await dbHelper.getAdminRole(faculty.id, chatId);
+    const isAdminQ = !!adminRoleQ;
+    if ((faculty.bot_enabled === 0 || faculty.bot_maintenance_mode) && !isAdminQ) {
+      await this.apiCall('answerCallbackQuery', { 
+        callback_query_id: callbackQuery.id, 
+        text: 'عذراً، البوت متوقف حالياً للصيانة والتحديثات.', 
+        show_alert: true 
+      });
+      return;
+    }
+
     let user = await dbHelper.getBotUser(this.facultyId, 'telegram', chatId);
     if (!user) {
       user = await dbHelper.upsertBotUser(this.facultyId, 'telegram', chatId, callbackQuery.from.username || callbackQuery.from.first_name, null);
@@ -870,6 +882,8 @@ class TelegramBotService {
     if (match('BTN_NEW_ANNOUNCEMENT')) return 'new_announcement';
     if (match('BTN_MANAGE_ANNOUNCEMENTS')) return 'manage_announcements';
     if (match('BTN_STATISTICS')) return 'statistics';
+    if (match('BTN_TOGGLE_MAINTENANCE_ON')) return 'toggle_maintenance_on';
+    if (match('BTN_TOGGLE_MAINTENANCE_OFF')) return 'toggle_maintenance_off';
     if (match('BTN_SETTINGS')) return 'core_settings';
     
     if (match('BTN_MANAGE_ADMINS')) return 'manage_admins'; // Sub-admins alias
@@ -1175,6 +1189,14 @@ class TelegramBotService {
           ];
           await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'BTN_MONITORING') + ':', reply_markup: { keyboard, resize_keyboard: true } });
           await dbHelper.setAdminState(chatId, { action: 'admin_monitoring_menu' });
+        } else if (actionId === 'toggle_maintenance_on') {
+          await dbHelper.updateFacultyMaintenanceMode(this.facultyId, true);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_MAINTENANCE_ENABLED') });
+          await this.sendAdminHome(chatId, lang);
+        } else if (actionId === 'toggle_maintenance_off') {
+          await dbHelper.updateFacultyMaintenanceMode(this.facultyId, false);
+          await this.apiCall('sendMessage', { chat_id: chatId, text: t(lang, 'MSG_MAINTENANCE_DISABLED') });
+          await this.sendAdminHome(chatId, lang);
         }
       }
       return;
@@ -1858,6 +1880,8 @@ class TelegramBotService {
     keyboard.push([{ text: t(lang, 'BTN_MANAGE_MENUS') }]);
 
     if (role === 'OWNER' || role === 'DEPUTY_ADMIN') {
+        const fac = await dbHelper.getFacultyById(this.facultyId);
+        
         keyboard.push([
             { text: t(lang, 'BTN_NEW_ANNOUNCEMENT') },
             { text: t(lang, 'BTN_MANAGE_ANNOUNCEMENTS') }
@@ -1866,6 +1890,14 @@ class TelegramBotService {
             { text: t(lang, 'BTN_STATISTICS') },
             { text: t(lang, 'BTN_MONITORING') }
         ]);
+        
+        if (fac) {
+            if (fac.bot_maintenance_mode) {
+                keyboard.push([{ text: t(lang, 'BTN_TOGGLE_MAINTENANCE_OFF') }]);
+            } else {
+                keyboard.push([{ text: t(lang, 'BTN_TOGGLE_MAINTENANCE_ON') }]);
+            }
+        }
     }
 
     if (role === 'OWNER') {
