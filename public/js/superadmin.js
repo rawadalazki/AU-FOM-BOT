@@ -303,7 +303,14 @@ async function deleteAdmin() {
 // --- BACKUPS LOGIC ---
 document.addEventListener('DOMContentLoaded', () => {
   const backupsTabBtn = document.getElementById('backups-tab');
-  if (backupsTabBtn) backupsTabBtn.addEventListener('shown.bs.tab', loadBackups);
+  if (backupsTabBtn) {
+    const triggerBackupLoad = () => {
+      loadBackups();
+      loadBackupSettings();
+    };
+    backupsTabBtn.addEventListener('click', triggerBackupLoad);
+    backupsTabBtn.addEventListener('shown.bs.tab', triggerBackupLoad);
+  }
   
   const refreshBtn = document.getElementById('refreshBackupsBtn');
   if (refreshBtn) refreshBtn.addEventListener('click', loadBackups);
@@ -326,12 +333,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saveSchedBtn = document.getElementById('saveScheduleBtn');
   if (saveSchedBtn) saveSchedBtn.addEventListener('click', saveBackupSchedule);
-  
-  if (backupsTabBtn) backupsTabBtn.addEventListener('shown.bs.tab', loadBackupSettings);
 });
 
 async function loadBackupSettings() {
-  if (currentUser.role !== 'OWNER' && !currentUser.is_deputy_owner) {
+  if (!currentUser || (currentUser.role !== 'OWNER' && !currentUser.is_deputy_owner)) {
     const schedSelect = document.getElementById('backupScheduleSelect');
     if (schedSelect && schedSelect.parentElement) {
       schedSelect.parentElement.classList.add('d-none');
@@ -344,7 +349,7 @@ async function loadBackupSettings() {
     if (res.ok) {
       const data = await res.json();
       const select = document.getElementById('backupScheduleSelect');
-      if (select) {
+      if (select && data.intervalHours !== undefined) {
         select.value = data.intervalHours.toString();
       }
     }
@@ -385,38 +390,49 @@ async function saveBackupSchedule() {
 }
 
 async function loadBackups() {
+  const tbody = document.getElementById('backupsTableBody');
+  if (tbody && (!tbody.children || tbody.children.length === 0)) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Loading backups...</td></tr>';
+  }
+
   try {
     const res = await fetch('/api/superadmin/backups');
-    if (!res.ok) throw new Error('Failed to load backups');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
+    }
     const data = await res.json();
     
     // Update header
     const statusBadge = document.getElementById('backupConfiguredStatus');
-    if (data.isConfigured) {
-      statusBadge.textContent = 'Storage: Configured';
-      statusBadge.className = 'badge bg-success me-3';
-    } else {
-      statusBadge.textContent = 'Storage: Not Configured';
-      statusBadge.className = 'badge bg-danger me-3';
+    if (statusBadge) {
+      if (data.isConfigured) {
+        statusBadge.textContent = 'Storage: Configured';
+        statusBadge.className = 'badge bg-success me-3';
+      } else {
+        statusBadge.textContent = 'Storage: Not Configured';
+        statusBadge.className = 'badge bg-danger me-3';
+      }
     }
     
     const nextRun = document.getElementById('backupNextRun');
-    if (data.nextScheduledMs) {
-      nextRun.textContent = 'Next auto backup: ' + new Date(data.nextScheduledMs).toLocaleString();
-    } else {
-      nextRun.textContent = 'Auto backup disabled';
+    if (nextRun) {
+      if (data.nextScheduledMs) {
+        nextRun.textContent = 'Next auto backup: ' + new Date(data.nextScheduledMs).toLocaleString();
+      } else {
+        nextRun.textContent = 'Auto backup disabled';
+      }
     }
     
-    const tbody = document.getElementById('backupsTableBody');
-    tbody.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
     
     if (!data.backups || data.backups.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No backups found</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No backups found</td></tr>';
       return;
     }
     
     // Determine permissions
-    let canDownloadDelete = currentUser.role === 'OWNER' || currentUser.is_deputy_owner;
+    let canDownloadDelete = currentUser && (currentUser.role === 'OWNER' || currentUser.is_deputy_owner);
     
     data.backups.forEach(b => {
       const isAuto = b.key.includes('-auto-');
@@ -445,7 +461,7 @@ async function loadBackups() {
         <td>${b.sizeHuman}</td>
         <td class="text-end">${actionsHtml}</td>
       `;
-      tbody.appendChild(tr);
+      if (tbody) tbody.appendChild(tr);
     });
     
     // Attach listeners
@@ -474,7 +490,10 @@ async function loadBackups() {
     });
     
   } catch(e) {
-    console.error(e);
+    console.error('Error in loadBackups:', e);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center py-3 text-danger">Error loading backups: ${e.message}</td></tr>`;
+    }
   }
 }
 

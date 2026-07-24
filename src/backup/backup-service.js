@@ -587,11 +587,10 @@ class BackupService {
    * Start the automatic backup scheduler based on system settings.
    */
   async startScheduler() {
-    console.log('[DEBUG] dbHelper keys at startScheduler:', Object.keys(dbHelper));
-    const enabled = process.env.BACKUP_ENABLED === 'true';
+    const enabled = process.env.BACKUP_ENABLED !== 'false';
 
     if (!enabled) {
-      logger.info('[Backup] Automatic backups DISABLED (BACKUP_ENABLED != true)');
+      logger.info('[Backup] Automatic backups DISABLED (BACKUP_ENABLED == false)');
       return;
     }
 
@@ -606,9 +605,10 @@ class BackupService {
     }
 
     // Default to 24 hours if not set
-    const intervalHours = await dbHelper.getSystemSetting('backup_interval_hours', 24);
+    const rawInterval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
+    const intervalHours = parseInt(rawInterval, 10);
 
-    if (intervalHours === 0) {
+    if (isNaN(intervalHours) || intervalHours <= 0) {
       logger.info('[Backup] Automatic backups are DISABLED via system settings.');
       return;
     }

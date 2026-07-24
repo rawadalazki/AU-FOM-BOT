@@ -249,9 +249,11 @@ async function _initDb() {
       id SERIAL PRIMARY KEY,
       admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
       action TEXT NOT NULL,
-      entity_type TEXT NOT NULL,
+      entity_type TEXT,
+      entity TEXT,
       entity_id TEXT,
       ip_address TEXT,
+      details JSONB,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
@@ -333,6 +335,10 @@ async function _initDb() {
   await safeInitQuery(
     `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;`
   );
+  await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS entity_type TEXT;`);
+  await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS entity TEXT;`);
+  await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS details JSONB;`);
+  await safeInitQuery(`ALTER TABLE admin_audit_log ALTER COLUMN entity_type DROP NOT NULL;`).catch(() => {});
 
   // Phase: Telegram Bot Roles
   await safeInitQuery(`
@@ -913,10 +919,14 @@ async function cleanupExpiredSessions() {
 }
 
 async function logAdminAction(adminId, action, entity, entityId, ipAddress) {
-  await pool.query(
-    'INSERT INTO admin_audit_log (admin_id, action, entity, entity_id, ip_address) VALUES ($1, $2, $3, $4, $5)', 
-    [adminId, action, entity, entityId, ipAddress]
-  );
+  try {
+    await pool.query(
+      'INSERT INTO admin_audit_log (admin_id, action, entity_type, entity, entity_id, ip_address) VALUES ($1, $2, $3, $3, $4, $5)', 
+      [adminId, action, entity, entityId, ipAddress]
+    );
+  } catch (err) {
+    logger.error({ err, adminId, action }, 'Failed to log admin action');
+  }
 }
 
 async function assignDeputyOwner(newDeputyId) {

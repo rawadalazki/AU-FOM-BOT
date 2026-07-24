@@ -533,9 +533,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/superadmin/settings/backup') {
       if (method === 'GET') {
         try {
-          const interval = await dbHelper.getSystemSetting('backup_interval_hours', 24);
-          return sendJson(res, 200, { intervalHours: interval });
+          const raw = await dbHelper.getSystemSetting('backup_interval_hours', 24);
+          const interval = parseInt(raw, 10);
+          return sendJson(res, 200, { intervalHours: isNaN(interval) ? 24 : interval });
         } catch(e) {
+          logger.error({ err: e }, '[Backup Route] Error reading backup settings');
           return sendJson(res, 500, { error: e.message });
         }
       }
@@ -562,6 +564,7 @@ const server = http.createServer(async (req, res) => {
           
           return sendJson(res, 200, { ok: true, intervalHours: hours });
         } catch(e) {
+          logger.error({ err: e }, '[Backup Route] Error updating backup schedule');
           return sendJson(res, 500, { error: e.message });
         }
       }
