@@ -247,7 +247,7 @@ async function _initDb() {
   await safeInitQuery(`
     CREATE TABLE IF NOT EXISTS admin_audit_log (
       id SERIAL PRIMARY KEY,
-      admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+      admin_id UUID REFERENCES admin_users(id) ON DELETE CASCADE,
       action TEXT NOT NULL,
       entity_type TEXT,
       entity TEXT,
@@ -339,6 +339,7 @@ async function _initDb() {
   await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS entity TEXT;`);
   await safeInitQuery(`ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS details JSONB;`);
   await safeInitQuery(`ALTER TABLE admin_audit_log ALTER COLUMN entity_type DROP NOT NULL;`).catch(() => {});
+  await safeInitQuery(`ALTER TABLE admin_audit_log ALTER COLUMN admin_id DROP NOT NULL;`).catch(() => {});
 
   // Phase: Telegram Bot Roles
   await safeInitQuery(`

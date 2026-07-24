@@ -105,6 +105,15 @@ class BackupService {
       const durationMs = Date.now() - startTime;
       logger.info({ key, durationMs, triggeredBy }, '[Backup] Backup completed successfully');
 
+      // Log automatic backups to the admin_audit_log (system action)
+      if (triggeredBy === 'scheduler') {
+        try {
+          await dbHelper.logAdminAction(null, 'create_backup', 'backups', key, 'system');
+        } catch (logErr) {
+          logger.error({ err: logErr }, '[Backup] Failed to log automatic backup to audit log');
+        }
+      }
+
       return { success: true, key };
     } catch (err) {
       logger.error({ err, triggeredBy }, '[Backup] Backup failed');
