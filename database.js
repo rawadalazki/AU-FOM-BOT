@@ -1111,6 +1111,8 @@ module.exports = {
   deleteAllSessions,
   cleanupExpiredSessions,
   logAdminAction,
-  assignDeputyOwner
+  assignDeputyOwner,
+  getSystemSetting,
+  setSystemSetting
 };
 
