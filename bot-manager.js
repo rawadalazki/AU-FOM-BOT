@@ -1157,7 +1157,7 @@ class TelegramBotService {
         await this.apiCall('sendMessage',
  { chat_id: chatId, text: lang === 'ar' ? statsAr : statsEn, parse_mode: 'Markdown' });
         }
-      } else if (actionId === 'core_settings' || actionId === 'manage_admins' || actionId === 'manage_deputies' || actionId === 'admin_monitoring') {
+      } else if (actionId === 'core_settings' || actionId === 'manage_admins' || actionId === 'manage_deputies' || actionId === 'admin_monitoring' || actionId === 'toggle_maintenance_on' || actionId === 'toggle_maintenance_off') {
         if (actionId === 'core_settings') {
           await dbHelper.setAdminState(chatId, { action: 'managing_config' });
           const fac = await dbHelper.getFacultyById(this.facultyId);
