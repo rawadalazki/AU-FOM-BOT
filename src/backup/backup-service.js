@@ -661,18 +661,23 @@ class BackupService {
 
     const now = new Date();
     const next = new Date(now);
+    let delayMs = 0;
 
     if (intervalHours === 24) {
       next.setUTCHours(3, 0, 0, 0); // 03:00 UTC daily for 24h interval
       if (now >= next) {
         next.setUTCDate(next.getUTCDate() + 1);
       }
+      delayMs = next.getTime() - now.getTime();
     } else {
-      // For other intervals (e.g. 12, 168), just add hours to current time
-      next.setUTCHours(next.getUTCHours() + intervalHours);
+      // Use epoch modulo to ensure predictable, stable schedule across server restarts.
+      // e.g. for 12h interval, it will ALWAYS schedule for 00:00 UTC and 12:00 UTC.
+      const intervalMs = intervalHours * 60 * 60 * 1000;
+      const timeSinceLastInterval = now.getTime() % intervalMs;
+      delayMs = intervalMs - timeSinceLastInterval;
+      next.setTime(now.getTime() + delayMs);
     }
 
-    const delayMs = next.getTime() - now.getTime();
     logger.info(`[Backup] Next automatic backup scheduled in ${Math.round(delayMs / 60000)} minutes (at ${next.toISOString()})`);
 
     this._nextScheduledTime = next.getTime();
