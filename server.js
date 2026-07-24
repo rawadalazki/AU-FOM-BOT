@@ -548,7 +548,7 @@ const server = http.createServer(async (req, res) => {
         }
         
         try {
-          const body = await parseJsonBody(req);
+          const body = await parseJson(req);
           const hours = parseInt(body.intervalHours, 10);
           
           if (isNaN(hours) || hours < 0) {
@@ -595,7 +595,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (pathname === '/api/superadmin/backups/restore' && method === 'POST') {
-        const body = await parseJsonBody(req);
+        const body = await parseJson(req);
         if (!body.key) return sendJson(res, 400, { error: 'Missing backup key' });
         
         const list = await bs.listBackups();
